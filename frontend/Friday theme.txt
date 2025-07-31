@@ -1,0 +1,52 @@
+// tailwind.config.js or theme.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        primary:   '#1a001a', // dark plum background
+        secondary: '#ff2fa0', // neon pink accent
+        accent:    '#ff72d0', // hot pink
+        waifu:     '#ff6c99', // soft waifu pink
+        neutral: {
+          50:  '#fff0fa',
+          100: '#ffd6ec',
+          200: '#ffb3da',
+          300: '#ff8dc7',
+          400: '#ff6c99',
+          500: '#e05585',
+          600: '#b53d6a',
+          700: '#8d2950',
+          800: '#60173a',
+          900: '#2f001a',
+        },
+      },
+      fontFamily: {
+        sans:    ['Montserrat', 'sans-serif'],
+        heading: ['Pacifico', 'cursive'], // More playful for waifu
+      },
+      borderRadius: {
+        'xl': '1.5rem',
+      },
+      boxShadow: {
+        DEFAULT: '0 2px 16px #ff2fa099',
+        md:      '0 4px 24px #ff72d088',
+      },
+    },
+  },
+}
+
+
+
+<button class="bg-primary text-white py-2 px-6 rounded-xl shadow hover:bg-secondary transition">
+  Primary Action
+</button>
+
+
+<div class="bg-neutral-100 p-6 rounded-lg shadow-md">
+  <h3 class="font-heading text-xl mb-2 text-neutral-900">Card Title</h3>
+  <p class="text-neutral-700">Card body copy goes here.</p>
+</div>
+
+
+
+

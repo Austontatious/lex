@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .drop-shadow-glow {
+    filter: drop-shadow(0 0 8px #00FFAA);
+  }
+}
+
+/* Global animation keyframes (if not defined via Tailwind keyframes) */
+body {
+  background: radial-gradient(ellipse at 60% 20%, #ffb3da 0%, #ff2fa0 55%, #1a001a 100%);
+  min-height: 100vh;
+}
+
+/* Pink pulse animation */
+@keyframes lexPulse {
+  0% {
+    box-shadow: 0 0 24px #ff2fa0, 0 0 56px #ff72d099;
+  }
+  50% {
+    box-shadow: 0 0 40px #ff72d0, 0 0 72px #ff2fa088;
+  }
+  100% {
+    box-shadow: 0 0 24px #ff2fa0, 0 0 56px #ff72d099;
+  }
+}
+
+/* Utility for message glow */
+.drop-shadow-glow {
+  filter: drop-shadow(0 0 12px #ff2fa0);
+}
+
+

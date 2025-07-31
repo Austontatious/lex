@@ -1,0 +1,29 @@
+# Python cache and junk
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Local venv (if created inside lex/)
+.venv/
+venv/
+
+# Large or private files
+memory/
+weights/
+*.safetensors
+*.ckpt
+*.zip
+*.json
+*.jsonl
+
+# Frontend build artifacts
+node_modules/
+dist/
+build/
+
+# Local configs or secrets
+config.py
+.env
+
