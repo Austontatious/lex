@@ -1,4 +1,3 @@
-
 import React, {
   useState,
   useRef,
@@ -9,16 +8,16 @@ import React, {
 import { v4 as uuidv4 } from "uuid";
 import {
   Box,
-  VStack,
-  HStack,
-  Textarea,
   Button,
+  Flex,
+  HStack,
   IconButton,
+  Image,
+  Spacer,
+  Textarea,
+  VStack,
   useColorMode,
   useColorModeValue,
-  Flex,
-  Spacer,
-  Image,
   Spinner,
 } from "@chakra-ui/react";
 import { MoonIcon, SunIcon } from "@chakra-ui/icons";
@@ -209,6 +208,26 @@ const handleSend = useCallback(async () => {
   }
 }, [input, loading, avatarFlow, appendMessage, handleTraitFlow]);
 
+//import { useEffect } from "react";
+//import {
+//  lexiOnboardingMessage,
+//  nsfwFallbackMessage,
+//  isTooHot,
+//  shouldShowOnboarding,
+//  markOnboardingShown
+//} from "../../../utils/lexiOnboarding";
+
+//function App() {
+//  useEffect(() => {
+//    if (shouldShowOnboarding()) {
+      // Push Lexi's message into chat stream
+//      addAssistantMessage(lexiOnboardingMessage); // your method here
+//    markOnboardingShown();
+//    }
+//  }, []);
+ 
+// return <ChatUI />;
+//}
 
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -219,13 +238,13 @@ const handleSend = useCallback(async () => {
   };
 
   return (
-    <Flex direction="column" h="100vh">
-      <HStack p={3} bg={bg}>
-        <Box fontWeight="bold" fontSize="lg">
-          Lex Chat
+    <Flex direction="column" h="100vh" bg={bg} fontFamily="'Nunito', sans-serif">
+      <HStack p={3} bg="pink.500" color="white" boxShadow="0 2px 12px rgba(255, 105, 180, 0.6)">
+        <Box fontWeight="bold" fontSize="xl">
+          Lexi Chat
         </Box>
         {persona && (
-          <Box fontSize="xs" color="gray.400" ml={2}>
+          <Box fontSize="sm" color="pink.100" ml={2}>
             mode: {(persona as any).mode ?? "default"}
           </Box>
         )}
@@ -235,78 +254,115 @@ const handleSend = useCallback(async () => {
           icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
           onClick={toggleColorMode}
           variant="ghost"
+          color="white"
         />
       </HStack>
 
-      <Box flex="1" overflowY="auto" p={4}>
+      <Box flex="1" position="relative" overflow="hidden">
+        {/* Floating Avatar */}
         {avatarUrl && (
-          <Box mb={4} textAlign="center">
+          <Box
+            position="absolute"
+            top="16px"
+            left="16px"
+            zIndex="10"
+            animation="pulseGlow 2s infinite"
+            sx={{
+              "@keyframes pulseGlow": {
+                "0%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
+                "50%": { boxShadow: "0 0 18px rgba(255, 105, 180, 0.8)" },
+                "100%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
+              },
+            }}
+          >
             <Image
               src={avatarUrl}
               alt="Lex avatar"
-              maxW="160px"
-              borderRadius="12px"
-              mx="auto"
+              maxW="250px"
+              borderRadius="2xl"
+              border="2px solid hotpink"
+              backdropFilter="blur(4px)"
             />
           </Box>
         )}
 
-        <VStack spacing={4} align="stretch">
+        {/* Chat Scroll Window */}
+        <Box
+          h="100%"
+          overflowY="auto"
+          px={4}
+          pt={4}
+          pb={2}
+          css={{
+            scrollbarColor: "hotpink transparent",
+            scrollbarWidth: "thin",
+          }}
+        >
+          <VStack spacing={4} align="stretch">
             {messages.map((m) => {
-	    if (typeof m.content !== "string" || m.content.trim().length === 0) {
-	      return null; // Or render a placeholder if you want
-	    }
+              if (typeof m.content !== "string" || m.content.trim().length === 0) return null;
 
-	    return (
-	      <Box
-	        key={m.id}
-	        alignSelf={
-		  m.sender === "user"
-		    ? "flex-end"
-		    : m.sender === "ai"
-		    ? "flex-start"
-		    : "center"
-	        }
-	        bg={
-		  m.sender === "user"
-		    ? "blue.500"
-		    : m.sender === "ai"
-		    ? "gray.600"
-		    : "purple.500"
-	        }
-	        color="white"
-	        px={3}
-	        py={2}
-	        borderRadius="md"
-	        maxW="80%"
-	        whiteSpace="pre-wrap"
-	        opacity={m.streaming ? 0.9 : 1}
-	        border={m.error ? "1px solid red" : "none"}
-	      >
-	        {m.content}
-	        {m.streaming && <Spinner size="xs" ml={2} />}
-	      </Box>
-  	    );
-  	  })}
+              return (
+                <Box
+                  key={m.id}
+                  alignSelf={
+                    m.sender === "user"
+                      ? "flex-end"
+                      : m.sender === "ai"
+                      ? "flex-start"
+                      : "center"
+                  }
+                  bg={
+                    m.sender === "user"
+                      ? "pink.400"
+                      : m.sender === "ai"
+                      ? "rgba(100, 100, 100, 0.3)"
+                      : "purple.600"
+                  }
+                  color="white"
+                  px={5}
+                  py={3}
+                  borderRadius="xl"
+                  maxW="80%"
+                  whiteSpace="pre-wrap"
+                  opacity={m.streaming ? 0.9 : 1}
+                  border={m.error ? "1px solid red" : "none"}
+                  boxShadow="0 0 16px rgba(255, 105, 180, 0.8)"
+                  backdropFilter="blur(10px)"
+                  transition="all 0.2s ease-in-out"
+                >
+                  {m.content}
+                  {m.streaming && <Spinner size="xs" ml={2} />}
+                </Box>
+              );
+            })}
 
-          <div ref={chatEndRef} />
-        </VStack>
+            <div ref={chatEndRef} />
+          </VStack>
+        </Box>
       </Box>
 
-      <HStack p={3} bg={bg}>
+      <HStack p={3} bg="pink.500" boxShadow="0 -2px 12px rgba(255, 105, 180, 0.5)">
         <Textarea
           flex="1"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message… (Enter=send, Shift+Enter=newline)"
+          placeholder="Type a message… (Enter = send, Shift+Enter = newline)"
           resize="none"
           disabled={loading}
+          bg="rgba(255, 255, 255, 0.05)"
+          color="white"
+          _placeholder={{ color: "pink.200" }}
+          border="1px solid hotpink"
+          boxShadow="0 0 10px rgba(255, 105, 180, 0.6)"
+          backdropFilter="blur(6px)"
         />
         <Button
           onClick={handleSend}
-          colorScheme="blue"
+          colorScheme="pink"
           isDisabled={!input.trim() || loading}
+          boxShadow="0 0 14px rgba(255, 105, 180, 0.7)"
         >
           Send
         </Button>
@@ -316,3 +372,4 @@ const handleSend = useCallback(async () => {
 }
 
 export default App;
+

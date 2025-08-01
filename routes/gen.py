@@ -10,9 +10,9 @@ from typing import Dict
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ..lex_stablediffusion import generate_avatar_pipeline
-from ..routes.lex_persona import _save_traits, _load_traits
-from ..config import TRAIT_STATE_PATH
+from ..sd.sd_pipeline import generate_avatar_pipeline
+from .lex_persona import _save_traits, _load_traits
+from ..config.config import TRAIT_STATE_PATH
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["avatar"])

@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import List, Set, Dict, Any
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Request
-from ..config import TRAIT_STATE_PATH
-from ..persona_core import lex_persona
+from ..config.config import TRAIT_STATE_PATH
+from ..persona.persona_core import lex_persona
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["persona"])
 

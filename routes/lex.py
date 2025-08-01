@@ -12,11 +12,11 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
 # New pipeline import
-from ..lex_stablediffusion import generate_avatar_pipeline
+from ..sd.sd_pipeline import generate_avatar_pipeline
 from ..utils.prompt_sifter import build_sd_prompt
-from ..routes.lex_persona import _load_traits, _save_traits
-from ..persona_core import lex_persona
-from ..persona_config import PERSONA_MODES
+from .lex_persona import _load_traits, _save_traits
+from ..persona.persona_core import lex_persona
+from ..persona.persona_config import PERSONA_MODES
 from ..memory.memory_core import memory
 from ..memory.memory_types import MemoryShard
 
@@ -33,6 +33,13 @@ class ChatRequest(BaseModel):
     prompt: str
 
 TaskRequest = ChatRequest
+
+def cache_busted_url(file_path: Path) -> str:
+    if file_path.exists():
+        ts = int(file_path.stat().st_mtime)
+        rel_path = file_path.as_posix().split("/static")[-1]
+        return f"/static{rel_path}?v={ts}"
+    return f"/static{file_path.name}"
 
 # Utility: extract simple traits
 def extract_traits_from_text(text: str) -> dict:
@@ -72,7 +79,8 @@ async def process(req: ChatRequest):
         _save_traits_state(TRAIT_STATE_PATH, traits)
         return {
             "cleaned": "Got it, updating her look! 💄",
-            "avatar_url": lex_persona.get_avatar_path(),
+            "avatar_url": cache_busted_url(AVATAR_DIR / Path(lex_persona.get_avatar_path()).name),
+
             "traits": traits,
             "mode": lex_persona.get_mode(),
         }
@@ -147,5 +155,7 @@ def image_from_prompt(req: ChatRequest):
     fname = f"lex_avatar_{uuid.uuid4().hex[:6]}.png"
     with open(AVATAR_DIR / fname, "wb") as f:
         f.write(base64.b64decode(img_b64))
-    return {"image_url": f"/static/lex/avatars/{fname}"}
+    file_path = AVATAR_DIR / fname
+    return {"image_url": cache_busted_url(file_path)}
+
 

@@ -3,11 +3,11 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
-from ..persona_core import lex_persona
-from lex.lex_stablediffusion import generate_avatar_pipeline
+from ..persona.persona_core import lex_persona
+from ..sd.sd_pipeline import generate_avatar_pipeline
 from ..memory.memory_core import memory
 from ..memory.memory_types import MemoryShard
-from .lex_persona import _assemble_prompt
+from ..routes.lex_persona import _assemble_prompt
 
 router = APIRouter(tags=["Diagnostics"])
 

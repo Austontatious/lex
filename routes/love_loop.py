@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from ..memory.memory_core import memory
 from ..memory.memory_types import MemoryShard
-from lex.emotion_core import infer_emotion
+from ..utils.emotion_core import infer_emotion
 
 log = logging.getLogger(__name__)
 router = APIRouter()
