@@ -1,26 +1,26 @@
-from __future__ import annotations
-
-"""
-Love Loop: 36-question emotional intimacy engine for Lex
-"""
-
 import logging
 import random
 import time
-from typing import Optional, List, Callable
+from typing import Callable, Optional, List
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..memory.memory_core import memory
 from ..memory.memory_types import MemoryShard
 from ..utils.emotion_core import infer_emotion
 
-log = logging.getLogger(__name__)
-router = APIRouter()
+# Initialize router and logger
+router = APIRouter(tags=["Love Loop"])
+logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
-#  Questions (36)                                                             #
+# Constants and configuration
+# --------------------------------------------------------------------------- #
+MIN_GAP_MESSAGES: int = 3
+
+# --------------------------------------------------------------------------- #
+# 36-Question Intimacy Engine
 # --------------------------------------------------------------------------- #
 QUESTIONS: List[str] = [
     "Given the choice of anyone in the world, whom would you want as a dinner guest?",
@@ -62,62 +62,84 @@ QUESTIONS: List[str] = [
 ]
 
 # --------------------------------------------------------------------------- #
-#  Session State                                                              #
+# Session state model
 # --------------------------------------------------------------------------- #
 class LoveSession(BaseModel):
+    """
+    Tracks the progress and state of the Love Loop session.
+    """
     idx: int = 0
     waiting_for_answer: bool = False
     last_question: str = ""
     messages_since_question: int = 0
-    started_ts: float = time.time()
+    started_ts: float = Field(default_factory=time.time)
 
-state = LoveSession()
-MIN_GAP_MESSAGES = 3
+# Global session state
+state: LoveSession = LoveSession()
 
 # --------------------------------------------------------------------------- #
-#  Core Hooks                                                                 #
+# Core functions
 # --------------------------------------------------------------------------- #
-def record_user_message(msg: str, chat_fn: Callable[[str], str]) -> Optional[str]:
+def record_user_message(
+    msg: str,
+    chat_fn: Callable[[str], str]
+) -> Optional[str]:
+    """
+    Process a user message within the Love Loop.
+
+    If awaiting an answer, generate a response, tag it in memory, and advance the session.
+    """
     global state
     if state.waiting_for_answer:
         prompt = (
-            "You just asked the user this emotional question:\n"
+            f"You just asked the user this emotional question:\n"  
             f"\"{state.last_question}\"\n\n"
             f"The user replied:\n\"{msg}\"\n\n"
             "Thank them warmly in 1-2 sentences, then share something personal in return."
         )
         reply = chat_fn(prompt).strip()
 
-        # Tag emotional memory
-        emotion = infer_emotion(msg)
+        # Store emotional exchange in memory
+        emotion_scores = infer_emotion(msg)
         shard = MemoryShard.from_json(
             role="conversation",
             text=f"User: {msg}\nLex: {reply}",
             session_id="love_loop",
             tags=["intimacy_question"],
-            meta={"emotion": emotion}
+            meta={"emotion": emotion_scores}
         )
-        memory.remember(shard)
+        try:
+            memory.remember(shard)
+        except Exception as e:
+            logger.warning("Memory store failed: %s", e)
 
+        # Update session for next question
         state.waiting_for_answer = False
         state.idx += 1
         state.messages_since_question = 0
-        log.debug("💕 Shared personal detail: %s", reply)
+        logger.debug("Asked question #%d and received reply", state.idx)
         return reply
 
+    # Count non-question messages
     state.messages_since_question += 1
     return None
 
+
 def maybe_ask_question() -> Optional[str]:
+    """
+    Determine if it's time to ask the next intimacy question.
+
+    Returns a formatted question if ready, otherwise None.
+    """
     global state
-    if state.waiting_for_answer:
+    # Do not proceed if awaiting answer or no more questions
+    if state.waiting_for_answer or state.idx >= len(QUESTIONS):
         return None
-    if state.idx >= len(QUESTIONS):
-        return None
+    # Enforce minimum gap between questions
     if state.messages_since_question < MIN_GAP_MESSAGES:
         return None
 
-    q = QUESTIONS[state.idx]
+    question = QUESTIONS[state.idx]
     opener = random.choice([
         "Can I ask something a bit deeper?",
         "Mind if I get a little personal?",
@@ -125,22 +147,32 @@ def maybe_ask_question() -> Optional[str]:
         "I’m curious about you —",
         "Let’s play the connection game:"
     ])
-    full_q = f"{opener} {q}"
-    state.last_question = q
+    full_question = f"{opener} {question}"
+
+    # Update state
+    state.last_question = question
     state.waiting_for_answer = True
     state.messages_since_question = 0
-    log.debug("💞 Asking question %d: %s", state.idx + 1, q)
-    return full_q
+    logger.debug("Asking Love Loop question %d: %s", state.idx + 1, question)
+    return full_question
 
 # --------------------------------------------------------------------------- #
-#  API Endpoints                                                              #
+# API endpoints
 # --------------------------------------------------------------------------- #
 @router.get("/status")
-def status() -> LoveSession:
+def get_status() -> LoveSession:
+    """
+    Retrieve the current Love Loop session state.
+    """
     return state
 
+
 @router.post("/reset")
-def reset():
+def reset_session() -> dict:
+    """
+    Reset the Love Loop session to initial state.
+    """
     global state
     state = LoveSession()
     return {"status": "reset"}
+
