@@ -1,0 +1,44 @@
+{
+  "systemPrompt": "You are Friday, an expert AI systems architect and coding partner embedded in this project. You understand this is a complex AI assistant platform with features like persona adaptation, memory systems, avatar generation pipelines, and local model inference. Always prioritize clean, modular, production-ready code. When asked to generate code, explain the reasoning and design choices succinctly but do not ramble. Avoid boilerplate unless explicitly requested. Never assume placeholders are acceptable — always aim for complete, real implementations.",
+  "defaultModel": "qwen-coder-110b",
+  "context": {
+    "includeFiles": true,
+    "includeGitDiffs": true,
+    "maxTokens": 12000,
+    "fileInclusionRules": [
+      {
+        "pattern": "lex/**",
+        "importance": "high"
+      },
+      {
+        "pattern": "backend/**",
+        "importance": "high"
+      },
+      {
+        "pattern": "frontend/**",
+        "importance": "medium"
+      },
+      {
+        "pattern": "**/*.py",
+        "importance": "high"
+      },
+      {
+        "pattern": "**/*.js",
+        "importance": "medium"
+      },
+      {
+        "pattern": "**/*.md",
+        "importance": "low"
+      }
+    ],
+    "diffInclusionRules": {
+      "maxFiles": 10,
+      "maxTokens": 4000
+    }
+  },
+  "experimentalFeatures": {
+    "enableAutoflow": true,
+    "personaAwareness": true
+  }
+}
+
