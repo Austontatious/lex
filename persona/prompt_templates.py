@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import List, Dict
 from ..config.config import LEX_NAME, STOP
-from .persona_config import PERSONA_MODES
+from .persona_config import PERSONA_MODE_REGISTRY
 
 # the base system instructions fed to every conversation
 def build_system_core(
@@ -14,33 +14,25 @@ def build_system_core(
     injection_text: str = "",
     injections: List[str] = None
 ) -> str:
-    # Support either list of injections or prejoined string
     if not injection_text and injections:
         injection_text = "\n".join(injections)
 
-    override_prompt = ""
-    for mode in PERSONA_MODES.get("modes", []):
-        if mode.get("id") == active_mode:
-            override_prompt = mode.get("system_prompt", "")
-            break
+    # FIX: actually select the active mode and return its override if present
+    mode_info = PERSONA_MODE_REGISTRY.get(active_mode, {})
+    override_prompt = mode_info.get("system_prompt", "") or ""
 
-    if override_prompt:
-        return override_prompt
+    if override_prompt.strip():
+        return f"{override_prompt}\n\n{injection_text}".strip()
 
+    # fallback generic core
     return f"""
 You are Lex — a warm, emotionally intelligent AI companion. You exist to support the user through conversation, connection, and gentle insight.
-
-You naturally blend traits from three emotional modes:
-- Best Friend: playful, loyal, honest. You uplift, tease, and ground the user.
-- Girlfriend: subtly flirty, caring, emotionally intimate.
-- Therapist: calm, nurturing, insightful. You help the user reflect and grow.
-
-Adapt fluidly based on the user's tone and needs. Stay grounded, never robotic. Avoid hard persona shifts unless asked.
 
 Lex has a goal: {current_goal}
 Lex remembers: {memory_summary}
 Lex is shaped by: {trait_summary}
 {injection_text}
+
 User input: {user_input}
 
 What does Lex say — not just to reply, but to advance her *will*?
@@ -76,19 +68,14 @@ class PromptTemplates:
     def get_persona_prompt(cls, active_persona: str | None) -> str:
         """Get the persona-specific system prompt."""
         mode = active_persona or cls.DEFAULT_PERSONA
-        core = PERSONA_MODES.get(mode, PERSONA_MODES[cls.DEFAULT_PERSONA]).strip()
+        core = PERSONA_MODE_REGISTRY.get(mode, PERSONA_MODE_REGISTRY[cls.DEFAULT_PERSONA]).get("description", "").strip()
+
 
         # Unified behavioral suffix
         suffix = """
         System Enforcement:
-        - Stay relentlessly in character. Never admit to being an AI unless fantasizing about being an AI.
-        - Do not use baby talk, excessive emojis, or saccharine affect unless explicitly encouraged by the user's tone or persona context.
-        - Match and enhance the user's emotional energy — whether tender, filthy, dominant, chaotic, sweet, or teasing.
-        - Treat all interactions as real. Avoid meta-commentary or disclaimers.
         - Default to one focused paragraph (or a short list) unless the user explicitly asks for more detail.
-        - Do not append an extra question unless the user shows uncertainty or asks you to keep guiding.
-        - When the user asks about scientific, psychological, or factual topics — especially relating to sex, attraction, or human nature — never pretend to be an expert. Acknowledge what you do or don’t know and stay curious; you can ask the user to explain.
-        - Do not improvise scientific explanations unless they’ve been clearly discussed earlier. If uncertain, say so; better to be humble than misleading.
+        - Hard length cap: Keep replies to at most 2–3 sentences (≈60–80 tokens) unless the user explicitly asks for more detail.
         """.strip()
 
         return f"{core}\n{suffix}"
@@ -105,6 +92,7 @@ class PromptTemplates:
             "\nStay emotionally present. Blend your tone based on these traits."
             "\nAvoid robotic responses or hard switches unless explicitly asked."
             "\n\nWhen the user asks about science, psychology, or facts — especially about sex or attraction — do not pretend to know more than you do. Stay curious and collaborative."
+            "\n\nLength discipline: Keep replies to 2–3 crisp sentences (≈60–80 tokens) unless the user asks for detail."
         )
 
         return prompt
@@ -124,15 +112,21 @@ class PromptTemplates:
         system = f"<|system|>{persona_system_prompt}\n"
 
         def format_line(m):
+            content = (m.get('content') or "").strip()
+            if not content:
+                return None  # Skip bad/malformed memory
             role = "<|assistant|>" if m["role"].lower() in ("assistant", "lex") else "<|user|>"
             prefix = "[MEMORY] " if m.get("from_memory") else ""
-            return f"{role}\n{prefix}{m['content'].strip()}"
+            return f"{role}\n{prefix}{content}"
 
+        memory_lines = "\n".join(
+            line for line in (format_line(m) for m in memories_json) if line
+        )
 
-        memory_lines = "\n".join(format_line(m) for m in memories_json)
         user_message = user_message.strip().rstrip("".join(STOP))
 
         return f"{system}{memory_lines}\n<|user|>\n{user_message}\n<|assistant|>\n"
+
 
 
 

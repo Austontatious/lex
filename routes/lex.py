@@ -27,12 +27,13 @@ from .lex_persona import _load_traits, _save_traits
 load_traits = _load_traits
 save_traits = _save_traits
 from ..persona.persona_core import lex_persona
-from ..persona.persona_config import PERSONA_MODES
+from ..persona.persona_config import PERSONA_MODE_REGISTRY
 from ..memory.memory_core import memory
 from ..memory.memory_types import MemoryShard
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Lex Core"])
+router = APIRouter(tags=["Health"])
 
 # Paths for avatar storage and trait state persistence
 AVATAR_DIR: Path = Path(__file__).resolve().parent.parent / "static" / "lex" / "avatars"
@@ -57,6 +58,15 @@ def cache_busted_url(file_path: Path) -> str:
     return f"/static{file_path.name}"
 
 # --- Main processing route ---
+@router.get("/lex/health")
+def health():
+    return {"ok": True, "service": "lex-backend"}
+
+@router.get("/lex/ready")
+def ready():
+    # you can add checks here later (model loaded, SD alive, etc.)
+    return {"ready": True}
+    
 @router.post("/process")
 async def process(req: ChatRequest) -> JSONResponse:
     """
@@ -64,6 +74,10 @@ async def process(req: ChatRequest) -> JSONResponse:
     """
     logger.info("🗨️ /process prompt=%r", req.prompt)
 
+    # 🛡️ PROTECT AGAINST FEEDBACK LOOPS:
+    if req.prompt.startswith("Lex:") or req.prompt.startswith("assistant:"):
+        logger.warning("🛑 Ignoring looped assistant prompt: %r", req.prompt)
+        return JSONResponse({"cleaned": "[loop detected, halted]", "raw": "", "choices": [], "mode": lex_persona.get_mode()})
     # 1) Trait inference
     inferred = extract_traits_from_text(req.prompt) if 'extract_traits_from_text' in globals() else {}
     if inferred:
@@ -96,7 +110,7 @@ async def process(req: ChatRequest) -> JSONResponse:
         logger.error("❌ LexPersona.chat failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
-    if not reply.strip():
+    if not reply or not getattr(reply, "strip", None) or not reply.strip():
         logger.warning("❌ Empty reply for prompt: %r", req.prompt)
         reply = "[no response]"
 
@@ -122,7 +136,7 @@ async def set_mode(payload: Dict[str, Any] = Body(...)) -> Dict[str, str]:
     Set the persona mode and optionally reset traits.
     """
     mode = payload.get("mode")
-    if mode not in PERSONA_MODES:
+    if mode not in PERSONA_MODE_REGISTRY:
         logger.warning("🛑 Invalid mode: %s", mode)
         raise HTTPException(status_code=400, detail="Invalid mode")
     lex_persona.set_mode(mode)
@@ -175,6 +189,7 @@ def image_from_prompt(req: ChatRequest) -> Any:
     file_path = AVATAR_DIR / fname
     file_path.write_bytes(base64.b64decode(img_b64))
     return {"image_url": cache_busted_url(file_path)}
+
 
 # Aliases for backward compatibility
 _load_traits_state = load_traits

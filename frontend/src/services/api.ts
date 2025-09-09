@@ -1,128 +1,141 @@
-// src/services/api.ts  
-// ── backend origin autodetect ─────────────────────────────────────────
-function resolveBackend(): string {
-  const viteEnv =
-    typeof import.meta !== "undefined" &&
-    (import.meta as any).env?.VITE_BACKEND_URL;
-  const craEnv = (process.env as any)?.REACT_APP_BACKEND_URL;
-  const runtimeGlobal = (window as any).__LEX_BACKEND__;
-  return viteEnv || craEnv || runtimeGlobal || "http://localhost:8000";
-}
-export const BACKEND = resolveBackend();
+// src/services/api.ts (fully patched to match old imports and lex_persona endpoints)
 
-/** Simple JSON API wrapper with error handling */
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BACKEND}${path}`, init);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<T>;
-}
+export const BACKEND =
+  (window as any)?.__LEX_API_BASE ||
+  (import.meta && import.meta.env && import.meta.env.VITE_BACKEND_URL) ||
+  "http://localhost:8000";
 
-// ── Interfaces ─────────────────────────────────────────────────────────
-export interface Persona {
-  style: string[];
-  traits: string[];
+export const PERSONA_PREFIX =
+  (window as any)?.__LEX_PERSONA_PREFIX ||
+  (import.meta && import.meta.env && import.meta.env.VITE_PERSONA_PREFIX) ||
+  "/persona";
+
+console.info("[API] Using BACKEND:", BACKEND, "PERSONA_PREFIX:", PERSONA_PREFIX);
+
+export type Traits = Record<string, string>;
+
+export interface PersonaState {
+  traits: Traits;
   certainty: number;
-  image_path?: string;
+  image_path: string;
+}
+
+export interface IntentResult {
+  intent: "avatar_flow" | "describe_avatar" | "chat" | (string & {});
 }
 
 export interface TraitResponse {
-  avatar_url: string;
-  traits: Record<string, string>;
-  mode: string;
-  ask?: string;
-  ready?: boolean;
+  ready: boolean;
   narration?: string;
-  prompt?: string;
+  prompt: string;
+  negative?: string;
+  persona: {
+    traits: Record<string, string>;
+    certainty: number;
+    image_path: string;
+  };
+  added?: boolean;
 }
 
 
 
-export interface AvatarResponse {
-  image: string;
+export interface AvatarStepResponse {
+  ready: boolean;
+  persona: PersonaState;
+  prompt: string;
+  negative: string;
+  narration: string;
 }
 
-// ── Chat / persona API calls ───────────────────────────────────────────
+export interface DebugTraitsResponse {
+  file_traits: Traits;
+  persona_traits: Traits;
+}
 
-/**
- * Send a free‑form chat prompt.
- */
-export async function sendPrompt(body: { prompt: string }) {
-  const res = await fetch(`${BACKEND}/lex/process`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
-  const text = await res.text();
-  let json: any = {};
-  try {
-    json = JSON.parse(text);
-  } catch {
-    return { cleaned: "[invalid JSON]" };
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`[API] ${init?.method ?? "GET"} ${url} failed (${res.status}): ${text}`);
   }
-  let cleaned = json.cleaned;
-  if (!cleaned?.trim() || cleaned.trim() === "[no response]") {
-    cleaned = json.choices?.[0]?.text?.trim() || "[no response]";
-  }
-  return { ...json, cleaned };
+  return res.json() as Promise<T>;
 }
 
-/**
- * Decide whether to go into chat or avatar flow.
- */
-export async function classifyIntent(
-  text: string
-): Promise<{ intent: string }> {
-  const res = await fetch(`${BACKEND}/lex/persona/intent`, {
+/** POST /persona/intent */
+export function detectIntent(text: string): Promise<IntentResult> {
+  return jsonFetch<IntentResult>(`${BACKEND}${PERSONA_PREFIX}/intent`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
   });
-  if (!res.ok) throw new Error("Intent API failed");
-  return res.json();
 }
 
-/**
- * Load the current persona (traits + image path).
- */
-export async function fetchPersona(): Promise<Persona | null> {
-  try {
-    return await api<Persona>("/lex/persona/get");
-  } catch {
-    return null;
-  }
-}
+/** Alias for detectIntent for old code */
+export const classifyIntent = detectIntent;
 
-export async function avatarStep(payload: {
-  traits: Record<string, string>,
-  reply: string
-}): Promise<TraitResponse> {
-  return api<TraitResponse>("/lex/persona/avatar_step", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-}
-
+/** POST /persona/add_trait */
 export function addTrait(trait: string): Promise<TraitResponse> {
-  return api<TraitResponse>("/lex/persona/add_trait", {
+  return jsonFetch<TraitResponse>(`${BACKEND}${PERSONA_PREFIX}/add_trait`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ trait }),
   });
 }
 
-/**
- * Generate (or regenerate) the avatar image once all traits are set.
- */
-export async function generateAvatar(
-  traits: Record<string, string>
-): Promise<AvatarResponse> {
-  return api<AvatarResponse>("/lex/generate", {
+/** POST /persona/avatar_step */
+export function avatarStep(input: { traits?: Traits; reply?: string }): Promise<AvatarStepResponse> {
+  return jsonFetch<AvatarStepResponse>(`${BACKEND}${PERSONA_PREFIX}/avatar_step`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ traits }),
+    body: JSON.stringify(input ?? {}),
   });
 }
 
+/** Alias for avatarStep for old code expecting generateAvatar */
+export async function generateAvatar(prompt: string) {
+  return fetch(`${BACKEND}/generate_avatar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  }).then((res) => res.json());
+}
 
 
+/** GET /persona/get */
+export function getPersona(): Promise<PersonaState> {
+  return jsonFetch<PersonaState>(`${BACKEND}${PERSONA_PREFIX}/get`);
+}
+
+/** Alias for getPersona for old code expecting fetchPersona */
+export const fetchPersona = getPersona;
+
+/** GET /persona/debug/traits */
+export function debugTraits(): Promise<DebugTraitsResponse> {
+  return jsonFetch<DebugTraitsResponse>(`${BACKEND}${PERSONA_PREFIX}/debug/traits`);
+}
+
+export async function sendPrompt({ prompt }: { prompt: string }) {
+  return fetch(`${BACKEND}/lex/process`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  }).then((res) => res.json());
+}
+
+
+// Old type name aliases
+export type Persona = PersonaState;
+
+export const API = {
+  detectIntent,
+  classifyIntent,
+  addTrait,
+  avatarStep,
+  generateAvatar,
+  getPersona,
+  fetchPersona,
+  debugTraits,
+  sendPrompt,
+};
+
+export default API;

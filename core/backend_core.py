@@ -57,7 +57,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-static_dir = Path(__file__).resolve().parent / "static"
+static_dir = LEX_ROOT / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 else:
@@ -73,9 +73,9 @@ from ..routes.love_loop import router as love_router
 from ..utils.live_token_viz import send_to_viz
 from ..routes import gen
 from ..routes.diagnostic import router as diagnostic_router
-
+from .model_loader_core import initialize_model_loader
 app.include_router(diagnostic_router)
-
+app.include_router(persona_router, prefix="/persona")
 # --------------------------------------------------------------------- #
 #  Router Mounting (each once)                                          #
 # --------------------------------------------------------------------- #
@@ -98,6 +98,15 @@ app.mount(
     name="lex_avatars",
 )
 
+@app.get("/debug/avatar-path")
+async def debug_avatar_path():
+    return {
+        "AVATAR_STATIC_DIR": str(AVATAR_STATIC_DIR),
+        "file_exists": os.path.exists(AVATAR_STATIC_DIR / "default.png"),
+        "cwd": os.getcwd(),
+        "listing": os.listdir(AVATAR_STATIC_DIR),
+    }
+
 # --------------------------------------------------------------------- #
 #  Startup / Shutdown Events                                            #
 # --------------------------------------------------------------------- #
@@ -115,7 +124,9 @@ async def _startup():
     if os.getenv("LEX_SKIP_WARMUP") != "1":
         try:
             logger.info("Preloading LLM (warm-up prompt).")
-            await asyncio.to_thread(lex_persona.chat, "[SYSTEM WARMUP]")
+            ml = initialize_model_loader()
+            ml.update_cfg(max_tokens=10, stop=["<|endoftext|>", "\n", "<|assistant|>"])
+            await asyncio.to_thread(ml.generate, "<|system|> SYSTEM WARMUP: test token.")
             logger.info("Warm-up complete.")
         except Exception:
             logger.error("Warm-up failed: %s", traceback.format_exc().splitlines()[-1])

@@ -36,9 +36,7 @@ AVATAR_FIELDS: List[tuple[str, str]] = [
 
 # Triggers indicating avatar-related intent
 AVATAR_TRIGGERS: List[str] = [
-    'wear', 'style', 'outfit', 'look', 'costume', 'dress', 'pose as', 'as a', 'in a',
-    'clothing', 'lingerie', 'avatar', 'show me', 'you look', 'what do you look like',
-    'your appearance', 'your outfit'
+    'wear', 'style', 'outfit', 'costume', 'dress', 'clothing', 'lingerie', 'avatar'
 ]
 
 DESCRIBE_PATTERN = re.compile(r"\b(describe|what do you look like|show me your look|how do you look)\b", re.IGNORECASE)
@@ -134,7 +132,7 @@ async def detect_intent(req: IntentRequest) -> Dict[str, str]:
     Classify user text into 'avatar_flow', 'describe_avatar', or 'chat'.
     """
     text = req.text.lower()
-    if any(trigger in text for trigger in AVATAR_TRIGGERS):
+    if any(re.search(rf'\b{re.escape(trigger)}\b', text) for trigger in AVATAR_TRIGGERS):
         return {'intent': 'avatar_flow'}
     if DESCRIBE_PATTERN.search(text):
         return {'intent': 'describe_avatar'}

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Constants and configuration
 # --------------------------------------------------------------------------- #
 MIN_GAP_MESSAGES: int = 3
-
+LOVE_LOOP_TAG = "love_loop_state"
 # --------------------------------------------------------------------------- #
 # 36-Question Intimacy Engine
 # --------------------------------------------------------------------------- #
@@ -80,6 +80,47 @@ state: LoveSession = LoveSession()
 # --------------------------------------------------------------------------- #
 # Core functions
 # --------------------------------------------------------------------------- #
+def save_love_loop_state():
+    shard = MemoryShard.from_json({
+        "role": "system",
+        "content": f"Love Loop State: idx={state.idx}, waiting={state.waiting_for_answer}",
+        "meta": {"love_loop_state": {
+            "idx": state.idx,
+            "waiting_for_answer": state.waiting_for_answer,
+            "last_question": state.last_question,
+            "messages_since_question": state.messages_since_question,
+            "started_ts": state.started_ts
+        }},
+        "tags": [LOVE_LOOP_TAG]
+    })
+    try:
+        memory.remember(shard)
+    except Exception as e:
+        logger.warning("Failed to persist Love Loop state: %s", e)
+
+def load_love_loop_state():
+    global state
+    try:
+        shards = [
+            s for s in memory.all()
+            if s.meta and isinstance(s.meta.get("tags"), list) and LOVE_LOOP_TAG in s.meta.get("tags")
+        ]
+
+        if not shards:
+            return
+        latest = shards[-1]
+        meta = latest.meta.get("love_loop_state", {})
+        if meta:
+            state.idx = meta.get("idx", 0)
+            state.waiting_for_answer = meta.get("waiting_for_answer", False)
+            state.last_question = meta.get("last_question", "")
+            state.messages_since_question = meta.get("messages_since_question", 0)
+            state.started_ts = meta.get("started_ts", time.time())
+            logger.info("Loaded Love Loop state: idx=%d waiting=%s", state.idx, state.waiting_for_answer)
+    except Exception as e:
+        logger.warning("Failed to load Love Loop state: %s", e)
+
+
 def record_user_message(
     msg: str,
     chat_fn: Callable[[str], str]
@@ -101,13 +142,16 @@ def record_user_message(
 
         # Store emotional exchange in memory
         emotion_scores = infer_emotion(msg)
-        shard = MemoryShard.from_json(
-            role="conversation",
-            text=f"User: {msg}\nLex: {reply}",
-            session_id="love_loop",
-            tags=["intimacy_question"],
-            meta={"emotion": emotion_scores}
-        )
+        shard = MemoryShard.from_json({
+            "role": "conversation",
+            "content": f"User: {msg}\nLex: {reply}",
+            "meta": {
+                "session_id": "love_loop",
+                "tags": ["intimacy_question"],
+                "emotion": emotion_scores
+            }
+        })
+
         try:
             memory.remember(shard)
         except Exception as e:
@@ -116,6 +160,7 @@ def record_user_message(
         # Update session for next question
         state.waiting_for_answer = False
         state.idx += 1
+        save_love_loop_state()
         state.messages_since_question = 0
         logger.debug("Asked question #%d and received reply", state.idx)
         return reply
@@ -138,7 +183,7 @@ def maybe_ask_question() -> Optional[str]:
     # Enforce minimum gap between questions
     if state.messages_since_question < MIN_GAP_MESSAGES:
         return None
-
+    
     question = QUESTIONS[state.idx]
     opener = random.choice([
         "Can I ask something a bit deeper?",
@@ -152,10 +197,12 @@ def maybe_ask_question() -> Optional[str]:
     # Update state
     state.last_question = question
     state.waiting_for_answer = True
+    save_love_loop_state()
     state.messages_since_question = 0
     logger.debug("Asking Love Loop question %d: %s", state.idx + 1, question)
     return full_question
 
+    
 # --------------------------------------------------------------------------- #
 # API endpoints
 # --------------------------------------------------------------------------- #

@@ -42,7 +42,7 @@ async def generate_avatar(
     """
     # Determine traits: use request or fallback to persisted state
     traits: Dict[str, str] = (
-        req.traits if req and req.traits else _load_traits()
+        req.traits if req and req.traits else load_traits()
     )
 
     try:

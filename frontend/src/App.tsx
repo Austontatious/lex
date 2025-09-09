@@ -101,24 +101,26 @@ const handleTraitFlow = useCallback(
     try {
       const res: TraitResponse = await addTrait(userText);
 
-      if (res.ask) {
-        appendMessage({ sender: "ai", content: res.ask });
-        setAvatarFlow(true);
-        return;
+      if (res.narration && !res.ready) {
+	appendMessage({ sender: "ai", content: res.narration });
+	setAvatarFlow(true);
+	return;
       }
 
+
       if (res.narration) {
-        appendMessage({ sender: "ai", content: res.narration });
+	appendMessage({ sender: "ai", content: res.narration });
       }
 
       if (!res.ready) {
         setAvatarFlow(true);
-        return;
+	return;
       }
+
 
       // ✅ Generate avatar, display it immediately (with cache bust)
       setAvatarFlow(false);
-      const gen = await generateAvatar({});
+      const gen = await generateAvatar(res.prompt);
       let img = (gen as any).image || (gen as any).image_url || (gen as any).path || "";
       let normImg = img.startsWith("/static/lex/avatars/")
         ? img

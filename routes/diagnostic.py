@@ -60,11 +60,9 @@ async def run_self_diagnostic() -> JSONResponse:
 
     safe_test(
         "Dummy avatar gen",
-        lambda: generate_avatar_pipeline(
-            traits={"hair": "red", "eyes": "green"},
-            use_seed=True,
-            seed=42,
-            test_mode=True
+        lambda: generate_avatar(
+            prompt="simple placeholder portrait",
+            steps=1
         )
     )
     safe_test("Memory CRUD test", memory_test)

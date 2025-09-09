@@ -27,3 +27,17 @@ build/
 config.py
 .env
 
+# ---- Memory DATA ONLY (keep the code!)
+memory/*.json
+memory/*.jsonl
+memory/*.sqlite3
+memory/chromadb/**
+memory/session_memory.json
+!memory/__init__.py
+!memory/*.py
+# ---- Models/weights
+sd/weights/**
+!sd/weights/.gitkeep
+# ---- Avatars (keep default)
+static/lex/avatars/**
+!static/lex/avatars/default.png
