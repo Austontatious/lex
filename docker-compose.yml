@@ -1,0 +1,108 @@
+x-common-env: &common_env
+  TZ: "UTC"
+
+x-frontend-base: &frontend_base
+  build:
+    context: .
+    dockerfile: docker/lexi-frontend/Dockerfile
+  image: lexi-frontend:alpha
+  environment:
+    <<: *common_env
+    LEX_API_BASE: ${LEX_API_BASE_PUBLIC:-/lex}
+    COMFY_URL: ${COMFY_URL_PUBLIC:-${COMFY_URL:-http://host.docker.internal:8188}}
+    VLLM_URL: ${VLLM_URL_PUBLIC:-${OPENAI_API_BASE:-http://host.docker.internal:8008/v1}}
+  depends_on:
+    - lexi-backend
+  restart: unless-stopped
+
+services:
+  lexi-backend:
+    build:
+      context: .
+      dockerfile: docker/lexi-backend/Dockerfile
+    image: lexi-backend:alpha
+    environment:
+      <<: *common_env
+      COMFY_URL: ${COMFY_URL:-http://host.docker.internal:8188}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-http://host.docker.internal:8008/v1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-dummy}
+      LEX_IMAGE_DIR: ${LEX_IMAGE_DIR:-/app/Lexi/lexi/static/lexi/avatars}
+      LEX_MEMORY_PATH: ${LEX_MEMORY_PATH:-/app/Lexi/lexi/memory/lexi_memory.jsonl}
+      LEX_DATA_DIR: ${LEX_DATA_DIR:-/app/Lexi}
+      HF_HOME: ${HF_HOME:-/data/hf_cache}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+      LEXI_ENABLE_NOW: ${LEXI_ENABLE_NOW:-0}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./Lexi:/app/Lexi
+      - hf_cache:/data/hf_cache
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/lex/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    profiles: ["dev", "live"]
+    networks:
+      - default
+      - edge
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=edge
+
+      # Strip the /api prefix before forwarding to FastAPI
+      - traefik.http.middlewares.lexi-api-strip.replacepathregex.regex=^/api(.*)
+      - traefik.http.middlewares.lexi-api-strip.replacepathregex.replacement=$1
+
+      # API router (give it higher priority so it always wins over the SPA)
+      - traefik.http.routers.lexi-api.rule=Host(`lexicompanion.com`) && PathPrefix(`/api`)
+      - traefik.http.routers.lexi-api.entrypoints=websecure
+      - traefik.http.routers.lexi-api.tls.certresolver=le
+      - traefik.http.routers.lexi-api.middlewares=lexi-api-strip
+      - traefik.http.routers.lexi-api.priority=100
+      - traefik.http.routers.lexi-api.service=lexi-api
+      - traefik.http.services.lexi-api.loadbalancer.server.port=8000
+  lexi-frontend:
+    <<: *frontend_base
+    profiles: ["live"]
+    networks:
+      - default
+      - edge
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=edge
+      - traefik.http.routers.lexi-frontend.rule=Host(`lexicompanion.com`)
+      - traefik.http.routers.lexi-frontend.entrypoints=websecure
+      - traefik.http.routers.lexi-frontend.tls.certresolver=le
+      - traefik.http.routers.lexi-frontend.priority=10
+      - traefik.http.services.lexi-frontend.loadbalancer.server.port=80
+  lexi-frontend-dev:
+    <<: *frontend_base
+    ports:
+      - target: 80
+        published: ${FRONTEND_PORT:-3000}
+        protocol: tcp
+        mode: host
+    profiles: ["dev"]
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    depends_on:
+      - lexi-frontend
+      - lexi-backend
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./docker/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - /root/.cloudflared/bdf032f8-f546-4d36-96ca-118088b7a443.json:/etc/cloudflared/bdf032f8-f546-4d36-96ca-118088b7a443.json:ro
+    restart: unless-stopped
+    profiles: ["live"]
+
+volumes:
+  hf_cache:
+
+networks:
+  edge:
+    external: true

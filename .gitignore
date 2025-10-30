@@ -35,3 +35,41 @@ lex/memory/chromadb/**
 lex/memory/session_memory.json
 !lex/memory/__init__.py
 !lex/memory/*.py
+# General workspace
+.DS_Store
+*.log
+logs/
+letsencrypt/
+*.tar
+*.tar.gz
+*.bak
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+venv/
+# Environment & secrets
+.env
+.env.*
+!.env.example
+# Node / frontend
+node_modules/
+dist/
+.next/
+build/
+# Artifacts & large model files
+*.safetensors
+*.bin
+*.weights
+*.h5
+*.jsonl
+*.sqlite3
+# Editor & tooling
+.idea/
+.vscode/
+.history/
+# Generated avatar assets
+Lexi/lexi/static/lexi/avatars/lexi_*.png
+Lexi/lexi/static/lexi/avatars/lexi_base_*.png
+Lexi/lexi/static/lexi/avatars/*.zip
+Lexi/lexi/sd/weights/

@@ -1,0 +1,10 @@
+tunnel: bdf032f8-f546-4d36-96ca-118088b7a443
+credentials-file: /etc/cloudflared/bdf032f8-f546-4d36-96ca-118088b7a443.json
+
+ingress:
+  - hostname: alpha.lexicompanion.com
+    path: /lex/*
+    service: http://lexi-backend:8000
+  - hostname: alpha.lexicompanion.com
+    service: http://lexi-frontend:80
+  - service: http_status:404

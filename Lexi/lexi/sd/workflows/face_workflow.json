@@ -1,0 +1,429 @@
+{
+  "1": {
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "2": {
+    "inputs": {
+      "lora_name": "Colorful Hair Slider_alpha1.0_rank4_noxattn_last.safetensors",
+      "strength_model": 0.3,
+      "strength_clip": 1,
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "5": {
+    "inputs": {
+      "text": [
+        "17",
+        0
+      ],
+      "clip": [
+        "15",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "extreme close-up, cropped head, hair out of frame, forehead cut off,\n\"cartoon, anime, cgi, 3d render, deformed, extra limbs, lowres, blurry, watermark, text, harsh shadow, plastic skin, waxy skin, overprocessed, unrealistic proportions, bad anatomy, bad face, out of frame, soft focus, color cast, grey veil, low contrast, haze, fog\"",
+      "clip": [
+        "15",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "7": {
+    "inputs": {
+      "width": 1080,
+      "height": 1080,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "8": {
+    "inputs": {
+      "seed": 206793354767710,
+      "steps": 40,
+      "cfg": 9,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 0.85,
+      "model": [
+        "15",
+        0
+      ],
+      "positive": [
+        "5",
+        0
+      ],
+      "negative": [
+        "6",
+        0
+      ],
+      "latent_image": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "9": {
+    "inputs": {
+      "samples": [
+        "34",
+        0
+      ],
+      "vae": [
+        "29",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "10": {
+    "inputs": {
+      "images": [
+        "30",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "11": {
+    "inputs": {
+      "lora_name": "lora-sdxl-perfect-eyes.safetensors",
+      "strength_model": 0.6,
+      "strength_clip": 1,
+      "model": [
+        "2",
+        0
+      ],
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "12": {
+    "inputs": {
+      "lora_name": "eyesxl_v2.safetensors",
+      "strength_model": 0.2,
+      "strength_clip": 1,
+      "model": [
+        "11",
+        0
+      ],
+      "clip": [
+        "11",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "13": {
+    "inputs": {
+      "lora_name": "ai_top_faces_1474526.safetensors",
+      "strength_model": 0.4,
+      "strength_clip": 1,
+      "model": [
+        "12",
+        0
+      ],
+      "clip": [
+        "12",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "14": {
+    "inputs": {
+      "lora_name": "SDXL_BetterFaces-LoRA_v1.safetensors",
+      "strength_model": 0.4,
+      "strength_clip": 1,
+      "model": [
+        "13",
+        0
+      ],
+      "clip": [
+        "13",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "15": {
+    "inputs": {
+      "lora_name": "Portrait_1000_Girl_Faces.safetensors",
+      "strength_model": 0.45,
+      "strength_clip": 1,
+      "model": [
+        "14",
+        0
+      ],
+      "clip": [
+        "14",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "17": {
+    "inputs": {
+      "string_a": "chest-up portrait, full hair visible, top of head in frame, shoulders in frame, soft loose waves with volume and natural flyaways, 3/4 view, studio beauty lighting, 50mm portrait look, shallow depth of field, detailed irises, crisp eyelashes, healthy skin texture, subtle makeup, glossy natural lips, photorealistic, SDXL quality\n",
+      "string_b": [
+        "21",
+        0
+      ],
+      "delimiter": ","
+    },
+    "class_type": "StringConcatenate",
+    "_meta": {
+      "title": "Concatenate"
+    }
+  },
+  "21": {
+    "inputs": {
+      "wildcards_count": 3,
+      "delimiter": ", ",
+      "clean_whitespace": true,
+      "replace_underscore": true,
+      "randoms": true,
+      "seed": 66529365388094,
+      "wildcard_name_1": "base_path | womens hair",
+      "wildcard_probability_1": 0.7,
+      "wildcard_name_2": "base_path | naturalHairColor",
+      "wildcard_probability_2": 0.6,
+      "wildcard_name_3": "None",
+      "wildcard_probability_3": 1,
+      "wildcard_name_4": "None",
+      "wildcard_probability_4": 1,
+      "wildcard_name_5": "None",
+      "wildcard_probability_5": 1,
+      "wildcard_name_6": "None",
+      "wildcard_probability_6": 1,
+      "wildcard_name_7": "None",
+      "wildcard_probability_7": 1,
+      "wildcard_name_8": "None",
+      "wildcard_probability_8": 1,
+      "wildcard_name_9": "None",
+      "wildcard_probability_9": 1,
+      "wildcard_name_10": "None",
+      "wildcard_probability_10": 1,
+      "wildcard_name_11": "None",
+      "wildcard_probability_11": 1,
+      "wildcard_name_12": "None",
+      "wildcard_probability_12": 1,
+      "wildcard_name_13": "None",
+      "wildcard_probability_13": 1,
+      "wildcard_name_14": "None",
+      "wildcard_probability_14": 1,
+      "wildcard_name_15": "None",
+      "wildcard_probability_15": 1,
+      "wildcard_name_16": "None",
+      "wildcard_probability_16": 1,
+      "wildcard_name_17": "None",
+      "wildcard_probability_17": 1,
+      "wildcard_name_18": "None",
+      "wildcard_probability_18": 1,
+      "wildcard_name_19": "None",
+      "wildcard_probability_19": 1,
+      "wildcard_name_20": "None",
+      "wildcard_probability_20": 1,
+      "wildcard_name_21": "None",
+      "wildcard_probability_21": 1,
+      "wildcard_name_22": "None",
+      "wildcard_probability_22": 1,
+      "wildcard_name_23": "None",
+      "wildcard_probability_23": 1,
+      "wildcard_name_24": "None",
+      "wildcard_probability_24": 1,
+      "wildcard_name_25": "None",
+      "wildcard_probability_25": 1,
+      "wildcard_name_26": "None",
+      "wildcard_probability_26": 1,
+      "wildcard_name_27": "None",
+      "wildcard_probability_27": 1,
+      "wildcard_name_28": "None",
+      "wildcard_probability_28": 1,
+      "wildcard_name_29": "None",
+      "wildcard_probability_29": 1,
+      "wildcard_name_30": "None",
+      "wildcard_probability_30": 1,
+      "wildcard_name_31": "None",
+      "wildcard_probability_31": 1,
+      "wildcard_name_32": "None",
+      "wildcard_probability_32": 1,
+      "wildcard_name_33": "None",
+      "wildcard_probability_33": 1,
+      "wildcard_name_34": "None",
+      "wildcard_probability_34": 1,
+      "wildcard_name_35": "None",
+      "wildcard_probability_35": 1,
+      "wildcard_name_36": "None",
+      "wildcard_probability_36": 1,
+      "wildcard_name_37": "None",
+      "wildcard_probability_37": 1,
+      "wildcard_name_38": "None",
+      "wildcard_probability_38": 1,
+      "wildcard_name_39": "None",
+      "wildcard_probability_39": 1,
+      "wildcard_name_40": "None",
+      "wildcard_probability_40": 1,
+      "wildcard_name_41": "None",
+      "wildcard_probability_41": 1,
+      "wildcard_name_42": "None",
+      "wildcard_probability_42": 1,
+      "wildcard_name_43": "None",
+      "wildcard_probability_43": 1,
+      "wildcard_name_44": "None",
+      "wildcard_probability_44": 1,
+      "wildcard_name_45": "None",
+      "wildcard_probability_45": 1,
+      "wildcard_name_46": "None",
+      "wildcard_probability_46": 1,
+      "wildcard_name_47": "None",
+      "wildcard_probability_47": 1,
+      "wildcard_name_48": "None",
+      "wildcard_probability_48": 1,
+      "wildcard_name_49": "None",
+      "wildcard_probability_49": 1,
+      "text": ", red hair, long hair"
+    },
+    "class_type": "makiwildcards_Advanced",
+    "_meta": {
+      "title": "makiwildcards_Advanced"
+    }
+  },
+  "29": {
+    "inputs": {
+      "ckpt_name": "checkpoints/sd_xl_refiner_1.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "30": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "scale_by": 1.5,
+      "image": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "Upscale Image By"
+    }
+  },
+  "32": {
+    "inputs": {
+      "text": "chest-up portrait, full hair visible, top of head in frame, shoulders in frame, soft loose waves with volume and natural flyaways, 3/4 view, studio beauty lighting, 50mm portrait look, shallow depth of field, detailed irises, crisp eyelashes, healthy skin texture, subtle makeup, glossy natural lips, photorealistic, SDXL quality\n",
+      "clip": [
+        "29",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "33": {
+    "inputs": {
+      "text": "extreme close-up, cropped head, hair out of frame, forehead cut off,\n\"cartoon, anime, cgi, 3d render, deformed, extra limbs, lowres, blurry, watermark, text, harsh shadow, plastic skin, waxy skin, overprocessed, unrealistic proportions, bad anatomy, bad face, out of frame, soft focus, color cast, grey veil, low contrast, haze, fog\"",
+      "clip": [
+        "29",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "34": {
+    "inputs": {
+      "seed": 766798403502182,
+      "steps": 10,
+      "cfg": 2,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 0.35,
+      "model": [
+        "29",
+        0
+      ],
+      "positive": [
+        "32",
+        0
+      ],
+      "negative": [
+        "33",
+        0
+      ],
+      "latent_image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+# Node modules and caches
+node_modules
+**/node_modules
+npm-debug.log*
+
+# Python cache
+__pycache__
+*.pyc
+
+# Git
+.git
+.gitignore
+
+# Virtual environments
+.venv
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
