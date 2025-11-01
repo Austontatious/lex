@@ -92,7 +92,7 @@ Enable it only if you need tunnel-based access:
 docker compose --profile live up -d cloudflared
 ```
 
-Ensure `docker/cloudflared/config.yml` and the credentials JSON align with your tunnel ID.
+Mount `/mnt/data/Lex/cloudflared/config.yml` with your ingress settings and keep the Cloudflare credentials JSON under `/root/.cloudflared/` on the host.
 
 ---
 

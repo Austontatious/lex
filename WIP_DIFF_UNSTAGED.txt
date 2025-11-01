@@ -1,0 +1,328 @@
+diff --git a/.env.example b/.env.example
+index 399cd7c..400facf 100644
+--- a/.env.example
++++ b/.env.example
+@@ -3,7 +3,7 @@ API_PORT=9000
+ FRONTEND_PORT=3000
+ 
+ # API base exposed to browsers (default keeps requests same-origin via Nginx proxy)
+-LEX_API_BASE_PUBLIC=/lex
++LEX_API_BASE_PUBLIC=https://api.lexicompanion.com
+ 
+ # External services reachable from inside the backend container
+ COMFY_URL=http://host.docker.internal:8188
+diff --git a/Lexi/lexi/frontend/public/runtime-config.js b/Lexi/lexi/frontend/public/runtime-config.js
+index ee27fce..c8dc130 100644
+--- a/Lexi/lexi/frontend/public/runtime-config.js
++++ b/Lexi/lexi/frontend/public/runtime-config.js
+@@ -1,3 +1,9 @@
+-window.__LEX_API_BASE="http://localhost:8000";
+-window.__COMFY_URL="http://127.0.0.1:8188";
+-window.__VLLM_URL="http://127.0.0.1:8008/v1";
++window.RUNTIME_CONFIG = {
++  API_BASE: "https://api.lexicompanion.com",
++  COMFY_URL: "http://127.0.0.1:8188",
++  VLLM_URL: "http://127.0.0.1:8008/v1",
++};
++
++window.__LEX_API_BASE = window.RUNTIME_CONFIG.API_BASE;
++window.__COMFY_URL = window.RUNTIME_CONFIG.COMFY_URL;
++window.__VLLM_URL = window.RUNTIME_CONFIG.VLLM_URL;
+diff --git a/Lexi/lexi/frontend/src/services/api.ts b/Lexi/lexi/frontend/src/services/api.ts
+index 1e70718..b6f2a1a 100755
+--- a/Lexi/lexi/frontend/src/services/api.ts
++++ b/Lexi/lexi/frontend/src/services/api.ts
+@@ -32,6 +32,19 @@ function safeStr(x: any | undefined): string | undefined {
+   return typeof x === "string" && x.trim() ? x.trim() : undefined;
+ }
+ 
++function normalizeBase(base: string | undefined): string | undefined {
++  const trimmed = safeStr(base);
++  if (!trimmed) return undefined;
++  if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/\/+$/, "");
++  if (trimmed.startsWith("/")) {
++    if (typeof window !== "undefined" && window.location?.origin) {
++      return `${window.location.origin}${trimmed}`.replace(/\/+$/, "");
++    }
++    return trimmed.replace(/\/+$/, "");
++  }
++  return trimmed.replace(/\/+$/, "");
++}
++
+ // ==== Inputs: env, runtime globals, meta tag, persisted, heuristics ====
+ const envBase = safeStr(
+   ENV.VITE_BACKEND ||
+@@ -41,6 +54,10 @@ const envBase = safeStr(
+   ENV.REACT_APP_BACKEND
+ );
+ 
++const runtimeConfigBaseRaw =
++  (typeof window !== "undefined" && safeStr((window as AnyDict)?.RUNTIME_CONFIG?.API_BASE)) ||
++  undefined;
++
+ const runtimeGlobal =
+   (typeof window !== "undefined" && (safeStr((window as any).__BACKEND__) || safeStr((window as any).__LEX_API_BASE))) ||
+   undefined;
+@@ -75,16 +92,21 @@ function stripBadLocalhosts(cands: string[]): string[] {
+ 
+ /** Build ordered candidate list (strongest → weakest) */
+ function candidateBases(): string[] {
+-  const cands = [
++  const heuristics = heuristicBases();
++  const raw = [
++    runtimeConfigBaseRaw,
+     envBase,
+     runtimeGlobal,
+     metaTag,
+     persisted,
+-    ...heuristicBases(),
++    ...heuristics,
+     "http://localhost:8000",
+     "http://127.0.0.1:8000",
+-  ].filter(Boolean) as string[];
+-  return stripBadLocalhosts(Array.from(new Set(cands)));
++  ];
++  const normalized = raw
++    .map((value) => normalizeBase(value))
++    .filter((value): value is string => Boolean(value));
++  return stripBadLocalhosts(Array.from(new Set(normalized)));
+ }
+ 
+ function joinUrl(base: string, path: string): string {
+@@ -128,7 +150,7 @@ async function fetchWithTimeout(
+ 
+ async function probe(base: string, ms = 1500): Promise<boolean> {
+   try {
+-    const url = joinUrl(base, "/lexi/health");
++    const url = joinUrl(base, "/lex/health");
+     const res = await fetchWithTimeout(
+       url,
+       { method: "GET", cache: "no-store" },
+@@ -145,9 +167,10 @@ async function probe(base: string, ms = 1500): Promise<boolean> {
+ }
+ 
+ // Live backend base: always use page origin when available
+-let _API_BASE: string = (typeof window !== "undefined" && window.location?.origin)
++const initialCandidates = candidateBases();
++let _API_BASE: string = initialCandidates[0] ?? ((typeof window !== "undefined" && window.location?.origin)
+   ? window.location.origin
+-  : (candidateBases()[0] || "http://localhost:8000");
++  : "http://localhost:8000");
+ 
+ function publishBase(base: string) {
+   _API_BASE = base;
+@@ -340,10 +363,10 @@ export type ChatResponse = { cleaned?: string; raw?: string; text?: string; meta
+ 
+ // ——— API ———
+ export async function fetchPersona(): Promise<Persona> {
+-  return jsonFetch<Persona>("/lexi/persona", { method: "GET" });
++  return jsonFetch<Persona>("/lex/persona", { method: "GET" });
+ }
+ export async function addTrait(text: string): Promise<TraitResponse> {
+-  return jsonFetch<TraitResponse>("/lexi/persona/add_trait", { method: "POST", body: JSON.stringify({ text }) });
++  return jsonFetch<TraitResponse>("/lex/persona/add_trait", { method: "POST", body: JSON.stringify({ text }) });
+ }
+ export async function generateAvatar(
+   body:
+@@ -351,7 +374,7 @@ export async function generateAvatar(
+     | { prompt?: string; mode?: "txt2img" | "img2img"; changes?: string; denoise?: number; fresh_base?: boolean }
+ ): Promise<{ image?: string; image_url?: string; path?: string; url?: string; file?: string; [k: string]: any }> {
+   const payload = typeof body === "string" ? { prompt: body } : body;
+-  return jsonFetch("/lexi/persona/generate_avatar", {
++  return jsonFetch("/lex/persona/generate_avatar", {
+     method: "POST",
+     body: JSON.stringify(payload),
+     // Comfy runs can take a while; align with backend poll window
+@@ -359,15 +382,15 @@ export async function generateAvatar(
+   });
+ }
+ export async function classifyIntent(text: string): Promise<{ intent: string; [k: string]: any }> {
+-  return jsonFetch<{ intent: string }>("/lexi/intent", { method: "POST", body: JSON.stringify({ text }) });
++  return jsonFetch<{ intent: string }>("/lex/intent", { method: "POST", body: JSON.stringify({ text }) });
+ }
+ export async function sendPrompt(input: string | { prompt: string }): Promise<ChatResponse> {
+   const prompt = typeof input === "string" ? input : input.prompt;
+-  return jsonFetch<ChatResponse>("/lexi/process", { method: "POST", body: JSON.stringify({ prompt }) });
++  return jsonFetch<ChatResponse>("/lex/process", { method: "POST", body: JSON.stringify({ prompt }) });
+ }
+ export async function health(): Promise<string> {
+   try {
+-    const r = await resilientFetch(joinUrl(API(), "/lexi/health"), { _path: "/lexi/health", timeoutMs: 5000 });
++    const r = await resilientFetch(joinUrl(API(), "/lex/health"), { _path: "/lex/health", timeoutMs: 5000 });
+     return r.ok ? "ok" : `bad (${r.status})`;
+   } catch (e: any) {
+     return `err: ${e?.message || e}`;
+@@ -394,13 +417,13 @@ export async function startAlphaSession(payload?: {
+     variant: payload?.variant ?? null,
+     tags: payload?.tags ?? ["alpha"],
+   });
+-  const data = await jsonFetch<SessionStartResponse>("/lexi/alpha/session/start", { method: "POST", body });
++  const data = await jsonFetch<SessionStartResponse>("/lex/alpha/session/start", { method: "POST", body });
+   setSessionId(data.session_id);
+   return data;
+ }
+ 
+ export async function updateAlphaConsent(consent: boolean): Promise<{ consent: boolean }> {
+-  const res = await jsonFetch<{ consent: boolean }>("/lexi/alpha/session/consent", {
++  const res = await jsonFetch<{ consent: boolean }>("/lex/alpha/session/consent", {
+     method: "POST",
+     body: JSON.stringify({ consent }),
+   });
+@@ -408,7 +431,7 @@ export async function updateAlphaConsent(consent: boolean): Promise<{ consent: b
+ }
+ 
+ export async function endAlphaSession(): Promise<{ archived: boolean; archive_path?: string }> {
+-  const res = await jsonFetch<{ archived: boolean; archive_path?: string }>("/lexi/alpha/session/end", {
++  const res = await jsonFetch<{ archived: boolean; archive_path?: string }>("/lex/alpha/session/end", {
+     method: "POST",
+     body: "{}",
+   });
+@@ -417,46 +440,46 @@ export async function endAlphaSession(): Promise<{ archived: boolean; archive_pa
+ }
+ 
+ export async function fetchAlphaTourScript(): Promise<{ steps: Array<{ slug: string; prompt: string; narration: string }> }> {
+-  return jsonFetch("/lexi/alpha/tour/script", { method: "GET" });
++  return jsonFetch("/lex/alpha/tour/script", { method: "GET" });
+ }
+ 
+ export async function requestTourAvatarPreview(prompt: string): Promise<{ preview_url: string; alpha_strict: boolean }> {
+-  return jsonFetch("/lexi/alpha/tour/avatar-preview", {
++  return jsonFetch("/lex/alpha/tour/avatar-preview", {
+     method: "POST",
+     body: JSON.stringify({ prompt }),
+   });
+ }
+ 
+ export async function submitTourNowTopic(topic: string): Promise<{ now_topic: string }> {
+-  return jsonFetch("/lexi/alpha/tour/now-topic", {
++  return jsonFetch("/lex/alpha/tour/now-topic", {
+     method: "POST",
+     body: JSON.stringify({ topic }),
+   });
+ }
+ 
+ export async function submitTourMemoryNote(note: string): Promise<{ ack: boolean }> {
+-  return jsonFetch("/lexi/alpha/tour/memory-note", {
++  return jsonFetch("/lex/alpha/tour/memory-note", {
+     method: "POST",
+     body: JSON.stringify({ note }),
+   });
+ }
+ 
+ export async function sendTourFeedback(helpful: boolean, comment?: string): Promise<{ ok: boolean }> {
+-  return jsonFetch("/lexi/alpha/tour/feedback", {
++  return jsonFetch("/lex/alpha/tour/feedback", {
+     method: "POST",
+     body: JSON.stringify({ helpful, comment }),
+   });
+ }
+ 
+ export async function postAlphaMetric(event: string, detail?: Record<string, unknown>): Promise<{ ok: boolean }> {
+-  return jsonFetch("/lexi/alpha/session/metrics", {
++  return jsonFetch("/lex/alpha/session/metrics", {
+     method: "POST",
+     body: JSON.stringify({ event, detail }),
+   });
+ }
+ 
+ export async function downloadSessionMemory(): Promise<{ blob: Blob; filename: string }> {
+-  const path = "/lexi/alpha/session/memory";
++  const path = "/lex/alpha/session/memory";
+   const res = await resilientFetch(joinUrl(API(), path), { method: "GET", _path: path });
+   if (!res.ok) {
+     const text = await res.text().catch(() => "");
+diff --git a/README-ALPHA-DEPLOY.md b/README-ALPHA-DEPLOY.md
+index 42b47c6..f10087d 100644
+--- a/README-ALPHA-DEPLOY.md
++++ b/README-ALPHA-DEPLOY.md
+@@ -92,7 +92,7 @@ Enable it only if you need tunnel-based access:
+ docker compose --profile live up -d cloudflared
+ ```
+ 
+-Ensure `docker/cloudflared/config.yml` and the credentials JSON align with your tunnel ID.
++Mount `/mnt/data/Lex/cloudflared/config.yml` with your ingress settings and keep the Cloudflare credentials JSON under `/root/.cloudflared/` on the host.
+ 
+ ---
+ 
+diff --git a/docker-compose.yml b/docker-compose.yml
+index e4ee690..d4694e5 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -8,7 +8,7 @@ x-frontend-base: &frontend_base
+   image: lexi-frontend:alpha
+   environment:
+     <<: *common_env
+-    LEX_API_BASE: ${LEX_API_BASE_PUBLIC:-/lex}
++    LEX_API_BASE: ${LEX_API_BASE_PUBLIC:-https://api.lexicompanion.com}
+     COMFY_URL: ${COMFY_URL_PUBLIC:-${COMFY_URL:-http://host.docker.internal:8188}}
+     VLLM_URL: ${VLLM_URL_PUBLIC:-${OPENAI_API_BASE:-http://host.docker.internal:8008/v1}}
+   depends_on:
+@@ -54,12 +54,10 @@ services:
+       - traefik.docker.network=edge
+ 
+       # Strip the /api prefix before forwarding to FastAPI
+-      - traefik.http.middlewares.lexi-api-strip.replacepathregex.regex=^/api(.*)
+-      - traefik.http.middlewares.lexi-api-strip.replacepathregex.replacement=$1
+ 
+       # API router (give it higher priority so it always wins over the SPA)
+       - traefik.http.routers.lexi-api.rule=Host(`lexicompanion.com`) && PathPrefix(`/api`)
+-      - traefik.http.routers.lexi-api.entrypoints=websecure
++      - traefik.http.routers.lexi-api.entrypoints=web,websecure
+       - traefik.http.routers.lexi-api.tls.certresolver=le
+       - traefik.http.routers.lexi-api.middlewares=lexi-api-strip
+       - traefik.http.routers.lexi-api.priority=100
+@@ -75,7 +73,7 @@ services:
+       - traefik.enable=true
+       - traefik.docker.network=edge
+       - traefik.http.routers.lexi-frontend.rule=Host(`lexicompanion.com`)
+-      - traefik.http.routers.lexi-frontend.entrypoints=websecure
++      - traefik.http.routers.lexi-frontend.entrypoints=web,websecure
+       - traefik.http.routers.lexi-frontend.tls.certresolver=le
+       - traefik.http.routers.lexi-frontend.priority=10
+       - traefik.http.services.lexi-frontend.loadbalancer.server.port=80
+@@ -90,14 +88,13 @@ services:
+ 
+   cloudflared:
+     image: cloudflare/cloudflared:latest
+-    depends_on:
+-      - lexi-frontend
+-      - lexi-backend
+-    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+-    volumes:
+-      - ./docker/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+-      - /root/.cloudflared/bdf032f8-f546-4d36-96ca-118088b7a443.json:/etc/cloudflared/bdf032f8-f546-4d36-96ca-118088b7a443.json:ro
++    user: "root"
++    command: tunnel --config /etc/cloudflared/config.yml run
+     restart: unless-stopped
++    networks:
++      - edge
++    volumes:
++      - /mnt/data/Lex/cloudflared:/etc/cloudflared:ro
+     profiles: ["live"]
+ 
+ volumes:
+diff --git a/frontend/public/runtime-config.js b/frontend/public/runtime-config.js
+index 9bdde82..3b37120 100644
+--- a/frontend/public/runtime-config.js
++++ b/frontend/public/runtime-config.js
+@@ -1 +1,5 @@
+-window.__LEX_API_BASE="http://localhost:8003";
++window.RUNTIME_CONFIG = {
++  API_BASE: "https://api.lexicompanion.com",
++};
++
++window.__LEX_API_BASE = window.RUNTIME_CONFIG.API_BASE;
+diff --git a/frontend/src/services/api.ts b/frontend/src/services/api.ts
+index e1d99eb..1092775 100755
+--- a/frontend/src/services/api.ts
++++ b/frontend/src/services/api.ts
+@@ -1,6 +1,9 @@
+ // src/services/api.ts (fully patched to match old imports and lex_persona endpoints)
+ 
++const runtimeApiBase = (typeof window !== "undefined" && (window as any)?.RUNTIME_CONFIG?.API_BASE) || undefined;
++
+ export const BACKEND =
++  (typeof runtimeApiBase === "string" && runtimeApiBase.trim()) ||
+   (window as any)?.__LEX_API_BASE ||
+   (import.meta && import.meta.env && import.meta.env.VITE_BACKEND_URL) ||
+   "http://localhost:8000";

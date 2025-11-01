@@ -1,6 +1,9 @@
 // src/services/api.ts (fully patched to match old imports and lex_persona endpoints)
 
+const runtimeApiBase = (typeof window !== "undefined" && (window as any)?.RUNTIME_CONFIG?.API_BASE) || undefined;
+
 export const BACKEND =
+  (typeof runtimeApiBase === "string" && runtimeApiBase.trim()) ||
   (window as any)?.__LEX_API_BASE ||
   (import.meta && import.meta.env && import.meta.env.VITE_BACKEND_URL) ||
   "http://localhost:8000";
