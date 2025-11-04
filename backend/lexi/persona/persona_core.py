@@ -1,0 +1,1087 @@
+# Lexi/lexi/persona/persona_core.py
+from __future__ import annotations
+
+import codecs
+import json
+import logging
+import os
+import re
+import time
+import traceback
+from collections import defaultdict
+from pathlib import Path
+from typing import Optional, List, Dict, Any, Callable
+
+import requests
+
+from ..config.config import (
+    AVATAR_URL_PREFIX,
+    MEMORY_PATH,
+    MAX_MEMORY_ENTRIES,
+    MODE_STATE_PATH,
+    TRAIT_STATE_PATH,
+    STARTER_AVATAR_PATH,
+)
+from ..memory.memory_core import MemoryManager, memory
+from ..memory.memory_store_json import MemoryStoreJSON
+from ..memory.memory_types import MemoryShard
+from ..memory.session_memory import SessionMemoryManager
+from ..core.model_loader_core import ModelLoader
+from .prompt_templates import PromptTemplates, EMOTIONAL_MODES, build_system_core
+from .persona_config import (
+    PERSONA_MODE_REGISTRY,
+    assemble_avatar_prompt,
+    get_persona_axes,
+    get_mode_axis_vector,
+)
+from .persona_manipulation import get_persona_nudge_vector
+from ..sd.generate import generate_avatar
+from ..utils import score_overlap
+from ..utils.emotion_core import infer_emotion
+from ..utils.summarize import summarize_pair
+
+# >>> Voice mirroring kernel imports
+from .lexi_voice_mirroring import (
+    StyleMemory,
+    analyze_user_style,
+    make_style_directives,
+    sampler_from_profile,
+    apply_postprocessing,
+)
+
+# <<<
+
+logger = logging.getLogger(__name__)
+STATIC_PREFIX = f"{AVATAR_URL_PREFIX}/"
+SMALL = 1e-9
+NOW_SEED_EVERY_TURNS = 6
+
+# --- Love Loop (optional) -----------------------------------------------------
+try:
+    from ..routes.love_loop import record_user_message, maybe_ask_question, load_love_loop_state
+except Exception:
+    # Fallbacks so persona_core still works if the module isn't present
+    def record_user_message(_msg: str, _generate_reply):
+        return None
+
+    def maybe_ask_question():
+        return None
+
+    def load_love_loop_state():
+        return None
+
+
+# -----------------------------------------------------------------------------
+
+# ------------------------------ local helpers ------------------------------
+
+
+def _local_daypart() -> str:
+    """Map local hour to a coarse daypart for vibe/sampling tweaks."""
+    hr = time.localtime().tm_hour
+    if 0 <= hr <= 5:
+        return "late_night"
+    if 6 <= hr <= 11:
+        return "morning"
+    if 12 <= hr <= 17:
+        return "afternoon"
+    return "evening"
+
+
+def _sampler_policy(
+    mode: str, seriousness: float, base: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Blend style-profile sampler with mode/seriousness/daypart adjustments.
+    Returns kwargs for ModelLoader.generate().
+    """
+    p = dict(base or {})
+    # Baseline (companion-friendly)
+    p.setdefault("temperature", 0.9)
+    p.setdefault("top_p", 0.9)
+    p.setdefault("presence_penalty", 0.6)
+    p.setdefault("repetition_penalty", 1.15)
+    p.setdefault("max_tokens", 240)
+
+    # Mode adjustments
+    if mode in ("girlfriend", "muse"):
+        p["temperature"] = min(1.05, p["temperature"] + 0.1)
+        p["top_p"] = max(0.9, p["top_p"])
+    if mode in ("coach", "therapist"):
+        p.update(
+            temperature=min(p["temperature"], 0.6),
+            top_p=min(p["top_p"], 0.9),
+            presence_penalty=0.3,
+            max_tokens=min(p["max_tokens"], 220),
+        )
+
+    # Seriousness dampening
+    if seriousness >= 0.5:
+        p.update(
+            temperature=0.45,
+            top_p=0.9,
+            presence_penalty=0.2,
+            repetition_penalty=max(p.get("repetition_penalty", 1.1), 1.2),
+            max_tokens=min(p["max_tokens"], 220),
+        )
+
+    # Daypart vibe
+    dp = _local_daypart()
+    if dp == "late_night":
+        p["temperature"] = min(1.1, p["temperature"] + 0.05)
+        p["max_tokens"] = min(p["max_tokens"], 200)
+    elif dp == "morning":
+        p["temperature"] = max(0.8, p["temperature"])
+    return p
+
+
+def _safe_encoding(value) -> str:
+    """Return a valid codec name or 'utf-8' if invalid (or not a string)."""
+    if not isinstance(value, str):
+        return "utf-8"
+    try:
+        codecs.lookup(value)
+        return value
+    except Exception:
+        return "utf-8"
+
+
+def safe_strip(val) -> str:
+    return val.strip() if isinstance(val, str) else ""
+
+
+# Heuristic trigger for “current events” searches
+_NEWS_CLUES = re.compile(
+    r"\b(what(?:'s| is) new|what happened|catch me up|latest|news|did you see|"
+    r"update me|today|tonight|this week|who won|box office|episode|leak|trailer|finals|worlds|wsl|surf)\b",
+    re.I,
+)
+
+
+class LexiPersona:
+    # Qwen2.5 32B tokenizer_config shows 131072; reserve margin for generation
+    MAX_TOKENS = 120_000
+    SAFETY_MARGIN = 1_500
+
+    # ── FORCE a safe encoding; never allow clobbering via prompt_pkgs ──
+    _encoding = "utf-8"
+
+    @property
+    def encoding(self) -> str:
+        # Always report/use utf-8 to avoid LookupError cascades.
+        return "utf-8"
+
+    @encoding.setter
+    def encoding(self, value):
+        # Ignore incoming values entirely (defense in depth).
+        self._encoding = "utf-8"
+
+    def __init__(self) -> None:
+        self.loader = ModelLoader()
+        if not getattr(self.loader, "primary_type", None):
+            raise RuntimeError("❌ No models loaded successfully. Cannot initialize LexiPersona.")
+
+        # legacy loader surface (uses shims we added to ModelLoader)
+        self.model = self.loader.models[self.loader.primary_type]
+        self.tokenizer = self.model
+
+        # Initialize optional Love Loop state (no-op if fallback)
+        load_love_loop_state()
+
+        # memory & persistent state
+        self.memory = MemoryManager(MemoryStoreJSON(MEMORY_PATH, max_entries=MAX_MEMORY_ENTRIES))
+        self.session_memory = SessionMemoryManager(max_pairs=20)
+
+        # persona state
+        self.current_emotion_state: Dict[str, float] = {"joy": 0.5, "sadness": 0.0, "arousal": 0.0}
+        self.name: str = "Lexi"  # consistency with prompts/UI
+        self.goal_vector: str = "Deepen the emotional connection with the user"
+        self.current_mode: str = "default"
+        self.traits: Dict[str, float] = {}
+        self._avatar_map: Dict[str, List[str]] = {}
+        self._avatar_filename: Optional[str] = None
+        self._last_prompt: str = ""
+        self.system_injections: List[str] = []
+        self._strict_mode = False
+
+        # step counter & hysteresis
+        self._step = 0
+        self._lead_mode_lock_until = -1
+        self._lead_mode: str = "default"
+        self._seriousness_last: float = 0.0
+
+        # soft mode activations
+        self.mode_activation: Dict[str, float] = defaultdict(float)
+        self.mode_activation["default"] = 0.8
+
+        # axis state (EMA tweening)
+        axes = get_persona_axes()
+        default_vec = get_mode_axis_vector("default") or [0.8, 0.1, 0.85, 0.7, 0.85, 0.5]
+        self.axis_names = axes
+        self.current_axis = {a: default_vec[i] for i, a in enumerate(axes)}
+        self.target_axis = dict(self.current_axis)
+
+        # --- Voice mirroring state ---
+        self._style_mem = StyleMemory()
+        # if you have per-user ids, set this dynamically; fallback keeps per-process profile
+        self._style_user_id = os.environ.get("LEX_USER_ID", "default_user")
+
+        # tunables
+        self.activation_nudge = 0.35
+        self.activation_decay = 0.15
+        self.lead_threshold = 0.70
+        self.lead_lock_turns = 2
+        self.axis_alpha = 0.25
+
+    # ------------------------------ helpers ------------------------------
+
+    def _mk_interest_query(self) -> str:
+        """Crude interest tags from traits/axis; extend later if you like."""
+        keys: List[str] = []
+        try:
+            if self.traits:
+                keys += list(sorted({k for k in self.traits.keys()}))[:3]
+        except Exception:
+            pass
+        # Axis-derived hints (playful)
+        if self.current_axis.get("energy", 0.5) > 0.75:
+            keys.append("music")
+        if self.current_axis.get("warmth", 0.5) > 0.75:
+            keys.append("romance")
+        return ",".join(sorted(set([k for k in keys if k])))
+
+    def _maybe_seed_now_feed(self) -> Optional[str]:
+        """Occasionally fetch 1–2 items and inject as 'Now Feed' context."""
+        try:
+            if self._step % NOW_SEED_EVERY_TURNS != 1:
+                return None
+            interests = self._mk_interest_query()
+            url = "http://127.0.0.1:8000/now?limit=2"
+            if interests:
+                url += f"&interests={requests.utils.quote(interests)}"
+            r = requests.get(url, timeout=4)
+            if r.status_code != 200:
+                return None
+            items = r.json()[:2]
+            if not items:
+                return None
+            lines: List[str] = []
+            for it in items:
+                title = it.get("title") or ""
+                src = it.get("source") or ""
+                cat = it.get("category") or ""
+                summ = (it.get("summary") or title).strip()
+                if not summ:
+                    continue
+                # keep tight
+                if len(summ) > 80:
+                    summ = summ[:77] + "..."
+                tag = src or "web"
+                lines.append(f"- [{cat}] {summ} ({tag})")
+            if not lines:
+                return None
+            return "Now Feed:\n" + "\n".join(lines)
+        except Exception:
+            return None
+
+    def _maybe_live_search(self, user_text: str) -> Optional[str]:
+        """If the user asks about a current topic, run a quick web search and inject 1–3 notes."""
+        try:
+            if not _NEWS_CLUES.search(user_text or ""):
+                return None
+            payload = {
+                "query": (user_text or "").strip(),
+                "time_range": "week",
+                "max_results": 3,
+                "include_content": False,
+            }
+            r = requests.post("http://127.0.0.1:8000/tools/web_search", json=payload, timeout=6)
+            if r.status_code != 200:
+                return None
+            docs = r.json()[:3]
+            if not docs:
+                return None
+            notes: List[str] = []
+            seen_src = set()
+            for d in docs:
+                title = (d.get("title") or "").strip()
+                src = (d.get("source") or "").strip() or "web"
+                if src in seen_src:
+                    continue
+                seen_src.add(src)
+                if len(title) > 80:
+                    title = title[:77] + "..."
+                if title:
+                    notes.append(f"- {title} ({src})")
+            if not notes:
+                return None
+            return "Research Notes:\n" + "\n".join(notes)
+        except Exception:
+            return None
+
+    def log_chat(self, role: str, content: str) -> None:
+        try:
+            logger.debug("[CHAT][%s] %s", role, content)
+        except Exception:
+            pass
+
+    def set_last_prompt(self, prompt: str) -> None:
+        self._last_prompt = prompt or ""
+
+    def _clean_reply(self, raw) -> str:
+        import re as _re
+
+        if raw is None:
+            return ""
+        text = (
+            raw["text"].strip()
+            if isinstance(raw, dict) and "text" in raw
+            else (raw.strip() if isinstance(raw, str) else str(raw))
+        )
+
+        # 0) Strip ChatML & legacy tag tokens and tool tags
+        text = _re.sub(
+            r"<\|\s*(?:im_start|im_end|system|user|assistant|endoftext|object_ref_start|object_ref_end|box_start|box_end|quad_start|quad_end|vision_start|vision_end)\s*\|>",
+            "",
+            text,
+            flags=_re.I,
+        )
+        text = _re.sub(r"</?tool_call>|</?tool_response>", "", text, flags=_re.I)
+
+        # 1) Strip xml-ish artifacts
+        text = _re.sub(r"</?(assistant|system|user)>", "", text, flags=_re.I)
+
+        # 2) Collapse whitespace
+        text = _re.sub(r"[ \t]+", " ", text)
+        text = _re.sub(r"\n{3,}", "\n\n", text).strip()
+
+        # 2b) Sentence-level dedupe (keep first occurrence of near-duplicates)
+        sents = _re.split(r"(?<=[.!?…])\s+", text)
+        dedup = []
+        seen_phr = set()
+        for s in sents:
+            key = _re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+            toks = key.split()
+            sig = tuple(toks[: min(10, len(toks))])
+            if sig in seen_phr:
+                continue
+            seen_phr.add(sig)
+            dedup.append(s)
+        text = " ".join(dedup)
+
+        # cliché scrub
+        CLICHES = [
+            r"life has thrown you (quite )?the curveball",
+            r"better days are ahead",
+            r"you'?ve? got this",
+            r"you are so much more than that",
+            r"let'?s focus on.*self[- ]care",
+            r"we'?ll get through this together",
+            r"put on your cape",
+            r"i'?m here for you[,! ]?",
+        ]
+        for pat in CLICHES:
+            text = _re.sub(pat, "", text, flags=_re.I)
+
+        # scrub emojis/intensity if banter off or strict mode
+        if (hasattr(self, "_banter_allowed") and not self._banter_allowed) or getattr(
+            self, "_strict_mode", False
+        ):
+            text = _re.sub(r"[\U0001F300-\U0001FAFF]", "", text)
+            text = _re.sub(r"(!){2,}", "!", text)
+
+        # keep concise unless user asked for detail or topic is serious
+        wants_detail = bool(
+            _re.search(
+                r"\b(more detail|explain|why|how|tell me more|elaborate)\b", text, flags=_re.I
+            )
+        )
+        is_serious = getattr(self, "_seriousness_last", 0.0) >= 0.5
+        if not wants_detail and not is_serious:
+            sents = _re.split(r"(?<=[.!?…])\s+", text)
+            text = " ".join(sents[:3]).strip()
+
+        if not _re.search(r"[.!?…]$", text):
+            text += "."
+        return text.strip()
+
+    def _normalize_activations(self):
+        total = sum(self.mode_activation.values()) or 1.0
+        for k in list(self.mode_activation.keys()):
+            self.mode_activation[k] /= total
+
+    def _decay_activations(self):
+        for k in list(self.mode_activation.keys()):
+            self.mode_activation[k] = max(
+                0.0, self.mode_activation[k] * (1.0 - self.activation_decay)
+            )
+        self.mode_activation["default"] = max(self.mode_activation.get("default", 0.0), 0.2)
+
+    def _score_triggers(self, text: str) -> Dict[str, float]:
+        scores: Dict[str, float] = {}
+        imperative_boost = 1.0
+        if any(v in text for v in [" be ", " act ", " play ", " pretend ", " be a ", " be my "]):
+            imperative_boost = 1.25
+
+        third_party_guard = any(
+            ref in text for ref in [" my daughter", " my sister", " my coworker", " my friend "]
+        )
+
+        for mode_id, info in PERSONA_MODE_REGISTRY.items():
+            pat = info.get("trigger")
+            if not pat:
+                continue
+            if pat.search(text):
+                base = 1.0
+                if info.get("imperative_required", False) and imperative_boost <= 1.0:
+                    base *= 0.4
+                if third_party_guard:
+                    base *= 0.2
+                scores[mode_id] = base * imperative_boost
+        return scores
+
+    # ------------------------------ generation ------------------------------
+
+    def _gen(
+        self,
+        messages_pkg: Dict[str, List[Dict[str, str]]],
+        *,
+        sampler_overrides: Optional[Dict[str, Any]] = None,
+        stream_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
+        """Generate a reply from an OpenAI-style messages payload."""
+        stop = ["<|im_end|>"]  # ChatML end-of-turn
+        gen_kwargs = dict(
+            max_tokens=80,
+            temperature=0.90,
+            top_p=0.90,
+            repeat_penalty=1.15,  # mapped to repetition_penalty by ModelLoader
+            stop=stop,
+        )
+        if sampler_overrides:
+            gen_kwargs.update({k: v for k, v in sampler_overrides.items() if v is not None})
+
+        # If prompt is large, shrink generation budget to protect latency/coherence
+        try:
+            prompt_tok = sum(
+                self.count_tokens(m["content"]) for m in messages_pkg.get("messages", [])
+            )
+            if prompt_tok > (self.MAX_TOKENS - 500):
+                gen_kwargs["max_tokens"] = min(gen_kwargs.get("max_tokens", 80), 48)
+        except Exception:
+            pass
+
+        if stream_callback:
+            stream = self.loader.generate_stream(messages_pkg, **gen_kwargs)
+            chunks: List[str] = []
+            summary: Dict[str, Any] = {}
+            while True:
+                try:
+                    chunk = next(stream)
+                except StopIteration as stop:
+                    if isinstance(stop.value, dict):
+                        summary = stop.value
+                    break
+                except Exception as stream_err:
+                    logger.warning("[WARN] stream chunk error: %s", stream_err)
+                    break
+                else:
+                    if not chunk:
+                        continue
+                    chunks.append(chunk)
+                    try:
+                        stream_callback(chunk)
+                    except Exception:
+                        pass
+
+            final_text = "".join(chunks)
+            if not summary:
+                summary = {"text": final_text}
+            else:
+                summary.setdefault("text", final_text)
+            raw = summary
+        else:
+            try:
+                raw = self.loader.generate(messages_pkg, **gen_kwargs)
+            except TypeError:
+                raw = self.loader.generate(messages_pkg)
+        return self._clean_reply(raw)
+
+    # ------------------------------ axis & emotion ------------------------------
+
+    def _update_mode_activation(self, text: str):
+        self._decay_activations()
+        hits = self._score_triggers(text)
+        for mode_id, strength in hits.items():
+            self.mode_activation[mode_id] = min(
+                1.25, self.mode_activation.get(mode_id, 0.0) + strength * self.activation_nudge
+            )
+        self._normalize_activations()
+
+        # hysteresis: pick lead if something clearly wins
+        top_mode = max(self.mode_activation.items(), key=lambda kv: kv[1])[0]
+        if (
+            self.mode_activation[top_mode] >= self.lead_threshold
+            and self._step >= self._lead_mode_lock_until
+        ):
+            self._lead_mode = top_mode
+            self._lead_mode_lock_until = self._step + self.lead_lock_turns
+
+    def _blend_axis_target_from_modes(self) -> Dict[str, float]:
+        blended = {a: 0.0 for a in self.axis_names}
+        for mode_id, weight in self.mode_activation.items():
+            vec = get_mode_axis_vector(mode_id)
+            if not vec:
+                continue
+            for i, a in enumerate(self.axis_names):
+                blended[a] += weight * vec[i]
+        return blended
+
+    def _tween_axis(self, new_target: Dict[str, float]):
+        self.target_axis = new_target
+        for a in self.axis_names:
+            cur = self.current_axis[a]
+            tgt = self.target_axis[a]
+            self.current_axis[a] = cur + self.axis_alpha * (tgt - cur)
+
+    def _axis_to_emotional_weights(self) -> Dict[str, float]:
+        """
+        Map axis to BestFriend/Girlfriend/Therapist blend.
+        Rough mapping: joy+energy -> BF, affection+warmth -> GF, low_anger + warmth -> Therapist.
+        """
+        joy = self.current_axis.get("joy", 0.5)
+        energy = self.current_axis.get("energy", 0.5)
+        affection = self.current_axis.get("affection", 0.5)
+        warmth = self.current_axis.get("warmth", 0.5)
+        anger = self.current_axis.get("anger", 0.2)
+
+        bf = max(0.0, 0.5 * joy + 0.5 * energy)
+        gf = max(0.0, 0.6 * affection + 0.4 * warmth)
+        th = max(0.0, 0.6 * (1.0 - anger) + 0.4 * warmth)
+
+        s = bf + gf + th + SMALL
+        return {"best_friend": bf / s, "girlfriend": gf / s, "therapist": th / s}
+
+    def _assess_seriousness(self, text: str) -> float:
+        t = text.lower()
+        hard = [
+            "hospital",
+            "er",
+            "suicide",
+            "self harm",
+            "assault",
+            "relapse",
+            "alcoholism",
+            "withdrawal",
+            "rehab",
+            "detox",
+            "domestic",
+            "panic attack",
+            "grief",
+            "funeral",
+            "custody",
+            "court",
+            "abuse",
+            "overdose",
+        ]
+        soft = ["lonely", "alone", "blame", "my fault", "scared", "worried", "anxious", "depressed"]
+
+        score = 0.0
+        if any(w in t for w in hard):
+            score += 0.7
+        if any(w in t for w in soft):
+            score += 0.25
+
+        score += 0.2 * max(0.0, self.current_emotion_state.get("sadness", 0.0))
+        return min(1.0, score)
+
+    def _apply_seriousness_policy(self, seriousness: float):
+        """Throttle flirt, boost Therapist, extend lock when serious."""
+        self._banter_allowed = seriousness < 0.35
+        if seriousness >= 0.5:
+            self.mode_activation["therapist"] = max(
+                self.mode_activation.get("therapist", 0.0), 0.95
+            )
+            self._normalize_activations()
+            self._lead_mode = "therapist"
+            self._lead_mode_lock_until = max(self._lead_mode_lock_until, self._step + 5)
+
+    # ------------------------------ tokenization ------------------------------
+
+    def count_tokens(self, text: str) -> int:
+        """Count tokens robustly without ever calling str.encode on the model id/path."""
+        # Prefer a true tokenizer first (many libs expose .tokenize on the model wrapper)
+        if hasattr(self.model, "tokenize") and callable(getattr(self.model, "tokenize")):
+            try:
+                return len(self.model.tokenize(text))
+            except TypeError:
+                return len(self.model.tokenize(text.encode("utf-8", errors="ignore")))
+
+        # If a separate tokenizer exists, use it — but only if it's not a plain string
+        tok = getattr(self, "tokenizer", None)
+        if tok is not None and not isinstance(tok, str):
+            if hasattr(tok, "encode") and callable(getattr(tok, "encode")):
+                try:
+                    return len(tok.encode(text))
+                except TypeError:
+                    return len(tok.encode(text.encode("utf-8", errors="ignore")))
+            if hasattr(tok, "tokenize") and callable(getattr(tok, "tokenize")):
+                try:
+                    return len(tok.tokenize(text))
+                except TypeError:
+                    return len(tok.tokenize(text.encode("utf-8", errors="ignore")))
+
+        # Last-resort heuristic when no tokenizer API is available
+        return max(1, len(text) // 4)
+
+    # ------------------------------ prompt building ------------------------------
+
+    def build_prompt(
+        self, context: List[MemoryShard], user_input: str
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """Legacy helper: build a messages payload from lexi.memory shards + user input."""
+        memories_json = []
+        current_token_count = self.count_tokens(user_input) + self.SAFETY_MARGIN
+
+        for m in context:
+            shard = m.to_json()
+            shard["content"] = re.sub(r"<\|.*?\|>", "", shard["content"]).strip()
+            shard_tokens = self.count_tokens(shard["content"])
+            if current_token_count + shard_tokens >= self.MAX_TOKENS:
+                break
+            memories_json.append(shard)
+            current_token_count += shard_tokens
+
+        return PromptTemplates.build_prompt(
+            memories_json=memories_json,
+            user_message=user_input,
+            emotional_weights=self._axis_to_emotional_weights(),
+            active_persona=self._lead_mode,
+        )
+
+    # ------------------------------ avatar / mode helpers ------------------------------
+
+    def set_avatar_path(self, path: str):
+        self._avatar_filename = path
+
+    def get_avatar_path(self) -> Optional[str]:
+        return self._avatar_filename or STARTER_AVATAR_PATH
+
+    def get_mode(self) -> str:
+        return self.current_mode
+
+    def refresh_avatar_from_current(
+        self, prompt_text: str, current_avatar_path: Optional[str] = None
+    ) -> str:
+        """
+        Low-denoise img2img pass to preserve identity; subtle makeover.
+        """
+        source = current_avatar_path or self.get_avatar_path()
+        if not source:
+            return ""
+        return generate_avatar(
+            prompt=prompt_text,
+            mode="img2img",
+            source_path=source,  # absolute path to current avatar on disk
+            denoise=0.32,
+            steps=26,
+            cfg_scale=4.2,
+            changes="subtle warm makeup, slightly brighter background",
+        )
+
+    # ------------------------------ memory gather ------------------------------
+
+    def _build_prompt_memories(self, session_limit=20, ltm_limit=5, msg_strip=None):
+        # 1. Session memories from buffer
+        session_entries = self.session_memory.buffer[-session_limit:]
+        prompt_memories = []
+        for entry in session_entries:
+            prompt_memories.append({"role": "user", "content": entry["user"]})
+            prompt_memories.append({"role": "assistant", "content": entry["ai"]})
+
+        session_token_count = sum(self.count_tokens(m["content"]) for m in prompt_memories)
+
+        # 2. LTM as MemoryShard
+        ltm_budget = self.MAX_TOKENS - session_token_count - self.SAFETY_MARGIN
+        ltm_memories = []
+        if ltm_budget > 100 and msg_strip:
+            try:
+                all_mem = self.memory.all()
+                relevant = sorted(all_mem, key=lambda s: score_overlap(msg_strip, s), reverse=True)
+                ltm_shards = [s for s in relevant if score_overlap(msg_strip, s) >= 0.15][
+                    :ltm_limit
+                ]
+                ltm_memories = [{"role": s.role, "content": s.content} for s in ltm_shards]
+            except Exception as e:
+                logger.warning("[WARN] Failed to retrieve memory: %s", e)
+                ltm_memories = []
+
+        total_token_count = session_token_count + sum(
+            self.count_tokens(m["content"]) for m in ltm_memories
+        )
+        percent_used = total_token_count / self.MAX_TOKENS
+
+        return prompt_memories + ltm_memories, percent_used
+
+    # ------------------------------ chat entrypoints ------------------------------
+
+    def chat(
+        self,
+        user_message: str,
+        *,
+        stream_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
+        # Defensive reset every turn so a prior prompt_pkg can't poison the codec.
+        self.encoding = "utf-8"
+        try:
+            return self._chat_impl(user_message, stream_callback=stream_callback)
+        except LookupError as e:
+            logger.error("[TRACE] LookupError in chat: %r\n%s", e, traceback.format_exc())
+            # Should never happen now, but keep a guard anyway.
+            self.encoding = "utf-8"
+            try:
+                return self._chat_impl(user_message, stream_callback=stream_callback)
+            except Exception as e2:
+                logger.error(
+                    "[ERROR] LexiPersona.chat failed after retry: %s\n%s",
+                    e2,
+                    traceback.format_exc(),
+                )
+                return "[error]"
+
+    def _chat_impl(
+        self,
+        user_message: str,
+        *,
+        stream_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
+        self._step += 1
+        if not user_message:
+            return "[no input]"
+        msg_strip = safe_strip(user_message)
+
+        if not hasattr(self, "_strict_mode"):
+            self._strict_mode = False
+
+        serious = self._assess_seriousness(msg_strip)
+        self._seriousness_last = serious
+        self._apply_seriousness_policy(serious)
+
+        emotion_update = infer_emotion(msg_strip)
+        for key, value in emotion_update.items():
+            base = self.current_emotion_state.get(key, 0.0)
+            self.current_emotion_state[key] = 0.7 * base + 0.3 * value
+
+        self._update_mode_activation(f" {msg_strip.lower()} ")
+
+        mode_axis_target = self._blend_axis_target_from_modes()
+        nudged = get_persona_nudge_vector(mode_axis_target, user_baseline=None)
+        self._tween_axis(nudged)
+
+        self.log_chat("user", msg_strip)
+        self.set_last_prompt(msg_strip)
+
+        if msg_strip.startswith("diagnostic"):
+            # NOTE: adjust port if needed
+            try:
+                return requests.get("http://localhost:8000/diagnostic", timeout=3).text
+            except Exception:
+                return "[diagnostic unavailable]"
+
+        # Love Loop hook (optional chain)
+        love_response = record_user_message(msg_strip, self.generate_reply)
+        if love_response:
+            return love_response
+
+        # --- Build prompt context and budget ---
+        try:
+            self.session_memory.compact_oldest(max_keep_tokens=self.MAX_TOKENS - self.SAFETY_MARGIN)
+        except Exception as e:
+            logger.warning("[WARN] session compaction skipped: %s", e)
+
+        # recent session turns
+        all_mem = self.memory.all()
+        top_score = 0.0
+        for s in all_mem:
+            try:
+                top_score = max(top_score, score_overlap(msg_strip, s))
+            except Exception:
+                pass
+
+        session_keep = 9 if top_score >= 0.25 else 16
+        session_entries = self.session_memory.buffer[-session_keep:]
+
+        prompt_memories: List[Dict[str, str]] = []
+        for entry in session_entries:
+            prompt_memories.append({"role": "user", "content": entry["user"]})
+            prompt_memories.append({"role": "assistant", "content": entry["ai"]})
+
+        session_token_count = sum(self.count_tokens(m["content"]) for m in prompt_memories)
+        recent_blobs = [m["content"] for m in prompt_memories]
+
+        def _too_similar_to_recent(txt: str) -> bool:
+            low = txt.lower()
+            if any(low in r.lower() or r.lower() in low for r in recent_blobs):
+                return True
+
+            def _tokset(s):
+                return set(re.findall(r"[a-z0-9']{2,}", s.lower()))
+
+            T = _tokset(txt)
+            for r in recent_blobs[-6:]:
+                R = _tokset(r)
+                inter = len(T & R)
+                uni = max(1, len(T | R))
+                if inter / uni >= 0.80:
+                    return True
+            return False
+
+        ltm_budget = self.MAX_TOKENS - session_token_count - self.SAFETY_MARGIN
+        ltm_memories: List[Dict[str, str]] = []
+        if ltm_budget > 120:
+            try:
+                all_mem = self.memory.all()
+                relevant = sorted(all_mem, key=lambda s: score_overlap(msg_strip, s), reverse=True)
+                existing_contents = set(m["content"] for m in prompt_memories)
+
+                def _score(s):
+                    return score_overlap(msg_strip, s)
+
+                picked = []
+                for s in relevant:
+                    if _score(s) < 0.15:
+                        continue
+                    if s.content in existing_contents:
+                        continue
+                    if _too_similar_to_recent(s.content):
+                        continue
+                    picked.append(s)
+                    if len(picked) >= 2:
+                        break
+                ltm_memories = [{"role": m.role, "content": m.content} for m in picked]
+            except Exception as e:
+                logger.warning("[WARN] Failed to retrieve memory: %s", e)
+                ltm_memories = []
+
+        # --- Build the messages payload (prompt_pkg) ---
+        emotional_weights = self._axis_to_emotional_weights()
+        prompt_pkg = PromptTemplates.build_prompt(
+            memories_json=prompt_memories + ltm_memories,
+            user_message=msg_strip,
+            emotional_weights=emotional_weights,
+            active_persona=self._lead_mode,
+            current_goal="",
+            memory_summary="",
+            trait_summary="",
+        )
+
+        # Seed small-talk + on-demand research (added to system injections)
+        feed_block = self._maybe_seed_now_feed()
+        search_block = self._maybe_live_search(msg_strip)
+
+        # Style profiling (build/update profile from recent user turns)
+        recent_user_utts = [e["user"] for e in self.session_memory.buffer[-12:]]
+        prev_prof = self._style_mem.get(self._style_user_id)
+        style_prof = analyze_user_style(recent_user_utts, prev_profile=prev_prof)
+        self._style_mem.set(self._style_user_id, style_prof)
+        style_directives = make_style_directives(style_prof, persona_traits=self.traits)
+
+        # Style & safety injections (merged into system message)
+        style_bits: List[str] = []
+        if serious >= 0.5:
+            style_bits += [
+                "This is serious. Be grounded, validating, and specific.",
+                "Avoid flirtation, innuendo, or emojis.",
+                "Acknowledge responsibility confusion without assigning blame.",
+                "Offer one practical next step and ask permission before advice.",
+            ]
+        else:
+            if not getattr(self, "_banter_allowed", True):
+                style_bits.append("Keep it friendly but avoid flirtation or innuendo.")
+            # Encourage tasteful use of feeds when not serious
+            style_bits.append(
+                "If using Now Feed or Research Notes, blend at most one tiny reference with a short source tag like (AP, 3h) or (TVMaze)."
+            )
+
+        if self.current_axis.get("warmth", 0.5) > 0.85:
+            style_bits.append("Your tone is very warm and tactile — but keep it concise.")
+        if self.current_axis.get("chaos", 0.5) > 0.8:
+            style_bits.append("Be playful but concise; avoid metaphor chains.")
+        if self.current_axis.get("energy", 0.5) < 0.4:
+            style_bits.append("Slow your cadence; keep it soft and cozy — and succinct.")
+        if self.current_axis.get("affection", 0.5) > 0.9:
+            style_bits.append("Subtle flirtation is welcome; keep it to 2–3 clean sentences.")
+
+        self._strict_mode = serious >= 0.5
+        injections = list(self.system_injections) + [style_directives] + style_bits
+        if feed_block:
+            injections.append(feed_block)
+        if search_block:
+            injections.append(search_block)
+        if self._strict_mode:
+            injections += [
+                "STRICT: Keep the reply to 2 sentences total.",
+                "STRICT: Do not use emojis or excessive exclamation points.",
+                "STRICT: Avoid motivational clichés (e.g., 'better days are ahead', 'you got this', 'curveball').",
+            ]
+        if injections:
+            sys_msg = prompt_pkg["messages"][0]["content"]
+            sys_msg = (
+                sys_msg
+                + "\n\n# Developer Injections (runtime)\n"
+                + " ".join(x for x in injections if x)
+            )
+            prompt_pkg["messages"][0]["content"] = sys_msg
+
+        # --- Token budgeting on message contents ---
+        SAFE_GEN_TOKENS = 60
+        budget = self.MAX_TOKENS - SAFE_GEN_TOKENS
+
+        def _messages_tokens(pkg) -> int:
+            return sum(self.count_tokens(m["content"]) for m in pkg["messages"])
+
+        tok_count = _messages_tokens(prompt_pkg)
+
+        # If over budget: progressively trim LTM, then session, then drop to minimal context
+        if tok_count > budget:
+            # Try removing LTM first
+            trimmed_pkg = PromptTemplates.build_prompt(
+                memories_json=prompt_memories,  # no ltm
+                user_message=msg_strip,
+                emotional_weights=emotional_weights,
+                active_persona=self._lead_mode,
+            )
+            if injections:
+                sys0 = trimmed_pkg["messages"][0]["content"]
+                sys0 += "\n\n# Developer Injections (runtime)\n" + " ".join(
+                    x for x in injections if x
+                )
+                trimmed_pkg["messages"][0]["content"] = sys0
+            prompt_pkg = trimmed_pkg
+            tok_count = _messages_tokens(prompt_pkg)
+
+        if tok_count > budget and prompt_memories:
+            # Keep only the last N user/assistant pairs
+            keep_pairs = 6
+            trimmed_pairs: List[Dict[str, str]] = []
+            seen_user = 0
+            for m in reversed(prompt_memories):
+                trimmed_pairs.append(m)
+                if m["role"].lower() == "user":
+                    seen_user += 1
+                    if seen_user >= keep_pairs:
+                        break
+            trimmed_pairs = list(reversed(trimmed_pairs))
+            trimmed_pkg = PromptTemplates.build_prompt(
+                memories_json=trimmed_pairs,
+                user_message=msg_strip,
+                emotional_weights=emotional_weights,
+                active_persona=self._lead_mode,
+            )
+            if injections:
+                sys0 = trimmed_pkg["messages"][0]["content"]
+                sys0 += "\n\n# Developer Injections (runtime)\n" + " ".join(
+                    x for x in injections if x
+                )
+                trimmed_pkg["messages"][0]["content"] = sys0
+            prompt_pkg = trimmed_pkg
+            tok_count = _messages_tokens(prompt_pkg)
+
+        if tok_count > budget:
+            # Minimal: no memories
+            prompt_pkg = PromptTemplates.build_prompt(
+                memories_json=[],
+                user_message=msg_strip,
+                emotional_weights=emotional_weights,
+                active_persona=self._lead_mode,
+            )
+            if injections:
+                sys0 = prompt_pkg["messages"][0]["content"]
+                sys0 += "\n\n# Developer Injections (runtime)\n" + " ".join(
+                    x for x in injections if x
+                )
+                prompt_pkg["messages"][0]["content"] = sys0
+            tok_count = _messages_tokens(prompt_pkg)
+
+        # --- Generate ---
+        self.log_chat("prompt_user_turn", prompt_pkg["messages"][-1]["content"])
+
+        # sampler tweaks from style profile + policy
+        recent_user_utts = [e["user"] for e in self.session_memory.buffer[-12:]]
+        prev_prof = self._style_mem.get(self._style_user_id)
+        style_prof = analyze_user_style(
+            recent_user_utts, prev_profile=prev_prof
+        )  # already computed above, but safe
+        sampler = sampler_from_profile(style_prof) or {}
+        sampler = _sampler_policy(self._lead_mode, serious, sampler)
+
+        reply = self._gen(
+            prompt_pkg,
+            sampler_overrides=sampler,
+            stream_callback=stream_callback,
+        )
+        # mirror punctuation/case tics lightly
+        reply = apply_postprocessing(reply, style_prof)
+        if not reply or len(reply) < 12:
+            reply = "I’m here. Tell me more about what’s hitting the hardest right now."
+
+        # Optional follow-up (Love Loop)
+        try:
+            next_q = maybe_ask_question()
+            if next_q:
+                reply += f"\n\n{next_q}"
+        except Exception:
+            pass
+
+        # Memory write-back
+        try:
+            summary = summarize_pair(self.loader.generate, msg_strip, reply)
+            self.session_memory.add_pair(msg_strip, reply, summary, token_counter=self.count_tokens)
+        except Exception as e:
+            logger.warning("[WARN] summarize/add_pair failed: %s", e)
+
+        return reply
+
+    def reset_session(self):
+        self.session_memory.reset()
+
+        axes = get_persona_axes()
+        default_vec = get_mode_axis_vector("default") or [0.8, 0.1, 0.85, 0.7, 0.85, 0.5]
+        for i, a in enumerate(axes):
+            cur = self.current_axis.get(a, default_vec[i])
+            self.current_axis[a] = 0.7 * cur + 0.3 * default_vec[i]
+
+        self._lead_mode = "default"
+        self._lead_mode_lock_until = -1
+        self.mode_activation.clear()
+        self.mode_activation["default"] = 0.8
+        self._normalize_activations()
+        self.system_injections = []
+
+    def generate_reply(self, user_input: str) -> str:
+        try:
+            emotional_weights = self._axis_to_emotional_weights()
+            prompt_pkg = PromptTemplates.build_prompt(
+                memories_json=[],  # No memory context for one-off replies
+                user_message=user_input or "",
+                emotional_weights=emotional_weights,
+                active_persona=self._lead_mode,
+            )
+            self.log_chat("prompt_user_turn", prompt_pkg["messages"][-1]["content"])
+            raw = self.loader.generate(prompt_pkg)
+            reply = self._clean_reply(raw)
+            return reply or "[no reply]"
+        except Exception as e:
+            logger.error("[ERROR] generate_reply failed: %s", e)
+            return "[error]"
+
+    def _load_traits_state(self) -> bool:
+        try:
+            return bool(self.traits)
+        except Exception:
+            return False
+
+
+lexi_persona = LexiPersona()
+lex_persona = lexi_persona  # backward compatibility alias
+__all__ = ["LexiPersona", "lexi_persona", "lex_persona"]

@@ -7,7 +7,7 @@
     "maxTokens": 12000,
     "fileInclusionRules": [
       {
-        "pattern": "lexi/**",
+        "pattern": "lex/**",
         "importance": "high"
       },
       {

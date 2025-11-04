@@ -45,11 +45,24 @@ Populate the following fields at minimum:
 |-------------------------|---------------------------------------------------------------------|
 | `CF_DNS_API_TOKEN`      | Cloudflare token (DNS-01). Leave blank if Traefik uses http-01.     |
 | `TRAEFIK_ACME_EMAIL`    | Email address used for ACME registration.                           |
-| `COMFY_URL`, `OPENAI_*` | Endpoints the backend should call for ComfyUI / vLLM.               |
+| `LLM_API_BASE`, `OPENAI_API_BASE`, `LITELLM_API_BASE`, `VLLM_BASE_URL` | All point to the host vLLM bridge `http://172.17.0.1:8008/v1`. |
+| `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE` | Host bridge for ComfyUI (`http://172.17.0.1:8188`). |
 | `LEX_API_BASE_PUBLIC`   | Public API base presented to the frontend (e.g. `/api`).            |
+| `LEX_STATIC_ROOT`       | Directory inside the backend image where avatars & static assets live. |
+| `CORS_ORIGINS`          | Comma-separated list of allowed browser origins (include `https://lexicompanion.com`). |
 | `SD_BACKEND`, `FLUX_*`  | Stable Diffusion/FLUX model configuration paths.                    |
 
 Secrets live only in `.env`; the file is git-ignored.
+
+### Browser sessions & required headers
+
+Frontend clients call `POST /lexi/alpha/session/start` once, persist the returned
+`session_id`, and then send it on every request via
+`X-Lexi-Session`. Make sure:
+
+- The edge proxy forwards `X-Lexi-Session` to the backend.
+- FastAPI’s CORS middleware allows the header (`allow_headers` must include `X-Lexi-Session`).
+- Any Cloudflare Workers or other intermediaries also echo CORS headers on error paths; otherwise a 502 can masquerade as a “CORS blocked” message in DevTools.
 
 ---
 
@@ -102,6 +115,9 @@ Mount `/mnt/data/Lex/cloudflared/config.yml` with your ingress settings and keep
 # Backend health through Traefik (API router strips /api prefix)
 curl -fsS https://lexicompanion.com/api/health
 
+# Avatar & static assets are served by the backend itself
+curl -I https://lexicompanion.com/lexi/static/avatars/default.png
+
 # Frontend root
 curl -I https://lexicompanion.com
 
@@ -127,6 +143,8 @@ docker compose logs -f cloudflared
 | ACME challenge failures                   | Verify Cloudflare record matches the chosen challenge (dns vs http).   |
 | Traefik still serving old config          | Restart Traefik or run `docker network disconnect edge <container>` then reconnect. |
 | Backend cannot reach Comfy/vLLM           | Confirm `COMFY_URL`/`OPENAI_API_BASE` endpoints from inside the container. |
+| Browser reports "CORS blocked" on `/lexi/process` | Usually an upstream 502. Check that ComfyUI (8188) and vLLM (8008) are reachable from inside the `lexi-backend` container and that `CORS_ORIGINS` includes the requesting origin. |
+| Session header missing                    | Ensure your proxy forwards `X-Lexi-Session` and that `CORSMiddleware`’s `allow_headers` includes it. |
 
 ---
 

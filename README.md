@@ -19,37 +19,43 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
 
 ## 🚀 Running Lex
 
-> ⚠️ This assumes you're working from the `lex/` directory root.
+> All commands below assume you are in the repository root (same folder as this README).
 
-### 1. Set up the Python backend
+### Option A — Docker Compose (recommended)
+
+This spins up the FastAPI backend plus the production React build. The backend expects to
+reverse-proxy out to local ComfyUI and vLLM instances that run on the **host**, so the
+compose file maps those endpoints to the Docker bridge IP (`172.17.0.1`).
+
+```bash
+cp .env.example .env          # customise ports/secrets if needed
+docker compose up -d lexi-backend lexi-frontend
+```
+
+Key environment knobs (all overridable via `.env`):
+
+| Variable | Purpose |
+| --- | --- |
+| `LLM_API_BASE`, `OPENAI_API_BASE`, `VLLM_BASE_URL`, `LITELLM_API_BASE` | bridge to your host vLLM at `172.17.0.1:8008/v1` |
+| `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE` | bridge to host ComfyUI at `172.17.0.1:8188` |
+| `LEX_STATIC_ROOT` | path inside the container where static assets (avatars) live (`/app/static`) |
+| `CORS_ORIGINS` | comma-separated list of allowed browser origins |
+
+The backend returns avatar URLs such as `/lexi/static/avatars/default.png`. Traefik (or any
+edge proxy) must forward both `/lexi/*` API calls and `/lexi/static/*` asset requests to the
+`lexi-backend` container.
+
+### Option B — Local venv + Vite dev server
 
 ```bash
 python3.10 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-### 2. Configure your local paths
+# Optional: customise `backend/lexi/config/config.py`
 
-Copy and edit:
+PYTHONPATH=backend uvicorn lexi.routes.lex:app --reload
 
-```bash
-cp config.sample.py config.py
-```
-
-Update model paths, device settings, and runtime flags in `config.py`.
-
-### 3. Run the backend
-
-```bash
-uvicorn routes.lex:app --reload
-```
-
----
-
-### 4. Run the frontend (optional but pretty)
-
-```bash
 cd frontend
 npm install
 npm run dev
@@ -57,27 +63,46 @@ npm run dev
 
 ---
 
+## 📁 Repo Layout
+
+- `backend/lexi/` — canonical Python package (FastAPI routes, persona, memory, SD helpers)
+- `backend/scripts/` — local tooling & dev scripts
+- `frontend/` — Vite/React client; serves static assets from `frontend/public/`
+- `frontend/public/avatars/` — shared avatar outputs for backend ↔ frontend
+- `_quarantine/` — preserved duplicates & conflict snapshots from legacy trees
+
+---
+
 ## 🧰 Requirements
 
 - Python 3.10+
 - Node 18+ (for frontend)
-- CUDA 12.1 (or compatible with your PyTorch build)
-- A GPU with >= 12GB VRAM (for avatar generation)
+- Docker Engine 24+ **or** native CUDA toolchain (12.1 suggested)
+- NVIDIA GPU with ≥ 12GB VRAM (Stable Diffusion XL + vLLM)
+- Host-side builds of **ComfyUI** (port `8188`) and **vLLM** (port `8008`) when using the compose stack
+
+When running inside Docker, ensure the host firewall allows traffic from the Docker bridge
+(`172.17.0.0/16`) to those services; otherwise avatar generation and LLM calls will return 502s.
 
 ---
 
-## 🔒 Privacy & Safety
+## 🔒 Privacy, Sessions & Safety
 
 Lex is designed with **user data privacy and local autonomy** in mind:
 
 - No telemetry or remote logging
 - All model inference happens locally
-- No third-party API keys required
+- No third-party API keys required (vLLM + Comfy run on your hardware)
 - Dataset files, user logs, and experimental corpora are **excluded from this repo**
+
+Browser clients establish a short-lived session via
+`POST https://api.lexicompanion.com/lexi/alpha/session/start` and send the returned ID in the
+`X-Lexi-Session` header on every request. When customising deployments, make sure your edge
+proxy passes that header through and that CORS policies include it in `Access-Control-Allow-Headers`.
 
 If you're contributing or cloning for dev purposes, be mindful not to commit:
 
-- `*.json`, `*.jsonl`, `.env`, `*.safetensors`, or dataset archives
+- `*.json`, `*.jsonl`, `.env`, `*.safetensors`, checklist exports, or dataset archives
 
 ---
 

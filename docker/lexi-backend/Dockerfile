@@ -1,47 +1,88 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
 
-FROM python:3.10-slim AS base
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04 AS base
+
+# 0) Ensure /tmp exists and is writable/sticky; guard against /tmp being a file
+RUN set -eux; \
+    if [ ! -d /tmp ]; then rm -f /tmp; mkdir -p /tmp; fi; \
+    chmod 1777 /tmp; \
+    ls -ld /tmp
+
+# 1) Drop CUDA/NVIDIA sources before first apt-get update (we can re-add later with signed-by)
+RUN set -eux; rm -f /etc/apt/sources.list.d/cuda*.list /etc/apt/sources.list.d/nvidia*.list || true
+
+# 2) Base tools & APT prep
+ENV DEBIAN_FRONTEND=noninteractive
+RUN set -eux; \
+    apt-get update -y; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gnupg \
+        apt-transport-https; \
+    rm -rf /var/lib/apt/lists/*
+
+# 3) (Optional) Re-add CUDA repo with signed-by keyring
+# RUN set -eux; \
+#     install -d -m 0755 /etc/apt/keyrings; \
+#     curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub \
+#         | gpg --dearmor -o /etc/apt/keyrings/nvidia-cuda-archive-keyring.gpg; \
+#     chmod a+r /etc/apt/keyrings/nvidia-cuda-archive-keyring.gpg; \
+#     echo "deb [signed-by=/etc/apt/keyrings/nvidia-cuda-archive-keyring.gpg arch=amd64] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" \
+#         > /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    DEBIAN_FRONTEND=noninteractive \
+    TZ=Etc/UTC \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    git \
-    curl \
-    ffmpeg \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libmagic1 \
-    file \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    apt-get update -y; \
+    apt-get install -y --no-install-recommends \
+        apt-transport-https \
+        gnupg \
+        python3.11 \
+        python3.11-venv \
+        python3.11-distutils \
+        python3-pip \
+        build-essential \
+        git \
+        curl \
+        ca-certificates \
+        ffmpeg \
+        libglib2.0-0 \
+        libsm6 \
+        libxext6 \
+        libmagic1 \
+        file \
+    ; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-ENV PIP_ONLY_BINARY=:all: \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_INPUT=1
+ENV PIP_ONLY_BINARY=:all:
 
-COPY Lexi/requirements.txt /tmp/requirements.txt
-COPY constraints.alpha.txt /tmp/constraints.txt
+COPY requirements.txt constraints.alpha.txt ./
 
-ARG TORCH_VER=2.4.1
-ARG TORCH_INDEX=https://download.pytorch.org/whl/cpu
+RUN python3 -m pip install --upgrade pip==25.2 setuptools wheel \
+    && python3 -m pip install --index-url https://pypi.org/simple --no-deps \
+        https://files.pythonhosted.org/packages/source/s/sgmllib3k/sgmllib3k-1.0.0.tar.gz \
+        https://files.pythonhosted.org/packages/source/P/PyPika/PyPika-0.48.9.tar.gz \
+    && python3 -m pip install \
+        --index-url https://pypi.org/simple \
+        --extra-index-url https://download.pytorch.org/whl/cu121 \
+        --constraint constraints.alpha.txt \
+        --prefer-binary \
+        -r requirements.txt
 
-RUN pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir --index-url ${TORCH_INDEX} torch==${TORCH_VER}
-RUN pip install --no-cache-dir antlr4-python3-runtime==4.13.2
-RUN pip install --no-cache-dir --no-deps omegaconf==2.3.0
+COPY backend /app/backend
+COPY frontend/public /app/static
+RUN mkdir -p /app/backend/lexi/static && cp -a /app/static/. /app/backend/lexi/static/
 
-ENV PIP_CONSTRAINT=/tmp/constraints.txt
-
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
-
-COPY Lexi /app/Lexi
-
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/backend
 
 EXPOSE 8000
 
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "2", "-b", "0.0.0.0:8000", "Lexi.lexi.core.backend_core:app"]
+CMD ["python3", "-m", "uvicorn", "lexi.core.backend_core:app", "--host", "0.0.0.0", "--port", "9000", "--proxy-headers"]

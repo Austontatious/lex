@@ -73,3 +73,6 @@ Lexi/lexi/static/lexi/avatars/lexi_*.png
 Lexi/lexi/static/lexi/avatars/lexi_base_*.png
 Lexi/lexi/static/lexi/avatars/*.zip
 Lexi/lexi/sd/weights/
+
+# cloudflared creds
+cloudflared/cred.json

@@ -26,9 +26,8 @@ import {
   fetchPersona,
   addTrait,
   generateAvatar,
-  // apiStream, // ❌ Streaming disabled
   sendPrompt,
-  BACKEND,
+  loadApiConfig,
   classifyIntent
 } from "./services/api";
 import type { TraitResponse, Persona } from "./services/api";
@@ -41,6 +40,29 @@ interface ChatMessage {
   error?: boolean;
 }
 
+const DEFAULT_STATIC_AVATAR_BASE = "https://api.lexicompanion.com/lexi/static/avatars/";
+const DEFAULT_AVATAR_URL = `${DEFAULT_STATIC_AVATAR_BASE}default.png`;
+
+function resolveAvatarUrl(
+  imagePath: string | null | undefined,
+  fallbackBase = DEFAULT_STATIC_AVATAR_BASE
+) {
+  if (!imagePath) return `${fallbackBase}default.png`;
+  if (imagePath.startsWith("http")) return imagePath;
+
+  const normalized = imagePath.replace(/^\/+/, "");
+  if (normalized.startsWith("lexi/static/")) {
+    return `https://api.lexicompanion.com/${normalized}`;
+  }
+  if (normalized.startsWith("static/")) {
+    return `https://api.lexicompanion.com/${normalized}`;
+  }
+
+  const suffix = imagePath.replace(/^.*avatars\//, "");
+  const fileName = suffix || normalized;
+  return `${fallbackBase}${fileName || "default.png"}`;
+}
+
 function mkId() {
   return `m_${uuidv4()}`;
 }
@@ -51,7 +73,8 @@ function App() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [staticAvatarBase, setStaticAvatarBase] = useState(DEFAULT_STATIC_AVATAR_BASE);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(DEFAULT_AVATAR_URL);
   const [avatarFlow, setAvatarFlow] = useState(false);
   const [persona, setPersona] = useState<Persona | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,6 +88,17 @@ function App() {
   useEffect(() => {
     let mounted = true;
     (async () => {
+      let nextStaticBase = DEFAULT_STATIC_AVATAR_BASE;
+      const apiBase = await loadApiConfig();
+      try {
+        const parsed = new URL(apiBase, window.location.origin);
+        nextStaticBase = `${parsed.origin.replace(/\/$/, "")}/lexi/static/avatars/`;
+      } catch {
+        nextStaticBase = DEFAULT_STATIC_AVATAR_BASE;
+      }
+      if (mounted) {
+        setStaticAvatarBase(nextStaticBase);
+      }
       const data = await fetchPersona();
       if (!mounted || !data) return;
       setPersona(data);
@@ -76,9 +110,7 @@ function App() {
           content: `👋 ${(data as any).mode ?? "default"} persona loaded!`,
         },
       ]);
-      if ((data as any).image_path) {
-        setAvatarUrl(`${BACKEND}${(data as any).image_path}`);
-      }
+      setAvatarUrl(resolveAvatarUrl((data as any).image_path, nextStaticBase));
     })();
     return () => {
       mounted = false;
@@ -122,11 +154,9 @@ const handleTraitFlow = useCallback(
       setAvatarFlow(false);
       const gen = await generateAvatar(res.prompt);
       let img = (gen as any).image || (gen as any).image_url || (gen as any).path || "";
-      let normImg = img.startsWith("/static/lex/avatars/")
-        ? img
-        : `/static/lex/avatars/${img.split("/").pop()}`;
-      const imgUrl = `${BACKEND}${normImg}${normImg.includes("?") ? "&" : "?"}v=${Date.now()}`;
-      setAvatarUrl(imgUrl);
+      const imgUrl = resolveAvatarUrl(img, staticAvatarBase);
+      const finalUrl = `${imgUrl}${imgUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+      setAvatarUrl(finalUrl);
       appendMessage({ sender: "ai", content: "📸 Here's your avatar!" });
 
       // Now update persona, but do **NOT** set avatarUrl from it!
@@ -138,7 +168,7 @@ const handleTraitFlow = useCallback(
       appendMessage({ sender: "ai", content: "[Avatar update failed]" });
     }
   },
-  [appendMessage]
+  [appendMessage, staticAvatarBase]
 );
 
 
@@ -190,21 +220,50 @@ const handleSend = useCallback(async () => {
 
   // ——— 3) Fallback to your normal LLM chat —
   const aiId = mkId();
-  appendMessage({ id: aiId, sender: "ai", content: "…" });
+  appendMessage({ id: aiId, sender: "ai", content: "", streaming: true });
   setLoading(true);
+  let streamed = "";
   try {
-    const res = await sendPrompt({ prompt: text });
+    const res = await sendPrompt({
+      prompt: text,
+      onChunk(delta) {
+        streamed += delta;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiId ? { ...m, content: streamed, streaming: true } : m
+          )
+        );
+      },
+    });
+    const finalText =
+      (typeof res?.cleaned === "string" && res.cleaned.trim()) ||
+      streamed.trim() ||
+      "[no response]";
     setMessages((prev) =>
       prev.map((m) =>
         m.id === aiId
           ? {
               ...m,
-              content: res.cleaned?.trim() || "[no response]"
+              content: finalText,
+              streaming: false,
             }
           : m
       )
     );
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Streaming failed";
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === aiId
+          ? {
+              ...m,
+              content: `[error] ${message}`,
+              streaming: false,
+              error: true,
+            }
+          : m
+      )
+    );
   } finally {
     setLoading(false);
   }
@@ -374,4 +433,3 @@ const handleSend = useCallback(async () => {
 }
 
 export default App;
-

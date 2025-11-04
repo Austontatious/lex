@@ -1,0 +1,443 @@
+# Lexi/lexi/routes/lexi_persona.py
+from __future__ import annotations
+
+"""
+lexi_persona.py
+
+Persona + conversational avatar flow endpoints used by the frontend.
+- GET    /lexi/persona
+- POST   /lexi/persona/add_trait              JSON { text }
+- POST   /lexi/persona/generate_avatar        JSON {
+      prompt?, mode? ("txt2img"|"img2img"|"inpaint"),
+      changes?, denoise?, steps?, cfg?, width?, height?,
+      seed?, refiner?, refiner_strength?, upscale_factor?,
+      source_path?, mask_path?, invert_mask?, allow_feedback_loop?
+  }
+"""
+
+import os
+import json
+import base64
+import logging
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Literal
+
+from fastapi import APIRouter, HTTPException, Request
+from urllib.parse import urljoin
+from pydantic import BaseModel, Field
+
+from ..config.config import TRAIT_STATE_PATH
+from ..persona.persona_core import lexi_persona
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/persona", tags=["persona"])
+
+# -------------------- Pipeline import (robust fallback) --------------------
+
+# Prefer Comfy-backed pipeline; fallback to legacy wrapper if present.
+_generate_fn = None  # type: ignore[assignment]
+try:
+    from ..sd.sd_pipeline import generate_avatar_pipeline as _generate_fn  # type: ignore
+except Exception:  # pragma: no cover
+    try:
+        # Legacy wrapper exposes same-ish signature in our refactor
+        from ..sd.generate import generate_avatar as _generate_fn  # type: ignore
+    except Exception:
+        _generate_fn = None  # type: ignore
+
+# -------------------- Static dir resolution --------------------
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../Lexi
+_STATIC_CANDIDATES = [
+    _PROJECT_ROOT / "static",            # Lexi/static
+    _PROJECT_ROOT / "lexi" / "static",    # Lexi/lexi/static
+    Path("/mnt/data/Lexi/static"),        # optional external mount
+]
+_STATIC_DIR = next((p for p in _STATIC_CANDIDATES if p.exists()), None)
+if _STATIC_DIR is None:
+    _STATIC_DIR = _PROJECT_ROOT / "lexi" / "static"
+    _STATIC_DIR.mkdir(parents=True, exist_ok=True)
+
+_AVATARS_DIR = _STATIC_DIR / "lexi" / "avatars"
+_AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+
+def _fs_to_web(fp: Path) -> str:
+    """Map a file under STATIC to a /static URL."""
+    fp = fp.resolve()
+    try:
+        rel = fp.relative_to(_STATIC_DIR.resolve()).as_posix()
+        return f"/static/{rel}"
+    except Exception:
+        # If it's not under STATIC, copy it into avatars and return URL there
+        dst = (_AVATARS_DIR / fp.name).resolve()
+        if str(fp) != str(dst):
+            dst.write_bytes(fp.read_bytes())
+        rel = dst.relative_to(_STATIC_DIR.resolve()).as_posix()
+        return f"/static/{rel}"
+
+def _web_to_fs(static_web_path: str) -> Optional[Path]:
+    """Map a /static/... URL to a filesystem path if it exists; else None."""
+    if not isinstance(static_web_path, str) or not static_web_path.startswith("/static/"):
+        return None
+    rel = static_web_path[len("/static/"):]
+    fs = (_STATIC_DIR / rel).resolve()
+    return fs if fs.exists() else None
+
+# -------------------- Trait state helpers --------------------
+
+def _load_traits() -> Dict[str, str]:
+    try:
+        if TRAIT_STATE_PATH.exists():
+            data = json.loads(TRAIT_STATE_PATH.read_text())
+            traits = data.get("traits", {}) or {}
+            if isinstance(traits, dict):
+                return {str(k): str(v) for k, v in traits.items()}
+    except Exception as exc:
+        logger.warning("Failed to load traits: %s", exc)
+    return {}
+
+def _save_state(traits: Dict[str, str], avatar_path: Optional[str] = None) -> None:
+    state: Dict[str, Any] = {"traits": traits}
+    if avatar_path:
+        state["avatar_path"] = avatar_path
+    try:
+        TRAIT_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+    except Exception as exc:
+        logger.warning("Failed to save traits/state: %s", exc)
+
+# --- Back-compat shim for routes.lexi expecting _save_traits() ---
+def _save_traits(traits: Dict[str, str], avatar_path: Optional[str] = None) -> None:
+    _save_state(traits, avatar_path)
+
+def _get_saved_avatar_web() -> Optional[str]:
+    try:
+        if TRAIT_STATE_PATH.exists():
+            data = json.loads(TRAIT_STATE_PATH.read_text())
+            p = data.get("avatar_path")
+            if isinstance(p, str) and p.startswith("/static/"):
+                return p
+    except Exception:
+        pass
+    # fallback to persona object if it exposes one
+    try:
+        p = getattr(lexi_persona, "get_avatar_path", lambda: None)()
+        if isinstance(p, str) and p.startswith("/static/"):
+            return p
+    except Exception:
+        pass
+    return None
+
+# -------------------- Prompt assembly --------------------
+
+def _get_missing_fields(traits: Dict[str, str]) -> List[str]:
+    required_fields = ["hair", "eyes", "outfit", "style", "vibe"]  # minimal core
+    return [f for f in required_fields if not traits.get(f)]
+
+def _assemble_prompt(traits: Dict[str, str]) -> str:
+    defaults = {
+        "hair":     "medium-length blonde hair with natural highlights",
+        "eyes":     "blue eyes with lively catchlights",
+        "outfit":   "casual top",
+        "style":    "modern editorial",
+        "vibe":     "confident, playful energy",
+        "pose":     "relaxed pose, soft smile, natural posture",
+        "lighting": "soft directional key light, subtle rim, gentle fill",
+        "background": "neutral studio backdrop",
+    }
+    parts = [
+        "photorealistic, natural skin microtexture, gentle film grain, studio-grade color science, depth of field"
+    ]
+    for k, default in defaults.items():
+        parts.append(traits.get(k, default))
+    # de-dup simple
+    seen, clean = set(), []
+    for p in parts:
+        p = p.strip()
+        if p and p not in seen:
+            seen.add(p)
+            clean.append(p)
+    return ", ".join(clean)
+
+def _negative_prompt_base() -> str:
+    return (
+        "anime, cartoon, cgi, plastic skin, over-smooth, waxy, lowres, blurry, noisy, "
+        "harsh sharpening, banding, jpeg artifacts, blown highlights, oversaturated skin, "
+        "extra limbs, watermark, text"
+    )
+
+# -------------------- Models --------------------
+
+class PersonaOut(BaseModel):
+    mode: Optional[str] = None
+    traits: Dict[str, str] = Field(default_factory=dict)
+    image_path: Optional[str] = None
+    certainty: Optional[float] = None
+
+class TraitIn(BaseModel):
+    text: str
+
+class AvatarIn(BaseModel):
+    prompt: Optional[str] = None
+    mode: Optional[Literal["txt2img", "img2img", "inpaint"]] = "txt2img"
+    changes: Optional[str] = None
+    denoise: Optional[float] = None
+    steps: Optional[int] = None
+    cfg: Optional[float] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    seed: Optional[int] = None
+    refiner: Optional[bool] = None
+    refiner_strength: Optional[float] = None
+    upscale_factor: Optional[float] = None
+    source_path: Optional[str] = None  # can be /static/... or absolute FS path
+    mask_path: Optional[str] = None    # for inpaint (white=edit, black=preserve)
+    invert_mask: Optional[bool] = None
+    allow_feedback_loop: Optional[bool] = None
+    fresh_base: Optional[bool] = None  # force new base via txt2img (ignore existing base)
+
+# -------------------- Endpoints --------------------
+
+@router.get("", response_model=PersonaOut)
+@router.get("/", response_model=PersonaOut)
+async def get_persona(request: Request) -> PersonaOut:
+    traits = _load_traits()
+    avatar_web = _get_saved_avatar_web() or "/static/lexi/avatars/default.png"
+
+    backend_base = os.getenv("LEX_BACKEND_URL") or str(request.base_url).rstrip("/")
+    image_path = avatar_web if avatar_web.startswith("http") else (backend_base + avatar_web)
+
+    ready = not _get_missing_fields(traits)
+    return PersonaOut(
+        mode="default",
+        traits=traits,
+        image_path=image_path,
+        certainty=1.0 if ready else 0.8,
+    )
+
+@router.post("/add_trait")
+async def add_trait(body: TraitIn) -> Dict[str, Any]:
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Missing 'text'")
+
+    traits = _load_traits()
+    missing = _get_missing_fields(traits)
+    if missing:
+        # Fill the next missing field with user-provided text
+        traits[missing[0]] = text
+        _save_state(traits)
+
+    ready = not _get_missing_fields(traits)
+    prompt = _assemble_prompt(traits) if ready else ""
+    negative = _negative_prompt_base() if ready else ""
+    narration = ("Here's your look! If you'd like to tweak anything, tell me what to change."
+                 if ready else f"Got it. Next: tell me your { _get_missing_fields(traits)[0] }" if _get_missing_fields(traits) else "")
+
+    persona = {
+        "traits": traits,
+        "certainty": 1.0 if ready else 0.8,
+        "image_path": _get_saved_avatar_web() or "/static/lexi/avatars/default.png",
+    }
+    return {
+        "ready": ready,
+        "persona": persona,
+        "prompt": prompt,
+        "negative": negative,
+        "narration": narration,
+        "added": True,
+    }
+
+@router.post("/generate_avatar")
+async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
+    if _generate_fn is None:
+        raise HTTPException(status_code=500, detail="Avatar pipeline is unavailable")
+
+    traits = _load_traits()
+
+    # ---- Resolve mode
+    mode = (body.mode or "txt2img").lower()
+    if mode not in ("txt2img", "img2img", "inpaint"):
+        mode = "txt2img"
+
+    # ---- Resolve prompt/negative
+    prompt = (body.prompt or "").strip()
+    if not prompt and traits and not _get_missing_fields(traits):
+        prompt = _assemble_prompt(traits)
+    if not prompt:
+        prompt = "portrait of Lexi, shoulders-up, engaging eye contact, soft studio lighting"
+
+    negative = _negative_prompt_base()
+
+    # ---- Dimensions & params (sane defaults for SDXL)
+    width  = body.width  if isinstance(body.width, int) else 832
+    height = body.height if isinstance(body.height, int) else 1152
+    steps  = body.steps  if isinstance(body.steps, int) else 30
+    cfg    = body.cfg    if isinstance(body.cfg, (int, float)) else 5.0
+    seed   = body.seed   if isinstance(body.seed, int) else None
+    refiner = bool(body.refiner) if isinstance(body.refiner, bool) else (mode == "txt2img")
+    refiner_strength = (
+        float(body.refiner_strength) if isinstance(body.refiner_strength, (int, float)) else 0.28
+    )
+    upscale_factor = (
+        float(body.upscale_factor) if isinstance(body.upscale_factor, (int, float)) else 1.0
+    )
+
+    changes = (body.changes or "").strip() if body and body.changes else ""
+    denoise = None
+    if isinstance(body.denoise, (int, float)):
+        denoise = float(max(0.10, min(0.75, float(body.denoise))))
+
+    # ---- Resolve source/mask paths (accept /static or absolute FS)
+    def resolve_path(maybe_path: Optional[str]) -> Optional[str]:
+        if not maybe_path:
+            return None
+        if maybe_path.startswith("/static/"):
+            p = _web_to_fs(maybe_path)
+            return p.as_posix() if p else None
+        # accept absolute filesystem path
+        p = Path(maybe_path)
+        return p.as_posix() if p.exists() else None
+
+    src_fs: Optional[str] = None
+    mask_fs: Optional[str] = None
+
+    if mode in ("img2img", "inpaint"):
+        # Prefer caller-provided source_path; otherwise fall back to saved avatar
+        src_fs = resolve_path(body.source_path) if body.source_path else None
+        if src_fs is None:
+            saved_web = _get_saved_avatar_web()
+            if saved_web:
+                p = _web_to_fs(saved_web)
+                src_fs = p.as_posix() if p else None
+        if src_fs is None:
+            # degrade gracefully to txt2img if no source image available
+            mode = "txt2img"
+
+    if mode == "inpaint":
+        mask_fs = resolve_path(body.mask_path)
+        if mask_fs is None:
+            raise HTTPException(status_code=400, detail="inpaint requires mask_path (as /static/... or absolute path)")
+
+    invert_mask = bool(body.invert_mask) if isinstance(body.invert_mask, bool) else False
+    allow_feedback_loop = bool(body.allow_feedback_loop) if isinstance(body.allow_feedback_loop, bool) else True
+
+    # ---- Build call kwargs for pipeline
+    call_args: Dict[str, Any] = dict(
+        prompt=prompt,
+        negative=negative,
+        width=width,
+        height=height,
+        steps=steps,
+        cfg_scale=cfg,
+        traits=traits,
+        seed=seed,
+        refiner=refiner,
+        refiner_strength=refiner_strength,
+        upscale_factor=upscale_factor,
+    )
+
+    if changes:
+        call_args["changes"] = changes
+
+    if mode == "img2img":
+        call_args.update(
+            mode="img2img",
+            source_path=src_fs,
+        )
+        if denoise is not None:
+            call_args["denoise"] = denoise
+        # Optional: prevent runaway self-reprocessing unless allowed
+        if not allow_feedback_loop and src_fs and src_fs.startswith(_AVATARS_DIR.as_posix()):
+            raise HTTPException(status_code=400, detail="Refusing to reprocess generated avatar without allow_feedback_loop=True")
+
+    elif mode == "inpaint":
+        call_args.update(
+            mode="inpaint",
+            source_path=src_fs,
+            mask_path=mask_fs,
+            invert_mask=invert_mask,
+        )
+        if denoise is not None:
+            call_args["denoise"] = denoise
+
+    else:
+        call_args["mode"] = "txt2img"
+        if body.fresh_base is True:
+            call_args["fresh_base"] = True
+
+    # If caller explicitly requested fresh_base with any mode, honor it
+    if body.fresh_base is True:
+        call_args["fresh_base"] = True
+
+    # ---- Execute pipeline (sync or async)
+    try:
+        import inspect, asyncio  # local import to avoid module-scope surprises
+        if inspect.iscoroutinefunction(_generate_fn):  # type: ignore[arg-type]
+            result: Dict[str, Any] = await _generate_fn(**call_args)  # type: ignore[misc]
+        else:
+            result = await asyncio.to_thread(_generate_fn, **call_args)  # type: ignore[misc]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Avatar pipeline crashed: %s", e)
+        raise HTTPException(status_code=500, detail=f"pipeline_error: {e}")
+
+    # ---- Normalize output
+    # Preferred: a direct URL (e.g., /static/lexi/avatars/xxx.png)
+    web_url = None
+    if isinstance(result, dict):
+        web_url = result.get("url") or result.get("image")
+
+    if isinstance(web_url, str) and web_url.startswith("/"):
+        # Store relative path, return absolute URL
+        _save_state(traits, avatar_path=web_url)
+        absolute = urljoin(str(request.base_url), web_url.lstrip("/"))
+        return {
+            "ok": True,
+            "image": absolute,
+            "url": absolute,
+            "filename": web_url.split("/")[-1],
+            "narration": result.get("narration", "Here she is!"),
+            "traits": traits,
+        }
+
+    # Next best: a filesystem path to an image
+    file_path = None
+    if isinstance(result, dict):
+        file_path = result.get("file") or result.get("path")
+    if isinstance(file_path, str) and Path(file_path).exists():
+        web_url = _fs_to_web(Path(file_path))
+        _save_state(traits, avatar_path=web_url)
+        absolute = urljoin(str(request.base_url), web_url.lstrip("/"))
+        return {
+            "ok": True,
+            "image": absolute,
+            "url": absolute,
+            "filename": web_url.split("/")[-1],
+            "narration": result.get("narration", "Here she is!"),
+            "traits": traits,
+        }
+
+    # Fallback: base64
+    if isinstance(result, dict):
+        b64 = result.get("image_b64") or result.get("b64")
+        if isinstance(b64, str) and len(b64) > 100:
+            fname = f"lexi_{os.urandom(4).hex()}.png"
+            out = (_AVATARS_DIR / fname).resolve()
+            out.write_bytes(base64.b64decode(b64))
+            web_url = _fs_to_web(out)
+            _save_state(traits, avatar_path=web_url)
+            absolute = urljoin(str(request.base_url), web_url.lstrip("/"))
+            return {"ok": True, "image": absolute, "url": absolute, "filename": fname, "traits": traits}
+
+    logger.error("[Avatar Gen Error] No usable image returned. Raw result=%r", result)
+    raise HTTPException(status_code=502, detail="no_image_from_pipeline")
+
+@router.get("/debug/traits")
+def debug_traits() -> Dict[str, Any]:
+    file_traits = _load_traits()
+    try:
+        persona_traits = getattr(lexi_persona, "get_traits", lambda: {})()
+    except Exception:
+        persona_traits = {}
+    return {"file_traits": file_traits, "persona_traits": persona_traits}

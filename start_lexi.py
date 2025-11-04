@@ -158,20 +158,20 @@ FRONTEND_DIR = NESTED_PKG / "lexi" / "frontend"
 def write_frontend_env(back_port: int, front_port: int) -> None:
     env_vars = {
         "VITE_BACKEND_PORT": str(back_port),
-        "VITE_BACKEND_URL": f"http://localhost:{back_port}",
+        "VITE_BACKEND_URL": f"http://localhost:{back_port}/lexi",
         "VITE_FRONTEND_PORT": str(front_port),
-        "VITE_API_URL": f"http://localhost:{back_port}",
+        "VITE_API_URL": f"http://localhost:{back_port}/lexi",
         "VITE_COMFY_URL": COMFY_URL,
         "VITE_VLLM_URL": OPENAI_API_BASE,
-        "REACT_APP_API_URL": f"http://localhost:{back_port}",
-        "REACT_APP_BACKEND_URL": f"http://localhost:{back_port}",
+        "REACT_APP_API_URL": f"http://localhost:{back_port}/lexi",
+        "REACT_APP_BACKEND_URL": f"http://localhost:{back_port}/lexi",
     }
     FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
     (FRONTEND_DIR / "public").mkdir(parents=True, exist_ok=True)
     for name in (".env.local", ".env"):
         (FRONTEND_DIR / name).write_text("\n".join(f"{k}={v}" for k, v in env_vars.items()) + "\n", encoding="utf-8")
     (FRONTEND_DIR / "public" / "runtime-config.js").write_text(
-        f'window.__LEX_API_BASE="http://localhost:{back_port}";\n'
+        f'window.__LEX_API_BASE="http://localhost:{back_port}/lexi";\n'
         f'window.__COMFY_URL="{COMFY_URL}";\n'
         f'window.__VLLM_URL="{OPENAI_API_BASE}";\n',
         encoding="utf-8",

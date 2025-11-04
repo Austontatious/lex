@@ -10,12 +10,16 @@ import time
 import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Callable
 
 import requests
 
 from ..config.config import (
-    MEMORY_PATH, MAX_MEMORY_ENTRIES, MODE_STATE_PATH, TRAIT_STATE_PATH,
+    AVATAR_URL_PREFIX,
+    MEMORY_PATH,
+    MAX_MEMORY_ENTRIES,
+    MODE_STATE_PATH,
+    TRAIT_STATE_PATH,
     STARTER_AVATAR_PATH,
 )
 from ..memory.memory_core import MemoryManager, memory
@@ -44,10 +48,11 @@ from .lexi_voice_mirroring import (
     sampler_from_profile,
     apply_postprocessing,
 )
+
 # <<<
 
 logger = logging.getLogger(__name__)
-STATIC_PREFIX = "/static/lexi/avatars/"
+STATIC_PREFIX = f"{AVATAR_URL_PREFIX}/"
 SMALL = 1e-9
 NOW_SEED_EVERY_TURNS = 6
 
@@ -58,13 +63,18 @@ except Exception:
     # Fallbacks so persona_core still works if the module isn't present
     def record_user_message(_msg: str, _generate_reply):
         return None
+
     def maybe_ask_question():
         return None
+
     def load_love_loop_state():
         return None
+
+
 # -----------------------------------------------------------------------------
 
 # ------------------------------ local helpers ------------------------------
+
 
 def _local_daypart() -> str:
     """Map local hour to a coarse daypart for vibe/sampling tweaks."""
@@ -77,7 +87,10 @@ def _local_daypart() -> str:
         return "afternoon"
     return "evening"
 
-def _sampler_policy(mode: str, seriousness: float, base: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+def _sampler_policy(
+    mode: str, seriousness: float, base: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """
     Blend style-profile sampler with mode/seriousness/daypart adjustments.
     Returns kwargs for ModelLoader.generate().
@@ -95,16 +108,22 @@ def _sampler_policy(mode: str, seriousness: float, base: Optional[Dict[str, Any]
         p["temperature"] = min(1.05, p["temperature"] + 0.1)
         p["top_p"] = max(0.9, p["top_p"])
     if mode in ("coach", "therapist"):
-        p.update(temperature=min(p["temperature"], 0.6),
-                 top_p=min(p["top_p"], 0.9),
-                 presence_penalty=0.3,
-                 max_tokens=min(p["max_tokens"], 220))
+        p.update(
+            temperature=min(p["temperature"], 0.6),
+            top_p=min(p["top_p"], 0.9),
+            presence_penalty=0.3,
+            max_tokens=min(p["max_tokens"], 220),
+        )
 
     # Seriousness dampening
     if seriousness >= 0.5:
-        p.update(temperature=0.45, top_p=0.9, presence_penalty=0.2,
-                 repetition_penalty=max(p.get("repetition_penalty", 1.1), 1.2),
-                 max_tokens=min(p["max_tokens"], 220))
+        p.update(
+            temperature=0.45,
+            top_p=0.9,
+            presence_penalty=0.2,
+            repetition_penalty=max(p.get("repetition_penalty", 1.1), 1.2),
+            max_tokens=min(p["max_tokens"], 220),
+        )
 
     # Daypart vibe
     dp = _local_daypart()
@@ -114,6 +133,7 @@ def _sampler_policy(mode: str, seriousness: float, base: Optional[Dict[str, Any]
     elif dp == "morning":
         p["temperature"] = max(0.8, p["temperature"])
     return p
+
 
 def _safe_encoding(value) -> str:
     """Return a valid codec name or 'utf-8' if invalid (or not a string)."""
@@ -125,15 +145,18 @@ def _safe_encoding(value) -> str:
     except Exception:
         return "utf-8"
 
+
 def safe_strip(val) -> str:
     return val.strip() if isinstance(val, str) else ""
+
 
 # Heuristic trigger for “current events” searches
 _NEWS_CLUES = re.compile(
     r"\b(what(?:'s| is) new|what happened|catch me up|latest|news|did you see|"
     r"update me|today|tonight|this week|who won|box office|episode|leak|trailer|finals|worlds|wsl|surf)\b",
-    re.I
+    re.I,
 )
+
 
 class LexiPersona:
     # Qwen2.5 32B tokenizer_config shows 131072; reserve margin for generation
@@ -307,14 +330,22 @@ class LexiPersona:
 
     def _clean_reply(self, raw) -> str:
         import re as _re
+
         if raw is None:
             return ""
-        text = raw["text"].strip() if isinstance(raw, dict) and "text" in raw else (
-            raw.strip() if isinstance(raw, str) else str(raw)
+        text = (
+            raw["text"].strip()
+            if isinstance(raw, dict) and "text" in raw
+            else (raw.strip() if isinstance(raw, str) else str(raw))
         )
 
         # 0) Strip ChatML & legacy tag tokens and tool tags
-        text = _re.sub(r"<\|\s*(?:im_start|im_end|system|user|assistant|endoftext|object_ref_start|object_ref_end|box_start|box_end|quad_start|quad_end|vision_start|vision_end)\s*\|>", "", text, flags=_re.I)
+        text = _re.sub(
+            r"<\|\s*(?:im_start|im_end|system|user|assistant|endoftext|object_ref_start|object_ref_end|box_start|box_end|quad_start|quad_end|vision_start|vision_end)\s*\|>",
+            "",
+            text,
+            flags=_re.I,
+        )
         text = _re.sub(r"</?tool_call>|</?tool_response>", "", text, flags=_re.I)
 
         # 1) Strip xml-ish artifacts
@@ -347,18 +378,24 @@ class LexiPersona:
             r"let'?s focus on.*self[- ]care",
             r"we'?ll get through this together",
             r"put on your cape",
-            r"i'?m here for you[,! ]?"
+            r"i'?m here for you[,! ]?",
         ]
         for pat in CLICHES:
             text = _re.sub(pat, "", text, flags=_re.I)
 
         # scrub emojis/intensity if banter off or strict mode
-        if (hasattr(self, "_banter_allowed") and not self._banter_allowed) or getattr(self, "_strict_mode", False):
+        if (hasattr(self, "_banter_allowed") and not self._banter_allowed) or getattr(
+            self, "_strict_mode", False
+        ):
             text = _re.sub(r"[\U0001F300-\U0001FAFF]", "", text)
             text = _re.sub(r"(!){2,}", "!", text)
 
         # keep concise unless user asked for detail or topic is serious
-        wants_detail = bool(_re.search(r"\b(more detail|explain|why|how|tell me more|elaborate)\b", text, flags=_re.I))
+        wants_detail = bool(
+            _re.search(
+                r"\b(more detail|explain|why|how|tell me more|elaborate)\b", text, flags=_re.I
+            )
+        )
         is_serious = getattr(self, "_seriousness_last", 0.0) >= 0.5
         if not wants_detail and not is_serious:
             sents = _re.split(r"(?<=[.!?…])\s+", text)
@@ -375,7 +412,9 @@ class LexiPersona:
 
     def _decay_activations(self):
         for k in list(self.mode_activation.keys()):
-            self.mode_activation[k] = max(0.0, self.mode_activation[k] * (1.0 - self.activation_decay))
+            self.mode_activation[k] = max(
+                0.0, self.mode_activation[k] * (1.0 - self.activation_decay)
+            )
         self.mode_activation["default"] = max(self.mode_activation.get("default", 0.0), 0.2)
 
     def _score_triggers(self, text: str) -> Dict[str, float]:
@@ -384,7 +423,9 @@ class LexiPersona:
         if any(v in text for v in [" be ", " act ", " play ", " pretend ", " be a ", " be my "]):
             imperative_boost = 1.25
 
-        third_party_guard = any(ref in text for ref in [' my daughter', ' my sister', ' my coworker', ' my friend '])
+        third_party_guard = any(
+            ref in text for ref in [" my daughter", " my sister", " my coworker", " my friend "]
+        )
 
         for mode_id, info in PERSONA_MODE_REGISTRY.items():
             pat = info.get("trigger")
@@ -401,7 +442,13 @@ class LexiPersona:
 
     # ------------------------------ generation ------------------------------
 
-    def _gen(self, messages_pkg: Dict[str, List[Dict[str, str]]], *, sampler_overrides: Optional[Dict[str, Any]] = None) -> str:
+    def _gen(
+        self,
+        messages_pkg: Dict[str, List[Dict[str, str]]],
+        *,
+        sampler_overrides: Optional[Dict[str, Any]] = None,
+        stream_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
         """Generate a reply from an OpenAI-style messages payload."""
         stop = ["<|im_end|>"]  # ChatML end-of-turn
         gen_kwargs = dict(
@@ -416,16 +463,49 @@ class LexiPersona:
 
         # If prompt is large, shrink generation budget to protect latency/coherence
         try:
-            prompt_tok = sum(self.count_tokens(m["content"]) for m in messages_pkg.get("messages", []))
+            prompt_tok = sum(
+                self.count_tokens(m["content"]) for m in messages_pkg.get("messages", [])
+            )
             if prompt_tok > (self.MAX_TOKENS - 500):
                 gen_kwargs["max_tokens"] = min(gen_kwargs.get("max_tokens", 80), 48)
         except Exception:
             pass
 
-        try:
-            raw = self.loader.generate(messages_pkg, **gen_kwargs)
-        except TypeError:
-            raw = self.loader.generate(messages_pkg)
+        if stream_callback:
+            stream = self.loader.generate_stream(messages_pkg, **gen_kwargs)
+            chunks: List[str] = []
+            summary: Dict[str, Any] = {}
+            while True:
+                try:
+                    chunk = next(stream)
+                except StopIteration as stop:
+                    if isinstance(stop.value, dict):
+                        summary = stop.value
+                    break
+                except Exception as stream_err:
+                    logger.warning("[WARN] stream chunk error: %s", stream_err)
+                    break
+                else:
+                    if not chunk:
+                        continue
+                    chunks.append(chunk)
+                    try:
+                        stream_callback(chunk)
+                    except Exception:
+                        # Swallow UI callback errors; continue streaming
+                        pass
+
+            final_text = "".join(chunks)
+            if not summary:
+                summary = {"text": final_text}
+            else:
+                summary.setdefault("text", final_text)
+            raw = summary
+        else:
+            try:
+                raw = self.loader.generate(messages_pkg, **gen_kwargs)
+            except TypeError:
+                raw = self.loader.generate(messages_pkg)
         return self._clean_reply(raw)
 
     # ------------------------------ axis & emotion ------------------------------
@@ -434,12 +514,17 @@ class LexiPersona:
         self._decay_activations()
         hits = self._score_triggers(text)
         for mode_id, strength in hits.items():
-            self.mode_activation[mode_id] = min(1.25, self.mode_activation.get(mode_id, 0.0) + strength * self.activation_nudge)
+            self.mode_activation[mode_id] = min(
+                1.25, self.mode_activation.get(mode_id, 0.0) + strength * self.activation_nudge
+            )
         self._normalize_activations()
 
         # hysteresis: pick lead if something clearly wins
         top_mode = max(self.mode_activation.items(), key=lambda kv: kv[1])[0]
-        if self.mode_activation[top_mode] >= self.lead_threshold and self._step >= self._lead_mode_lock_until:
+        if (
+            self.mode_activation[top_mode] >= self.lead_threshold
+            and self._step >= self._lead_mode_lock_until
+        ):
             self._lead_mode = top_mode
             self._lead_mode_lock_until = self._step + self.lead_lock_turns
 
@@ -481,9 +566,24 @@ class LexiPersona:
     def _assess_seriousness(self, text: str) -> float:
         t = text.lower()
         hard = [
-            "hospital", "er", "suicide", "self harm", "assault", "relapse",
-            "alcoholism", "withdrawal", "rehab", "detox", "domestic", "panic attack",
-            "grief", "funeral", "custody", "court", "abuse", "overdose"
+            "hospital",
+            "er",
+            "suicide",
+            "self harm",
+            "assault",
+            "relapse",
+            "alcoholism",
+            "withdrawal",
+            "rehab",
+            "detox",
+            "domestic",
+            "panic attack",
+            "grief",
+            "funeral",
+            "custody",
+            "court",
+            "abuse",
+            "overdose",
         ]
         soft = ["lonely", "alone", "blame", "my fault", "scared", "worried", "anxious", "depressed"]
 
@@ -500,7 +600,9 @@ class LexiPersona:
         """Throttle flirt, boost Therapist, extend lock when serious."""
         self._banter_allowed = seriousness < 0.35
         if seriousness >= 0.5:
-            self.mode_activation["therapist"] = max(self.mode_activation.get("therapist", 0.0), 0.95)
+            self.mode_activation["therapist"] = max(
+                self.mode_activation.get("therapist", 0.0), 0.95
+            )
             self._normalize_activations()
             self._lead_mode = "therapist"
             self._lead_mode_lock_until = max(self._lead_mode_lock_until, self._step + 5)
@@ -535,8 +637,10 @@ class LexiPersona:
 
     # ------------------------------ prompt building ------------------------------
 
-    def build_prompt(self, context: List[MemoryShard], user_input: str) -> Dict[str, List[Dict[str, str]]]:
-        """Legacy helper: build a messages payload from memory shards + user input."""
+    def build_prompt(
+        self, context: List[MemoryShard], user_input: str
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """Legacy helper: build a messages payload from lexi.memory shards + user input."""
         memories_json = []
         current_token_count = self.count_tokens(user_input) + self.SAFETY_MARGIN
 
@@ -553,7 +657,7 @@ class LexiPersona:
             memories_json=memories_json,
             user_message=user_input,
             emotional_weights=self._axis_to_emotional_weights(),
-            active_persona=self._lead_mode
+            active_persona=self._lead_mode,
         )
 
     # ------------------------------ avatar / mode helpers ------------------------------
@@ -567,7 +671,9 @@ class LexiPersona:
     def get_mode(self) -> str:
         return self.current_mode
 
-    def refresh_avatar_from_current(self, prompt_text: str, current_avatar_path: Optional[str] = None) -> str:
+    def refresh_avatar_from_current(
+        self, prompt_text: str, current_avatar_path: Optional[str] = None
+    ) -> str:
         """
         Low-denoise img2img pass to preserve identity; subtle makeover.
         """
@@ -577,7 +683,7 @@ class LexiPersona:
         return generate_avatar(
             prompt=prompt_text,
             mode="img2img",
-            source_path=source,   # absolute path to current avatar on disk
+            source_path=source,  # absolute path to current avatar on disk
             denoise=0.32,
             steps=26,
             cfg_scale=4.2,
@@ -603,35 +709,53 @@ class LexiPersona:
             try:
                 all_mem = self.memory.all()
                 relevant = sorted(all_mem, key=lambda s: score_overlap(msg_strip, s), reverse=True)
-                ltm_shards = [s for s in relevant if score_overlap(msg_strip, s) >= 0.15][:ltm_limit]
+                ltm_shards = [s for s in relevant if score_overlap(msg_strip, s) >= 0.15][
+                    :ltm_limit
+                ]
                 ltm_memories = [{"role": s.role, "content": s.content} for s in ltm_shards]
             except Exception as e:
                 logger.warning("[WARN] Failed to retrieve memory: %s", e)
                 ltm_memories = []
 
-        total_token_count = session_token_count + sum(self.count_tokens(m["content"]) for m in ltm_memories)
+        total_token_count = session_token_count + sum(
+            self.count_tokens(m["content"]) for m in ltm_memories
+        )
         percent_used = total_token_count / self.MAX_TOKENS
 
         return prompt_memories + ltm_memories, percent_used
 
     # ------------------------------ chat entrypoints ------------------------------
 
-    def chat(self, user_message: str) -> str:
+    def chat(
+        self,
+        user_message: str,
+        *,
+        stream_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
         # Defensive reset every turn so a prior prompt_pkg can't poison the codec.
         self.encoding = "utf-8"
         try:
-            return self._chat_impl(user_message)
+            return self._chat_impl(user_message, stream_callback=stream_callback)
         except LookupError as e:
             logger.error("[TRACE] LookupError in chat: %r\n%s", e, traceback.format_exc())
             # Should never happen now, but keep a guard anyway.
             self.encoding = "utf-8"
             try:
-                return self._chat_impl(user_message)
+                return self._chat_impl(user_message, stream_callback=stream_callback)
             except Exception as e2:
-                logger.error("[ERROR] LexiPersona.chat failed after retry: %s\n%s", e2, traceback.format_exc())
+                logger.error(
+                    "[ERROR] LexiPersona.chat failed after retry: %s\n%s",
+                    e2,
+                    traceback.format_exc(),
+                )
                 return "[error]"
 
-    def _chat_impl(self, user_message: str) -> str:
+    def _chat_impl(
+        self,
+        user_message: str,
+        *,
+        stream_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
         self._step += 1
         if not user_message:
             return "[no input]"
@@ -672,9 +796,7 @@ class LexiPersona:
 
         # --- Build prompt context and budget ---
         try:
-            self.session_memory.compact_oldest(
-                max_keep_tokens=self.MAX_TOKENS - self.SAFETY_MARGIN
-            )
+            self.session_memory.compact_oldest(max_keep_tokens=self.MAX_TOKENS - self.SAFETY_MARGIN)
         except Exception as e:
             logger.warning("[WARN] session compaction skipped: %s", e)
 
@@ -702,7 +824,10 @@ class LexiPersona:
             low = txt.lower()
             if any(low in r.lower() or r.lower() in low for r in recent_blobs):
                 return True
-            def _tokset(s): return set(re.findall(r"[a-z0-9']{2,}", s.lower()))
+
+            def _tokset(s):
+                return set(re.findall(r"[a-z0-9']{2,}", s.lower()))
+
             T = _tokset(txt)
             for r in recent_blobs[-6:]:
                 R = _tokset(r)
@@ -720,7 +845,9 @@ class LexiPersona:
                 relevant = sorted(all_mem, key=lambda s: score_overlap(msg_strip, s), reverse=True)
                 existing_contents = set(m["content"] for m in prompt_memories)
 
-                def _score(s): return score_overlap(msg_strip, s)
+                def _score(s):
+                    return score_overlap(msg_strip, s)
+
                 picked = []
                 for s in relevant:
                     if _score(s) < 0.15:
@@ -767,13 +894,15 @@ class LexiPersona:
                 "This is serious. Be grounded, validating, and specific.",
                 "Avoid flirtation, innuendo, or emojis.",
                 "Acknowledge responsibility confusion without assigning blame.",
-                "Offer one practical next step and ask permission before advice."
+                "Offer one practical next step and ask permission before advice.",
             ]
         else:
             if not getattr(self, "_banter_allowed", True):
                 style_bits.append("Keep it friendly but avoid flirtation or innuendo.")
             # Encourage tasteful use of feeds when not serious
-            style_bits.append("If using Now Feed or Research Notes, blend at most one tiny reference with a short source tag like (AP, 3h) or (TVMaze).")
+            style_bits.append(
+                "If using Now Feed or Research Notes, blend at most one tiny reference with a short source tag like (AP, 3h) or (TVMaze)."
+            )
 
         if self.current_axis.get("warmth", 0.5) > 0.85:
             style_bits.append("Your tone is very warm and tactile — but keep it concise.")
@@ -798,7 +927,11 @@ class LexiPersona:
             ]
         if injections:
             sys_msg = prompt_pkg["messages"][0]["content"]
-            sys_msg = sys_msg + "\n\n# Developer Injections (runtime)\n" + " ".join(x for x in injections if x)
+            sys_msg = (
+                sys_msg
+                + "\n\n# Developer Injections (runtime)\n"
+                + " ".join(x for x in injections if x)
+            )
             prompt_pkg["messages"][0]["content"] = sys_msg
 
         # --- Token budgeting on message contents ---
@@ -817,11 +950,13 @@ class LexiPersona:
                 memories_json=prompt_memories,  # no ltm
                 user_message=msg_strip,
                 emotional_weights=emotional_weights,
-                active_persona=self._lead_mode
+                active_persona=self._lead_mode,
             )
             if injections:
                 sys0 = trimmed_pkg["messages"][0]["content"]
-                sys0 += "\n\n# Developer Injections (runtime)\n" + " ".join(x for x in injections if x)
+                sys0 += "\n\n# Developer Injections (runtime)\n" + " ".join(
+                    x for x in injections if x
+                )
                 trimmed_pkg["messages"][0]["content"] = sys0
             prompt_pkg = trimmed_pkg
             tok_count = _messages_tokens(prompt_pkg)
@@ -842,11 +977,13 @@ class LexiPersona:
                 memories_json=trimmed_pairs,
                 user_message=msg_strip,
                 emotional_weights=emotional_weights,
-                active_persona=self._lead_mode
+                active_persona=self._lead_mode,
             )
             if injections:
                 sys0 = trimmed_pkg["messages"][0]["content"]
-                sys0 += "\n\n# Developer Injections (runtime)\n" + " ".join(x for x in injections if x)
+                sys0 += "\n\n# Developer Injections (runtime)\n" + " ".join(
+                    x for x in injections if x
+                )
                 trimmed_pkg["messages"][0]["content"] = sys0
             prompt_pkg = trimmed_pkg
             tok_count = _messages_tokens(prompt_pkg)
@@ -857,11 +994,13 @@ class LexiPersona:
                 memories_json=[],
                 user_message=msg_strip,
                 emotional_weights=emotional_weights,
-                active_persona=self._lead_mode
+                active_persona=self._lead_mode,
             )
             if injections:
                 sys0 = prompt_pkg["messages"][0]["content"]
-                sys0 += "\n\n# Developer Injections (runtime)\n" + " ".join(x for x in injections if x)
+                sys0 += "\n\n# Developer Injections (runtime)\n" + " ".join(
+                    x for x in injections if x
+                )
                 prompt_pkg["messages"][0]["content"] = sys0
             tok_count = _messages_tokens(prompt_pkg)
 
@@ -871,11 +1010,17 @@ class LexiPersona:
         # sampler tweaks from style profile + policy
         recent_user_utts = [e["user"] for e in self.session_memory.buffer[-12:]]
         prev_prof = self._style_mem.get(self._style_user_id)
-        style_prof = analyze_user_style(recent_user_utts, prev_profile=prev_prof)  # already computed above, but safe
+        style_prof = analyze_user_style(
+            recent_user_utts, prev_profile=prev_prof
+        )  # already computed above, but safe
         sampler = sampler_from_profile(style_prof) or {}
         sampler = _sampler_policy(self._lead_mode, serious, sampler)
 
-        reply = self._gen(prompt_pkg, sampler_overrides=sampler)
+        reply = self._gen(
+            prompt_pkg,
+            sampler_overrides=sampler,
+            stream_callback=stream_callback,
+        )
         # mirror punctuation/case tics lightly
         reply = apply_postprocessing(reply, style_prof)
         if not reply or len(reply) < 12:
@@ -938,5 +1083,6 @@ class LexiPersona:
             return False
 
 
-__all__ = ["LexiPersona", "lexi_persona"]
 lexi_persona = LexiPersona()
+lex_persona = lexi_persona  # backward compatibility alias
+__all__ = ["LexiPersona", "lexi_persona", "lex_persona"]
