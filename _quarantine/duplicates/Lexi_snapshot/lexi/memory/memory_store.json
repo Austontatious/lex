@@ -1,0 +1,60 @@
+import json
+from pathlib import Path
+from typing import List
+from time import time
+from .memory_types import MemoryShard
+
+class MemoryStoreJSON:
+    def __init__(self, filepath="friday/memory/default.jsonl", max_entries=1000):
+        self.filepath = Path(filepath)
+        self.max_entries = max_entries
+        self.filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    def load(self) -> List[MemoryShard]:
+        if not self.filepath.exists():
+            return []
+        with self.filepath.open("r") as f:
+            return [MemoryShard.from_dict(json.loads(line)) for line in f if line.strip()]
+
+    def save(self, entries: List[MemoryShard]):
+        with self.filepath.open("w") as f:
+            for e in entries:
+                f.write(json.dumps(e.to_dict()) + "\n")
+
+    def insert(self, shard: MemoryShard):
+        entries = self.load()
+        entries = [e for e in entries if e.id != shard.id]
+        entries.append(shard)
+        entries.sort(key=lambda e: e.last_used, reverse=True)
+        if len(entries) > self.max_entries:
+            entries = entries[:self.max_entries]
+        self.save(entries)
+
+    def query(self, query: str, top_k: int = 5, session_id="default") -> List[MemoryShard]:
+        entries = self.load()
+        filtered = [e for e in entries if query.lower() in e.text.lower() and e.session_id == session_id]
+        for e in filtered:
+            e.last_used = time()
+        self.save(entries)
+        return filtered[:top_k]
+
+    def clear(self, session_id="default"):
+        entries = self.load()
+        filtered = [e for e in entries if e.session_id != session_id]
+        self.save(filtered)
+
+    def history(self, session_id="default", limit=10):
+        entries = self.load()
+        filtered = [e for e in entries if e.session_id == session_id]
+        return sorted(filtered, key=lambda e: e.last_used, reverse=True)[:limit]
+
+    def mark_used(self, entry_id: str):
+        entries = self.load()
+        for e in entries:
+            if e.id == entry_id:
+                e.last_used = time.time()
+        self.save(entries)
+
+    def path(self) -> str:
+        return self.file_path
+

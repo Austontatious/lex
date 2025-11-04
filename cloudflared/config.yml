@@ -3,7 +3,7 @@ credentials-file: /etc/cloudflared/cred.json
 
 ingress:
   - hostname: lexicompanion.com
-    service: http://lex-traefik-1:80
+    service: http://lexi-frontend:80
   - hostname: api.lexicompanion.com
-    service: http://lex-traefik-1:80
+    service: http://lexi-backend:9000
   - service: http_status:404

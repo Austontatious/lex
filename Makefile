@@ -1,27 +1,60 @@
-.PHONY: build dev live logs down ps
+SHELL := /bin/bash
+PY := python3
+VENV := venv
 
-build:
-	docker compose build --no-cache
+.PHONY: init lint fix typecheck test smoke smoke-versions up down local-up local-down ps logs help
 
-dev:
-	cp .env .env.dev || true
-	docker compose --profile dev up -d
-	@echo "Backend: http://localhost:$${API_PORT:-9000}/lex/health"
-	@echo "Frontend: http://localhost:$${FRONTEND_PORT:-3000}"
+help:
+	@echo "Targets:"
+	@echo "  init        - create venv and install ruff/black/mypy/pytest"
+	@echo "  fix         - ruff --fix + black on backend"
+	@echo "  typecheck   - mypy backend (non-fatal)"
+	@echo "  test        - pytest -q"
+	@echo "  up          - docker compose up -d lexi-frontend lexi-backend cloudflared"
+	@echo "  down        - docker compose down"
+	@echo "  ps          - docker compose ps"
+	@echo "  logs        - docker compose logs -f lexi-backend"
+	@echo "  smoke       - docker network curl checks"
+	@echo "  smoke-versions - assert pinned package versions align with constraints"
+	@echo "  local-up    - docker compose --profile local up -d lexi-backend-devlocal"
+	@echo "  local-down  - docker compose --profile local down"
 
-live:
-	test -f .env || (echo ".env missing. Copy .env.example and set runtime values"; exit 1)
-	docker network create edge >/dev/null 2>&1 || true
-	docker compose --profile live up -d lexi-backend lexi-frontend
-	@echo "Live backend: https://lexicompanion.com/api/health"
-	@echo "Live frontend: https://lexicompanion.com/"
-	@echo "Traefik must already be connected to the 'edge' network."
+init:
+	$(PY) -m venv $(VENV); . $(VENV)/bin/activate; $(PY) -m pip install -U pip ruff black mypy pytest
 
-logs:
-	docker compose logs -f --tail=200
+lint:
+	. $(VENV)/bin/activate; ruff check backend
+
+fix:
+	. $(VENV)/bin/activate; ruff check --fix backend && black backend
+
+typecheck:
+	. $(VENV)/bin/activate; mypy backend || true
+
+test:
+	. $(VENV)/bin/activate; pytest -q
+
+smoke:
+	docker run --rm --network lex_default curlimages/curl:8.10.1 -sS http://lexi-frontend:80 | head -c 120; echo
+	docker run --rm --network lex_default curlimages/curl:8.10.1 -sS http://lexi-backend:8000/openapi.json | head -c 120; echo
+
+smoke-versions:
+	PYTHONPATH=backend $(PY) -c "import runpy; runpy.run_path('backend/smoke_versions.py')"
+
+up:
+	docker compose up -d lexi-frontend lexi-backend cloudflared
+
+local-up:
+	docker compose --profile local up -d lexi-backend-devlocal
+
+down:
+	docker compose down
 
 ps:
 	docker compose ps
 
-down:
-	docker compose down
+logs:
+	docker compose logs -f lexi-backend
+
+local-down:
+	docker compose --profile local down

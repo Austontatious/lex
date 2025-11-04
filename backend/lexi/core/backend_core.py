@@ -1,0 +1,244 @@
+# Lexi/lexi/core/backend_core.py
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+
+from fastapi import APIRouter, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
+from starlette.responses import FileResponse
+from starlette.staticfiles import StaticFiles
+
+from ..alpha.session_manager import SessionRegistry
+from ..boot.avatar_first_render import router as avatar_bootstrap_router
+from ..config.config import REPO_ROOT, STATIC_ROOT, STATIC_URL_PREFIX
+from ..config.now import ENABLE_NOW as CONFIG_ENABLE_NOW
+from ..utils.now_utils import log_now
+
+log = logging.getLogger("lexi.backend")
+
+
+def _unique_id(route: APIRoute) -> str:
+    tag = (route.tags[0] if route.tags else "default").lower().replace(" ", "_")
+    verb = next(iter(route.methods)).lower()
+    path = (
+        route.path_format.strip("/")
+        .replace("/", "_")
+        .replace("{", "")
+        .replace("}", "")
+    )
+    return f"{tag}__{verb}__{path or 'root'}"
+
+_start_now_scheduler = None
+_refresh_now_feed = None
+_env_now_enabled = os.getenv("LEXI_ENABLE_NOW", "0").lower() not in ("0", "false", "no", "off")
+_now_enabled = CONFIG_ENABLE_NOW and _env_now_enabled
+
+if _now_enabled:
+    try:
+        from .now_scheduler import start_now_scheduler as _start_now_scheduler
+        from ..utils.now_ingest import refresh_now_feed as _refresh_now_feed
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("NOW scheduler disabled: %s", exc)
+        _start_now_scheduler = None
+        _refresh_now_feed = None
+else:
+    log.info("NOW feed disabled at startup; skipping scheduler import")
+
+app = FastAPI(
+    title="Lexi Backend",
+    version="0.1.0",
+    generate_unique_id_function=_unique_id,
+)
+app.router.route_class = APIRoute
+app.include_router(avatar_bootstrap_router)
+app.state.alpha_sessions = SessionRegistry()
+# ---------------- CORS (dev-friendly) ----------------
+try:
+    from ..config.config import settings  # type: ignore
+    _cfg_settings = settings  # type: ignore
+    _cors_origins = getattr(_cfg_settings, "CORS_ORIGINS", None)
+except Exception:
+    _cfg_settings = None  # type: ignore
+    _cors_origins = None
+
+if _cors_origins is None:
+    try:
+        from ..config.config import CORS_ORIGINS as _cors_origins  # type: ignore
+    except Exception:
+        _cors_origins = os.getenv("CORS_ORIGINS", "*")
+
+if isinstance(_cors_origins, (set, tuple)):
+    _cors_origins = list(_cors_origins)
+elif isinstance(_cors_origins, str):
+    if "," in _cors_origins:
+        _cors_origins = [o.strip() for o in _cors_origins.split(",") if o.strip()]
+    elif _cors_origins:
+        _cors_origins = [_cors_origins.strip()]
+    else:
+        _cors_origins = ["*"]
+elif not isinstance(_cors_origins, list):
+    _cors_origins = ["*"]
+
+if not _cors_origins:
+    _cors_origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "X-Lexi-Session",
+        "Authorization",
+        "Accept",
+        "X-Requested-With",
+    ],
+    expose_headers=["*"],
+    max_age=600,
+)
+
+# ------------- Static files (/static/...) -------------
+# Serve default avatars and other assets from the canonical frontend public dir.
+_static_root_candidate = None
+if _cfg_settings is not None:
+    try:
+        candidate = getattr(_cfg_settings, "STATIC_ROOT", None)
+        if candidate:
+            _static_root_candidate = Path(candidate)
+    except Exception:
+        _static_root_candidate = None
+
+STATIC_CANDIDATES = [
+    _static_root_candidate,
+    STATIC_ROOT,
+    REPO_ROOT / "static",  # legacy fallback
+    REPO_ROOT / "Lexi" / "lexi" / "static",  # legacy snapshot fallback
+    Path("/mnt/data/Lexi/static"),  # external mount, optional
+]
+STATIC_CANDIDATES = [p for p in STATIC_CANDIDATES if p is not None]
+static_dir = next((p for p in STATIC_CANDIDATES if p.exists()), STATIC_ROOT)
+static_dir_str = str(static_dir)
+
+app.mount("/static", StaticFiles(directory=static_dir_str), name="static_legacy")
+if STATIC_URL_PREFIX != "/static":
+    app.mount(STATIC_URL_PREFIX, StaticFiles(directory=static_dir_str), name="static_prefixed")
+
+# ------------- Optional: Serve built frontend (Vite/CRA build) -------------
+# If a production build exists, serve it and provide a catch-all to index.html
+FRONT_BUILD_CANDIDATES = [
+    REPO_ROOT / "frontend" / "dist",
+    REPO_ROOT / "frontend" / "build",
+]
+FRONT_BUILD = next((p for p in FRONT_BUILD_CANDIDATES if p.exists()), None)
+if FRONT_BUILD:
+    app.mount("/app", StaticFiles(directory=str(FRONT_BUILD), html=True), name="app")
+
+    @app.get("/{full_path:path}")
+    async def _spa_catch_all(full_path: str):
+        index = FRONT_BUILD / "index.html"
+        if index.exists():
+            return FileResponse(str(index))
+        return {"app": "lexi-backend", "version": "0.1.0"}
+
+
+# ------------- Include routers under /lexi -------------
+# IMPORTANT:
+# - lexi_persona.py declares: router = APIRouter(prefix="/persona", ...)
+# - Including it with prefix="/lexi" → final paths /lexi/persona, /lexi/persona/...
+from ..routes.lexi import router as lexi_router
+from ..routes.gen import router as gen_router
+from ..routes.love_loop import router as love_router
+from ..routes.now import router as now_router, tools as tools_router
+from ..routes.alpha import router as alpha_router
+
+app.include_router(lexi_router)
+app.include_router(gen_router)
+app.include_router(love_router)
+app.include_router(now_router)  # <-- this exposes /now/...
+app.include_router(tools_router)  # <-- ...and /tools/web_search
+app.include_router(alpha_router)
+# Core chat routes (optional)
+try:
+    from ..routes import lexi as lexi_routes
+
+    app.include_router(lexi_routes.router, prefix="/lexi")
+    log.info("Mounted lexi.routes.lexi at /lexi")
+except Exception as e:
+    log.info("lexi.routes.lexi not mounted: %s", e)
+
+# Generation routes (optional)
+try:
+    from ..routes import gen
+
+    app.include_router(gen.router, prefix="/lexi")
+    log.info("Mounted lexi.routes.gen at /lexi")
+except Exception as e:
+    log.info("lexi.routes.gen not mounted: %s", e)
+
+# Persona routes — FE calls /lexi/persona
+try:
+    from ..routes import lexi_persona
+
+    app.include_router(lexi_persona.router, prefix="/lexi")
+    log.info("Mounted lexi.routes.lexi_persona at /lexi/persona")
+except Exception as e:
+    log.warning("lexi.routes.lexi_persona not mounted: %s", e)
+
+
+# Optional extras
+try:
+    from ..routes import love
+
+    app.include_router(love.router, prefix="/lexi")
+    log.info("Mounted lexi.routes.love at /lexi")
+except Exception as e:
+    log.info("lexi.routes.love not mounted: %s", e)
+
+
+# ---------- Now Feed: scheduler + warm cache on startup ----------
+@app.on_event("startup")
+async def _startup_now_feed():
+    # start periodic refresh job
+    if not _start_now_scheduler or not _refresh_now_feed:
+        log.info("NOW scheduler disabled; skipping warm-up")
+        return
+
+    _start_now_scheduler()
+    # warm the cache immediately so /now has data on first request
+    try:
+        await _refresh_now_feed()
+        log.info("Now Feed warmed successfully.")
+    except Exception as e:
+        log.warning("Now Feed warm-up failed: %s", e)
+
+
+# ---------------- Health / Ready under /lexi ----------------
+health = APIRouter()
+
+
+@health.get("/health")
+async def healthz():
+    return {"ok": True}
+
+
+@health.get("/ready")
+async def readyz():
+    return {"ready": True}
+
+
+app.include_router(health, prefix="/lexi")
+
+
+
+@app.get("/health", tags=["ops"])
+def health_root():
+    return {"ok": True}
+
+# ---------------- Root (optional) ----------------
+@app.get("/")
+async def root():
+    return {"app": "lexi-backend", "version": "0.1.0"}
