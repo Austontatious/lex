@@ -4,6 +4,7 @@ import React, {
   useEffect,
   KeyboardEvent,
   useCallback,
+  useContext,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -31,6 +32,8 @@ import {
   classifyIntent
 } from "./services/api";
 import type { TraitResponse, Persona } from "./services/api";
+import { TourContext } from "./tour/TourProvider";
+import "./styles/chat.css";
 
 interface ChatMessage {
   id: string;
@@ -71,6 +74,7 @@ function App() {
   const { colorMode, toggleColorMode } = useColorMode();
   const bg = useColorModeValue("gray.50", "gray.800");
 
+  const { start: startTour } = useContext(TourContext);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [staticAvatarBase, setStaticAvatarBase] = useState(DEFAULT_STATIC_AVATAR_BASE);
@@ -171,6 +175,47 @@ const handleTraitFlow = useCallback(
   [appendMessage, staticAvatarBase]
 );
 
+const handleAvatarEdit = useCallback(
+  async (userText: string) => {
+    setLoading(true);
+    try {
+      const result = await sendPrompt({ prompt: userText, intent: "avatar_edit" });
+      let reply =
+        typeof result === "object" &&
+        result !== null &&
+        typeof (result as any).cleaned === "string"
+          ? (result as any).cleaned
+          : "Got it, updating her look! 💄";
+      const avatarCandidate =
+        (result as any)?.avatar_url ??
+        (result as any)?.url ??
+        (result as any)?.image ??
+        (result as any)?.image_url ??
+        "";
+      if (typeof avatarCandidate === "string" && avatarCandidate) {
+        const resolved = resolveAvatarUrl(avatarCandidate, staticAvatarBase);
+        const finalUrl = `${resolved}${resolved.includes("?") ? "&" : "?"}v=${Date.now()}`;
+        setAvatarUrl(finalUrl);
+      }
+      appendMessage({ sender: "ai", content: reply });
+      try {
+        const updated = await fetchPersona();
+        if (updated) {
+          setPersona(updated);
+        }
+      } catch (personaErr) {
+        console.warn("Failed to refresh persona after avatar edit", personaErr);
+      }
+    } catch (err) {
+      console.error(err);
+      appendMessage({ sender: "ai", content: "[Avatar edit failed]", error: true });
+    } finally {
+      setAvatarFlow(false);
+      setLoading(false);
+    }
+  },
+  [appendMessage, staticAvatarBase]
+);
 
 
 const handleSend = useCallback(async () => {
@@ -194,11 +239,16 @@ const handleSend = useCallback(async () => {
     console.warn("Intent API failed, defaulting to chat", e);
   }
 
-  if (intent === "avatar_flow") {
+  if (intent === "avatar_flow" || intent === "new_look") {
     // flip your FSM
     setAvatarFlow(true);
     // send this first message into the trait collector
     handleTraitFlow(text);
+    return;
+  }
+
+  if (intent === "avatar_edit") {
+    await handleAvatarEdit(text);
     return;
   }
 
@@ -267,7 +317,7 @@ const handleSend = useCallback(async () => {
   } finally {
     setLoading(false);
   }
-}, [input, loading, avatarFlow, appendMessage, handleTraitFlow]);
+}, [input, loading, avatarFlow, appendMessage, handleTraitFlow, handleAvatarEdit]);
 
 //import { useEffect } from "react";
 //import {
@@ -300,16 +350,23 @@ const handleSend = useCallback(async () => {
 
   return (
     <Flex direction="column" h="100vh" bg={bg} fontFamily="'Nunito', sans-serif">
-      <HStack p={3} bg="pink.500" color="white" boxShadow="0 2px 12px rgba(255, 105, 180, 0.6)">
+      <HStack
+        p={3}
+        bg="pink.500"
+        color="white"
+        boxShadow="0 2px 12px rgba(255, 105, 180, 0.6)"
+        data-tour="header"
+      >
         <Box fontWeight="bold" fontSize="xl">
           Lexi Chat
         </Box>
-        {persona && (
-          <Box fontSize="sm" color="pink.100" ml={2}>
-            mode: {(persona as any).mode ?? "default"}
-          </Box>
-        )}
+        <Box fontSize="sm" color="pink.100" ml={2} data-tour="modes">
+          mode: {(persona as any)?.mode ?? "loading…"}
+        </Box>
         <Spacer />
+        <Button size="sm" variant="ghost" color="white" onClick={startTour}>
+          Take a tour
+        </Button>
         <IconButton
           aria-label="Toggle dark mode"
           icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
@@ -319,91 +376,118 @@ const handleSend = useCallback(async () => {
         />
       </HStack>
 
-      <Box flex="1" position="relative" overflow="hidden">
-        {/* Floating Avatar */}
-        {avatarUrl && (
-          <Box
-            position="absolute"
-            top="16px"
-            left="16px"
-            zIndex="10"
-            animation="pulseGlow 2s infinite"
-            sx={{
-              "@keyframes pulseGlow": {
-                "0%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
-                "50%": { boxShadow: "0 0 18px rgba(255, 105, 180, 0.8)" },
-                "100%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
-              },
-            }}
-          >
-            <Image
-              src={avatarUrl}
-              alt="Lex avatar"
-              maxW="250px"
-              borderRadius="2xl"
-              border="2px solid hotpink"
-              backdropFilter="blur(4px)"
-            />
+      <Box flex="1" px={4} pt={4} pb={2}>
+        <Box className="chat-layout with-avatar" h="100%">
+          <Box as="aside" className="avatar-pane" data-tour="avatar">
+            {avatarUrl && (
+              <Box
+                className="avatar-card"
+                borderRadius="2xl"
+                border="2px solid hotpink"
+                overflow="hidden"
+                animation="pulseGlow 2s infinite"
+                boxShadow="0 0 24px rgba(255, 64, 128, 0.25)"
+                sx={{
+                  "@keyframes pulseGlow": {
+                    "0%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
+                    "50%": { boxShadow: "0 0 18px rgba(255, 105, 180, 0.8)" },
+                    "100%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
+                  },
+                }}
+              >
+                <Image
+                  src={avatarUrl}
+                  alt="Lex avatar"
+                  w="100%"
+                  display="block"
+                  backdropFilter="blur(4px)"
+                />
+              </Box>
+            )}
+            <Button
+              mt={3}
+              variant="outline"
+              colorScheme="pink"
+              size="sm"
+              onClick={() => setAvatarFlow(true)}
+              data-tour="gallery"
+            >
+              Open avatar tools
+            </Button>
           </Box>
-        )}
 
-        {/* Chat Scroll Window */}
-        <Box
-          h="100%"
-          overflowY="auto"
-          px={4}
-          pt={4}
-          pb={2}
-          css={{
-            scrollbarColor: "hotpink transparent",
-            scrollbarWidth: "thin",
-          }}
-        >
-          <VStack spacing={4} align="stretch">
-            {messages.map((m) => {
-              if (typeof m.content !== "string" || m.content.trim().length === 0) return null;
+          <Box
+            as="main"
+            className="chat-pane"
+            display="flex"
+            flexDirection="column"
+            h="100%"
+          >
+            <Box
+              className="chat-scroll"
+              flex="1"
+              overflowY="auto"
+              pt={2}
+              pb={2}
+              px={2}
+              css={{
+                scrollbarColor: "hotpink transparent",
+                scrollbarWidth: "thin",
+              }}
+            >
+              <VStack spacing={4} align="stretch">
+                {messages.map((m) => {
+                  if (typeof m.content !== "string" || m.content.trim().length === 0) return null;
 
-              return (
-                <Box
-                  key={m.id}
-                  alignSelf={
-                    m.sender === "user"
-                      ? "flex-end"
-                      : m.sender === "ai"
-                      ? "flex-start"
-                      : "center"
-                  }
-                  bg={
-                    m.sender === "user"
-                      ? "pink.400"
-                      : m.sender === "ai"
-                      ? "rgba(100, 100, 100, 0.3)"
-                      : "purple.600"
-                  }
-                  color="white"
-                  px={5}
-                  py={3}
-                  borderRadius="xl"
-                  maxW="80%"
-                  whiteSpace="pre-wrap"
-                  opacity={m.streaming ? 0.9 : 1}
-                  border={m.error ? "1px solid red" : "none"}
-                  boxShadow="0 0 16px rgba(255, 105, 180, 0.8)"
-                  backdropFilter="blur(10px)"
-                  transition="all 0.2s ease-in-out"
-                >
-                  {m.content}
-                  {m.streaming && <Spinner size="xs" ml={2} />}
-                </Box>
-              );
-            })}
+                  return (
+                    <Box
+                      key={m.id}
+                      className="bubble"
+                      alignSelf={
+                        m.sender === "user"
+                          ? "flex-end"
+                          : m.sender === "ai"
+                          ? "flex-start"
+                          : "center"
+                      }
+                      bg={
+                        m.sender === "user"
+                          ? "pink.400"
+                          : m.sender === "ai"
+                          ? "rgba(100, 100, 100, 0.3)"
+                          : "purple.600"
+                      }
+                      color="white"
+                      px={5}
+                      py={3}
+                      borderRadius="xl"
+                      maxW="80%"
+                      whiteSpace="pre-wrap"
+                      opacity={m.streaming ? 0.9 : 1}
+                      border={m.error ? "1px solid red" : "none"}
+                      boxShadow="0 0 16px rgba(255, 105, 180, 0.8)"
+                      backdropFilter="blur(10px)"
+                      transition="all 0.2s ease-in-out"
+                    >
+                      {m.content}
+                      {m.streaming && <Spinner size="xs" ml={2} />}
+                    </Box>
+                  );
+                })}
 
-            <div ref={chatEndRef} />
-          </VStack>
+                <div ref={chatEndRef} />
+              </VStack>
+            </Box>
+          </Box>
         </Box>
       </Box>
 
-      <HStack p={3} bg="pink.500" boxShadow="0 -2px 12px rgba(255, 105, 180, 0.5)">
+      <HStack
+        p={3}
+        bg="pink.500"
+        boxShadow="0 -2px 12px rgba(255, 105, 180, 0.5)"
+        data-tour="composer"
+      >
         <Textarea
           flex="1"
           value={input}

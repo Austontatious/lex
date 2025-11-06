@@ -2,7 +2,7 @@ SHELL := /bin/bash
 PY := python3
 VENV := venv
 
-.PHONY: init lint fix typecheck test smoke smoke-versions up down local-up local-down ps logs help
+.PHONY: init lint fix typecheck test smoke smoke-versions dev prod prod-comfy up down comfy local-up local-down ps logs sh backcurl help
 
 help:
 	@echo "Targets:"
@@ -10,10 +10,15 @@ help:
 	@echo "  fix         - ruff --fix + black on backend"
 	@echo "  typecheck   - mypy backend (non-fatal)"
 	@echo "  test        - pytest -q"
-	@echo "  up          - docker compose up -d lexi-frontend lexi-backend cloudflared"
+	@echo "  dev         - docker compose up (dev env)"
+	@echo "  prod        - docker compose up with prod override"
+	@echo "  prod-comfy  - alias for prod (Comfy enabled in base compose)"
 	@echo "  down        - docker compose down"
+	@echo "  comfy       - docker compose up -d comfy-sd"
 	@echo "  ps          - docker compose ps"
-	@echo "  logs        - docker compose logs -f lexi-backend"
+	@echo "  logs        - docker compose logs -f --tail=200"
+	@echo "  sh          - shell into the backend container"
+	@echo "  backcurl    - curl \$${COMFY_URL}/api/version from inside backend"
 	@echo "  smoke       - docker network curl checks"
 	@echo "  smoke-versions - assert pinned package versions align with constraints"
 	@echo "  local-up    - docker compose --profile local up -d lexi-backend-devlocal"
@@ -41,8 +46,15 @@ smoke:
 smoke-versions:
 	PYTHONPATH=backend $(PY) -c "import runpy; runpy.run_path('backend/smoke_versions.py')"
 
-up:
-	docker compose up -d lexi-frontend lexi-backend cloudflared
+dev:
+	docker compose up -d --build
+
+prod:
+	docker compose -f docker-compose.yml -f docker-compose.override.prod.yml up -d --build
+
+prod-comfy: prod
+
+up: dev
 
 local-up:
 	docker compose --profile local up -d lexi-backend-devlocal
@@ -50,11 +62,20 @@ local-up:
 down:
 	docker compose down
 
+comfy:
+	docker compose up -d comfy-sd
+
 ps:
 	docker compose ps
 
 logs:
-	docker compose logs -f lexi-backend
+	docker compose logs -f --tail=200
+
+sh:
+	docker compose exec lexi-backend sh
+
+backcurl:
+	docker compose exec lexi-backend sh -lc 'curl -sS $${COMFY_URL}/api/version || true'
 
 local-down:
 	docker compose --profile local down

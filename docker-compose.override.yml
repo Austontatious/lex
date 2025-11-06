@@ -1,37 +1,11 @@
+version: "3.9"
+
 services:
   lexi-backend:
-    networks: [edge]
-    healthcheck:
-      test: ["CMD", "true"]
-    labels:
-      traefik.enable: "true"
-      traefik.docker.network: "edge"
-      traefik.http.routers.lexi-api.rule: Host(`lexicompanion.com`) && PathPrefix(`/api`)
-      traefik.http.routers.lexi-api.entrypoints: web
-      traefik.http.routers.lexi-api.priority: "200"
-      traefik.http.routers.lexi-api.tls: "false"
-      traefik.http.middlewares.lexi-api-strip.stripPrefix.prefixes: /api
-      traefik.http.routers.lexi-api.middlewares: lexi-api-strip
-      traefik.http.services.lexi-api.loadbalancer.server.port: "8000"
-
-  lexi-frontend:
-    networks: [edge]
-    volumes:
-      - ./deploy/frontend/runtime-config.js:/usr/share/nginx/html/runtime-config.js:ro
-      - ./deploy/frontend/nginx/20-runtime-nocache.conf:/etc/nginx/conf.d/20-runtime-nocache.conf:ro
-    entrypoint: []
-    command:
-      - nginx
-      - -g
-      - 'daemon off;'
-    labels:
-      traefik.enable: "true"
-      traefik.docker.network: "edge"
-      traefik.http.routers.lexi-frontend.rule: Host(`lexicompanion.com`)
-      traefik.http.routers.lexi-frontend.entrypoints: web
-      traefik.http.routers.lexi-frontend.priority: "10"
-      traefik.http.routers.lexi-frontend.tls: "false"
-      traefik.http.routers.lexi-frontend-config.entrypoints: web
-      traefik.http.routers.lexi-frontend-config.rule: Host(`lexicompanion.com`) && Path(`/runtime-config.js`)
-      traefik.http.routers.lexi-frontend-config.priority: "1000"
-      traefik.http.routers.lexi-frontend-config.service: lexi-frontend
+    environment:
+      LEX_COMFY_URL: http://comfy-sd:8188
+      LEX_USE_COMFY_ONLY: "1"
+      COMFY_URL: http://comfy-sd:8188
+      IMAGE_API_BASE: http://comfy-sd:8188
+      LEX_AVATAR_DIR: /app/static/avatars
+      LEX_PUBLIC_BASE: https://api.lexicompanion.com

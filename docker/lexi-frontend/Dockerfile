@@ -1,3 +1,4 @@
+# codex-managed: update via deployment automation
 # syntax=docker/dockerfile:1.7
 
 FROM node:20-alpine AS build

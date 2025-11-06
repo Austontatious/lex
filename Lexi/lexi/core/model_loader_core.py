@@ -7,7 +7,7 @@ from requests.adapters import HTTPAdapter, Retry
 
 log = logging.getLogger("lexi.model_loader")
 
-DEFAULT_BASE = os.getenv("LLM_API_BASE", "http://127.0.0.1:8008/v1").rstrip("/")
+DEFAULT_BASE = os.getenv("LLM_API_BASE", "http://host.docker.internal:8008/v1").rstrip("/")
 DEFAULT_MODEL = os.getenv("LLM_MODEL", "Lexi")
 # Use (connect, read) timeouts to avoid long hangs on streaming
 TIMEOUT_CONNECT = float(os.getenv("LLM_HTTP_CONNECT_TIMEOUT", "2.0"))

@@ -35,6 +35,7 @@ from ..config.config import (
     TRAIT_STATE_PATH,
 )
 from ..persona.persona_core import lexi_persona
+from ..session_logging import log_event
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/persona", tags=["persona"])
@@ -269,10 +270,12 @@ async def get_persona(request: Request) -> PersonaOut:
 
 
 @router.post("/add_trait")
-async def add_trait(body: TraitIn) -> Dict[str, Any]:
+async def add_trait(request: Request, body: TraitIn) -> Dict[str, Any]:
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="Missing 'text'")
+
+    log_event(request, "user", text, event="persona_add_trait")
 
     traits = _load_traits()
     missing = _get_missing_fields(traits)
@@ -299,6 +302,15 @@ async def add_trait(body: TraitIn) -> Dict[str, Any]:
         "certainty": 1.0 if ready else 0.8,
         "image_path": _get_saved_avatar_web() or STARTER_AVATAR_PATH,
     }
+    if narration:
+        log_event(
+            request,
+            "assistant",
+            narration,
+            event="persona_trait_narration",
+            ready=ready,
+            traits=list(traits.keys()),
+        )
     return {
         "ready": ready,
         "persona": persona,
@@ -439,6 +451,18 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
     if body.fresh_base is True:
         call_args["fresh_base"] = True
 
+    def _record_success(url: str, narration_text: Optional[str]) -> None:
+        log_event(
+            request,
+            "assistant",
+            narration_text or "Avatar ready",
+            event="persona_generate_avatar",
+            mode=mode,
+            prompt=prompt,
+            url=url,
+            traits=list(traits.keys()),
+        )
+
     # ---- Execute pipeline (sync or async)
     try:
         import inspect, asyncio  # local import to avoid module-scope surprises
@@ -451,6 +475,14 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
         raise
     except Exception as e:
         logger.exception("Avatar pipeline crashed: %s", e)
+        log_event(
+            request,
+            "error",
+            f"pipeline_error: {e}",
+            event="persona_generate_avatar_error",
+            mode=mode,
+            prompt=prompt,
+        )
         raise HTTPException(status_code=500, detail=f"pipeline_error: {e}")
 
     # ---- Normalize output
@@ -463,6 +495,7 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
         # Store relative path, return absolute URL
         _save_state(traits, avatar_path=web_url)
         absolute = _absolute_url(request, web_url)
+        _record_success(absolute, result.get("narration", "Here she is!"))
         return {
             "ok": True,
             "image": absolute,
@@ -480,6 +513,7 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
         web_url = _fs_to_web(Path(file_path))
         _save_state(traits, avatar_path=web_url)
         absolute = _absolute_url(request, web_url)
+        _record_success(absolute, result.get("narration", "Here she is!"))
         return {
             "ok": True,
             "image": absolute,
@@ -499,6 +533,7 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
             web_url = _fs_to_web(out)
             _save_state(traits, avatar_path=web_url)
             absolute = _absolute_url(request, web_url)
+            _record_success(absolute, result.get("narration"))
             return {
                 "ok": True,
                 "image": absolute,

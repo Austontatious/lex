@@ -15,6 +15,7 @@ from ..alpha.session_manager import SessionRegistry
 from ..boot.avatar_first_render import router as avatar_bootstrap_router
 from ..config.config import REPO_ROOT, STATIC_ROOT, STATIC_URL_PREFIX
 from ..config.now import ENABLE_NOW as CONFIG_ENABLE_NOW
+from ..session import session_middleware
 from ..utils.now_utils import log_now
 
 log = logging.getLogger("lexi.backend")
@@ -52,6 +53,7 @@ app = FastAPI(
     version="0.1.0",
     generate_unique_id_function=_unique_id,
 )
+app.middleware("http")(session_middleware)
 app.router.route_class = APIRoute
 app.include_router(avatar_bootstrap_router)
 app.state.alpha_sessions = SessionRegistry()
@@ -70,6 +72,11 @@ if _cors_origins is None:
     except Exception:
         _cors_origins = os.getenv("CORS_ORIGINS", "*")
 
+DEFAULT_CORS_ORIGINS = [
+    "https://lexicompanion.com",
+    "http://localhost:3000",
+]
+
 if isinstance(_cors_origins, (set, tuple)):
     _cors_origins = list(_cors_origins)
 elif isinstance(_cors_origins, str):
@@ -78,12 +85,15 @@ elif isinstance(_cors_origins, str):
     elif _cors_origins:
         _cors_origins = [_cors_origins.strip()]
     else:
-        _cors_origins = ["*"]
+        _cors_origins = []
 elif not isinstance(_cors_origins, list):
-    _cors_origins = ["*"]
+    _cors_origins = []
+
+# Wildcard origin cannot be used when allow_credentials=True; drop and fall back to defaults.
+_cors_origins = [origin for origin in _cors_origins if origin and origin != "*"]
 
 if not _cors_origins:
-    _cors_origins = ["*"]
+    _cors_origins = DEFAULT_CORS_ORIGINS.copy()
 
 app.add_middleware(
     CORSMiddleware,

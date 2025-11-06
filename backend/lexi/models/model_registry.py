@@ -2,11 +2,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
-import os, json, yaml
+import json
+import logging
+import os
+import yaml
+from ..config.runtime_env import COMFY_ROOT, resolve as resolve_model_path
 
-COMFY_ROOT = Path(os.getenv("COMFY_ROOT", "/mnt/data/comfy"))
-CKPT_ROOT = COMFY_ROOT / "models" / "checkpoints"
-LORA_ROOT = COMFY_ROOT / "models" / "loras"
+
+def _path_from_env(name: str, default: Path) -> Path:
+    value = os.getenv(name)
+    if value:
+        return resolve_model_path(value)
+    return default
+
+
+CKPT_ROOT = _path_from_env("COMFY_CKPT_ROOT", COMFY_ROOT / "models" / "checkpoints")
+LORA_ROOT = _path_from_env("COMFY_LORA_ROOT", COMFY_ROOT / "models" / "loras")
 
 
 @dataclass
@@ -113,7 +124,26 @@ class ModelRegistry:
                     break
 
         if not base_file:
-            raise RuntimeError("No base checkpoint found in Comfy model directory.")
+            want = (os.getenv("LEX_SDXL_CHECKPOINT") or "").strip()
+            if want:
+                if self._exists_in_comfy(CKPT_ROOT, want):
+                    base_file = want
+                else:
+                    want_path = Path(want)
+                    if want_path.exists():
+                        base_file = want_path.name
+
+        if not base_file:
+            skip_preflight = os.getenv("LEX_SKIP_MODEL_PREFLIGHT", "0") == "1"
+            comfy_only = os.getenv("LEX_USE_COMFY_ONLY", "0") == "1"
+            if skip_preflight or comfy_only:
+                logging.getLogger(__name__).warning(
+                    "No base checkpoint found in Comfy model directory; continuing because "
+                    "preflight is disabled%s.",
+                    " (comfy-only)" if comfy_only else "",
+                )
+            else:
+                raise RuntimeError("No base checkpoint found in Comfy model directory.")
 
         # optional refiner
         refiner_file = None

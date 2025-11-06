@@ -22,6 +22,7 @@ from .lexi_persona import _load_traits as load_traits, _save_traits as save_trai
 from ..alpha.session_manager import SessionRegistry
 from ..alpha.settings import AlphaSettings
 from ..alpha.tour import preview_placeholder_url
+from ..session_logging import log_event
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/gen", tags=["gen"])
@@ -100,8 +101,18 @@ async def generate_avatar_endpoint(
     from ..sd.generate import generate_avatar as _generate
 
     registry = getattr(request.app.state, "alpha_sessions", None)
-    session_id = request.headers.get("X-Lexi-Session")
+    session_id = getattr(request.state, "session_id", None) or request.headers.get("X-Lexi-Session")
     settings = AlphaSettings()
+
+    log_event(
+        request,
+        "user",
+        (req.prompt or "").strip() or "[avatar request]",
+        event="gen_avatar_request",
+        sd_mode=req.sd_mode,
+        persona_mode=req.persona_mode,
+        upscale=bool(req.upscale),
+    )
 
     if settings.alpha_strict:
         placeholder = preview_placeholder_url(settings)
@@ -119,6 +130,13 @@ async def generate_avatar_endpoint(
                 session_id,
                 {"event": "alpha_strict_stub", "feature": "avatar_generate"},
             )
+        log_event(
+            request,
+            "assistant",
+            "alpha strict mode — placeholder preview.",
+            event="gen_avatar_placeholder",
+            url=placeholder,
+        )
         return JSONResponse(
             {
                 "image": placeholder,
@@ -133,6 +151,12 @@ async def generate_avatar_endpoint(
             registry.record_metric(
                 session_id,
                 {"event": "rate_limited", "feature": "avatar_upscale"},
+            )
+            log_event(
+                request,
+                "error",
+                "upscale limit reached for this session",
+                event="gen_avatar_rate_limited",
             )
             raise HTTPException(
                 status_code=429,
@@ -189,8 +213,20 @@ async def generate_avatar_endpoint(
                 session_id,
                 {"event": "avatar_generate", "upscale": bool(req.upscale)},
             )
+        if isinstance(result, dict):
+            log_event(
+                request,
+                "assistant",
+                "Avatar generated",
+                event="gen_avatar_result",
+                url=result.get("url") or result.get("image"),
+                keys=list(result.keys()),
+            )
+        else:
+            log_event(request, "assistant", "Avatar generated", event="gen_avatar_result")
         return result
     except Exception as e:
+        log_event(request, "error", f"avatar generation failed: {e}", event="gen_avatar_error")
         raise HTTPException(status_code=500, detail=f"avatar generation failed: {e}")
 
 
@@ -204,7 +240,7 @@ async def generate_avatar(
     Returns: {"image": "/static/avatars/....png", "filename": "...", "narration": "...", "traits": {...}}
     """
     registry = getattr(request.app.state, "alpha_sessions", None)
-    session_id = request.headers.get("X-Lexi-Session")
+    session_id = getattr(request.state, "session_id", None) or request.headers.get("X-Lexi-Session")
     settings = AlphaSettings()
 
     # Traits: from payload or persisted
@@ -231,6 +267,13 @@ async def generate_avatar(
                 session_id,
                 {"event": "alpha_strict_stub", "feature": "avatar_generate"},
             )
+        log_event(
+            request,
+            "assistant",
+            "alpha strict mode — placeholder preview.",
+            event="legacy_avatar_placeholder",
+            url=placeholder,
+        )
         return JSONResponse(
             {
                 "image": placeholder,
@@ -252,6 +295,7 @@ async def generate_avatar(
             )
     except Exception as e:
         logger.exception("Pipeline crashed: %s", e)
+        log_event(request, "error", f"pipeline_crash: {e}", event="legacy_avatar_error")
         raise HTTPException(status_code=500, detail=f"pipeline_crash: {e}")
 
     # Normalize outputs (unchanged) ...
@@ -266,6 +310,14 @@ async def generate_avatar(
                 "narration": result.get("narration", ""),
                 "traits": traits,
             }
+        )
+        log_event(
+            request,
+            "assistant",
+            "Avatar generated",
+            event="legacy_avatar_result",
+            url=web,
+            traits=list(traits.keys()),
         )
         if isinstance(registry, SessionRegistry) and session_id:
             registry.append_memory(
@@ -288,7 +340,7 @@ async def generate_avatar(
             continue
         if p.startswith("/static/"):
             save_traits(traits, avatar_path=p)
-            return JSONResponse(
+            resp = JSONResponse(
                 {
                     "image": p,
                     "filename": p.split("/")[-1],
@@ -296,6 +348,15 @@ async def generate_avatar(
                     "traits": traits,
                 }
             )
+            log_event(
+                request,
+                "assistant",
+                "Avatar generated",
+                event="legacy_avatar_result",
+                url=p,
+                traits=list(traits.keys()),
+            )
+            return resp
         if p.startswith(("http://", "https://")):
             web = _download_to_static(p)
             if web:
@@ -321,6 +382,14 @@ async def generate_avatar(
                         session_id,
                         {"event": "avatar_generate"},
                     )
+                log_event(
+                    request,
+                    "assistant",
+                    "Avatar generated",
+                    event="legacy_avatar_result",
+                    url=web,
+                    traits=list(traits.keys()),
+                )
                 return resp
         else:
             web = _copy_local(p)
@@ -347,6 +416,14 @@ async def generate_avatar(
                         session_id,
                         {"event": "avatar_generate"},
                     )
+                log_event(
+                    request,
+                    "assistant",
+                    "Avatar generated",
+                    event="legacy_avatar_result",
+                    url=web,
+                    traits=list(traits.keys()),
+                )
                 return resp
 
     logger.error("[Avatar Gen Error] No usable image returned. Raw result=%r", result)

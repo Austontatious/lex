@@ -1,18 +1,33 @@
-// src/services/api.ts (fully patched to match old imports and lex_persona endpoints)
+const PROD_FALLBACK = "https://api.lexicompanion.com/lexi";
+const DEFAULT_FALLBACK = "/lexi";
+const isProdHost =
+  typeof window !== "undefined" && window.location.hostname.endsWith("lexicompanion.com");
 
-import { getLexiSession } from "./session";
-
-let API_BASE = "/lexi"; // safe fallback
+let API_BASE = isProdHost ? PROD_FALLBACK : DEFAULT_FALLBACK;
 let configLoaded = false;
 
 export async function loadApiConfig() {
   if (configLoaded) return API_BASE;
   try {
     const r = await fetch("/config.json", { cache: "no-store" });
-    if (r.ok) {
-      const cfg = await r.json();
-      if (cfg?.API_BASE && typeof cfg.API_BASE === "string") {
-        API_BASE = cfg.API_BASE.replace(/\/+$/, "");
+    if (!r.ok) {
+      configLoaded = true;
+      console.warn("[API] /config.json responded", r.status);
+      return API_BASE;
+    }
+    const cfg = await r.json();
+    if (cfg?.API_BASE && typeof cfg.API_BASE === "string") {
+      const candidate = cfg.API_BASE.trim();
+      if (candidate) {
+        const normalized = candidate.replace(/\/+$/, "");
+        const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(normalized);
+        if (isProdHost && isLocalhost) {
+          console.warn(
+            "[API] Ignoring localhost API_BASE from config on production host; keeping fallback"
+          );
+        } else {
+          API_BASE = normalized;
+        }
       }
     }
   } catch {
@@ -25,18 +40,14 @@ export async function loadApiConfig() {
 
 export async function apiFetch(path: string, init: RequestInit = {}) {
   await loadApiConfig();
-  const sid = await getLexiSession();
 
   const headers = new Headers(init.headers || undefined);
-  if (sid) {
-    headers.set("X-Lexi-Session", sid);
-  }
   if (!headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
-  return fetch(url, { ...init, headers });
+  return fetch(url, { ...init, headers, credentials: "include" });
 }
 
 export const PERSONA_PREFIX = "/persona";
@@ -50,7 +61,7 @@ export interface PersonaState {
 }
 
 export interface IntentResult {
-  intent: "avatar_flow" | "describe_avatar" | "chat" | (string & {});
+  intent: "avatar_flow" | "avatar_edit" | "new_look" | "describe_avatar" | "chat" | (string & {});
 }
 
 export interface TraitResponse {
@@ -142,17 +153,19 @@ export function debugTraits(): Promise<DebugTraitsResponse> {
 
 export interface SendPromptOptions {
   prompt: string;
+  intent?: string;
   onChunk?: (delta: string) => void;
 }
 
-export async function sendPrompt({ prompt, onChunk }: SendPromptOptions) {
+export async function sendPrompt({ prompt, intent, onChunk }: SendPromptOptions) {
+  const body = intent ? { prompt, intent } : { prompt };
   const response = await apiFetch(`/process`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/x-ndjson",
+      Accept: onChunk ? "application/x-ndjson" : "application/json",
     },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -197,7 +210,9 @@ export async function sendPrompt({ prompt, onChunk }: SendPromptOptions) {
     }
     if (data.done) {
       finalPayload = data;
+      return;
     }
+    finalPayload = data;
   };
 
   while (true) {

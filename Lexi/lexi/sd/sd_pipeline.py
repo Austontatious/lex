@@ -12,7 +12,7 @@ Continuity:
     stays consistent between sessions. You can still override seed per-call.
 
 Env:
-  COMFY_URL         (default: http://127.0.0.1:8188)
+  COMFY_URL         (default: http://host.docker.internal:8188)
   COMFY_BASE_CKPT   (default: sdxl-base-1.0/sd_xl_base_1.0.safetensors)
   COMFY_REFINER_CKPT(default: sdxl-refiner-1.0/sd_xl_refiner_1.0.safetensors)
   COMFY_UPSCALE     (default: false)  -> "true" to enable simple latent upscale hop
@@ -44,7 +44,7 @@ from .sd_prompt_styles import (
 
 # ------------------------- Config/Paths -------------------------
 
-COMFY_URL = os.getenv("COMFY_URL", "http://127.0.0.1:8188").rstrip("/")
+COMFY_URL = os.getenv("COMFY_URL", "http://host.docker.internal:8188").rstrip("/")
 
 # ✅ Use FILENAMES, not folder prefixes
 BASE_CKPT = os.getenv("COMFY_BASE_CKPT", "sd_xl_base_1.0.safetensors")
