@@ -42,7 +42,7 @@ class NowSettings(BaseSettings):
 
     SUMMARIZER_ENDPOINT: AnyHttpUrl = Field(
         default_factory=lambda: _env_or_default(
-            "SUMMARIZER_ENDPOINT", "http://127.0.0.1:8008/v1/chat/completions"
+            "SUMMARIZER_ENDPOINT", "http://host.docker.internal:8008/v1/chat/completions"
         )
     )
     SUMMARIZER_MODEL: str = Field(

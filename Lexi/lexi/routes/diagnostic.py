@@ -80,9 +80,9 @@ async def run_self_diagnostic() -> DiagnosticPayload:
         results[name] = outcome
 
     # External service URLs
-    COMFY_URL = os.getenv("COMFY_URL", "http://127.0.0.1:8188").rstrip("/")
+    COMFY_URL = os.getenv("COMFY_URL", "http://host.docker.internal:8188").rstrip("/")
     VLLM_URL = os.getenv(
-        "OPENAI_API_BASE", os.getenv("LLM_API_BASE", "http://127.0.0.1:8008/v1")
+        "OPENAI_API_BASE", os.getenv("LLM_API_BASE", "http://host.docker.internal:8008/v1")
     ).rstrip("/")
 
     safe_test("GPU available", lambda: torch.cuda.is_available())

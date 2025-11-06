@@ -39,8 +39,11 @@ def _require_session(
     session_id: Optional[str] = Header(default=None, alias="X-Lexi-Session"),
 ) -> SessionState:
     registry = _registry(request)
+    resolved_session = session_id or getattr(request.state, "session_id", None)
+    if not resolved_session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session")
     try:
-        return registry.require(session_id)
+        return registry.require(resolved_session)
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 

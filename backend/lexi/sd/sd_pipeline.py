@@ -12,7 +12,7 @@ Continuity:
     stays consistent between sessions. You can still override seed per-call.
 
 Env:
-  COMFY_URL         (default: http://127.0.0.1:8188)
+  COMFY_URL         (default: http://host.docker.internal:8188)
   COMFY_BASE_CKPT   (default: sdxl-base-1.0/sd_xl_base_1.0.safetensors)
   COMFY_REFINER_CKPT(default: sdxl-refiner-1.0/sd_xl_refiner_1.0.safetensors)
   COMFY_UPSCALE     (default: false)  -> "true" to enable simple latent upscale hop
@@ -36,6 +36,13 @@ from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import requests
 from ..config.config import AVATAR_DIR, AVATAR_URL_PREFIX
+from ..config.runtime_env import (
+    BASE_MODELS_DIR,
+    COMFY_ROOT,
+    COMFY_URL,
+    COMFY_WORKSPACE_DIR,
+    resolve as resolve_model_path,
+)
 from .sd_prompt_styles import (
     _style_realistically_unreal as _styles_style_realistically_unreal,
     _negative_prompt as _styles_negative_prompt,
@@ -43,8 +50,6 @@ from .sd_prompt_styles import (
 )
 
 # ------------------------- Config/Paths -------------------------
-
-COMFY_URL = os.getenv("COMFY_URL", "http://127.0.0.1:8188").rstrip("/")
 
 # ✅ Use FILENAMES, not folder prefixes
 BASE_CKPT = os.getenv("COMFY_BASE_CKPT", "sd_xl_base_1.0.safetensors")
@@ -58,22 +63,27 @@ DEFAULT_IMAGE_DIR = AVATAR_DIR
 IMAGE_DIR = Path(os.getenv("LEX_IMAGE_DIR", str(DEFAULT_IMAGE_DIR)))
 IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
+
+def _path_from_env(name: str, default: Path) -> Path:
+    """Resolve optional path overrides relative to BASE_MODELS_DIR."""
+    value = os.getenv(name)
+    if value:
+        return resolve_model_path(value)
+    return default
+
+
 # ------------------------- Backend selection -------------------------
 SD_BACKEND = os.getenv("SD_BACKEND", "sdxl").strip().lower()
 DEFAULT_FLUX_VARIANT = os.getenv("FLUX_MODEL_VARIANT", "kontext-dev").strip().lower()
 
 # Flux model paths
-FLUX_MODELS_DIR = Path(os.getenv("FLUX_MODELS_DIR", "/mnt/data/comfy/models"))
-FLUX_DIFFUSION_DIR = Path(
-    os.getenv("FLUX_DIFFUSION_DIR", str(FLUX_MODELS_DIR / "diffusion_models"))
-)
-FLUX_TEXT_ENCODER_DIR = Path(
-    os.getenv("FLUX_TEXT_ENCODER_DIR", str(FLUX_MODELS_DIR / "text_encoders"))
-)
-FLUX_VAE_PATH = Path(os.getenv("FLUX_VAE_PATH", str(FLUX_MODELS_DIR / "vae" / "ae.safetensors")))
-FLUX_CLIP_L = Path(os.getenv("FLUX_CLIP_L", str(FLUX_TEXT_ENCODER_DIR / "clip_l.safetensors")))
-FLUX_T5XXL = Path(
-    os.getenv("FLUX_T5XXL", str(FLUX_TEXT_ENCODER_DIR / "t5xxl_fp8_e4m3fn.safetensors"))
+FLUX_MODELS_DIR = _path_from_env("FLUX_MODELS_DIR", COMFY_ROOT / "models")
+FLUX_DIFFUSION_DIR = _path_from_env("FLUX_DIFFUSION_DIR", FLUX_MODELS_DIR / "diffusion_models")
+FLUX_TEXT_ENCODER_DIR = _path_from_env("FLUX_TEXT_ENCODER_DIR", FLUX_MODELS_DIR / "text_encoders")
+FLUX_VAE_PATH = _path_from_env("FLUX_VAE_PATH", FLUX_MODELS_DIR / "vae" / "ae.safetensors")
+FLUX_CLIP_L = _path_from_env("FLUX_CLIP_L", FLUX_TEXT_ENCODER_DIR / "clip_l.safetensors")
+FLUX_T5XXL = _path_from_env(
+    "FLUX_T5XXL", FLUX_TEXT_ENCODER_DIR / "t5xxl_fp8_e4m3fn.safetensors"
 )
 
 FLUX_DEFAULT_GUIDANCE = float(os.getenv("FLUX_GUIDANCE_DEFAULT", "3.5"))
@@ -164,12 +174,11 @@ except Exception:
 
 # ---- Model/LoRA selectors ----------------------------------------------------
 
-CHECKPOINT_DIR = Path(os.getenv("SD_CKPT_DIR") or "/mnt/data/models/sd/checkpoints")
-LORA_DIR = Path(os.getenv("SD_LORA_DIR") or "/mnt/data/models/sd/loras")
-COMFY_ROOT = Path(os.getenv("COMFY_ROOT") or "/mnt/data/comfy")
-COMFY_CKPT_ROOT = COMFY_ROOT / "models" / "checkpoints"
-COMFY_LORA_ROOT = COMFY_ROOT / "models" / "loras"
-COMFY_VAE_ROOT = COMFY_ROOT / "models" / "vae"
+CHECKPOINT_DIR = _path_from_env("SD_CKPT_DIR", BASE_MODELS_DIR / "sd" / "checkpoints")
+LORA_DIR = _path_from_env("SD_LORA_DIR", BASE_MODELS_DIR / "sd" / "loras")
+COMFY_CKPT_ROOT = _path_from_env("COMFY_CKPT_ROOT", COMFY_ROOT / "models" / "checkpoints")
+COMFY_LORA_ROOT = _path_from_env("COMFY_LORA_ROOT", COMFY_ROOT / "models" / "loras")
+COMFY_VAE_ROOT = _path_from_env("COMFY_VAE_ROOT", COMFY_ROOT / "models" / "vae")
 
 
 def _relname_under(root: Path, filename: str) -> str:

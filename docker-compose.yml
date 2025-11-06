@@ -1,162 +1,136 @@
+version: "3.9"
+
 x-common-env: &common_env
   TZ: "UTC"
 
-x-frontend-base: &frontend_base
-  build:
-    context: .
-    dockerfile: docker/lexi-frontend/Dockerfile
-  image: lexi-frontend:alpha
-  environment:
-    <<: *common_env
-    LEX_API_BASE: ${LEX_API_BASE_PUBLIC:-https://api.lexicompanion.com/lexi}
-    COMFY_URL: ${COMFY_URL_PUBLIC:-${COMFY_URL:-http://172.17.0.1:8188}}
-    VLLM_URL: ${VLLM_URL_PUBLIC:-${OPENAI_API_BASE:-http://host.docker.internal:8008/v1}}
-  depends_on:
-    - lexi-backend
-  restart: unless-stopped
-
 services:
-  lexi-backend:
-    build:
-      context: .
-      dockerfile: docker/lexi-backend/Dockerfile
-    image: lexi-backend:alpha
+  traefik:
+    image: traefik:v3.1
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker=true
+      - --providers.docker.network=edge
+      - --providers.docker.exposedbydefault=false
+      - --api.insecure=true
+      - --log.level=DEBUG
     ports:
-      - "9000:9000"
-    environment:
-      <<: *common_env
-      COMFY_URL: ${COMFY_URL:-http://172.17.0.1:8188}
-      COMFY_BASE_URL: ${COMFY_BASE_URL:-http://172.17.0.1:8188}
-      IMAGE_API_BASE: ${IMAGE_API_BASE:-http://172.17.0.1:8188}
-      LLM_API_BASE: "http://172.17.0.1:8008/v1"
-      SUMMARIZER_ENDPOINT: "http://172.17.0.1:8008/v1/chat/completions"
-      LLM_PROVIDER: "openai"
-      LLM_MODEL: "Lexi"
-      OPENAI_BASE_URL: "http://172.17.0.1:8008/v1"
-      OPENAI_API_BASE: "http://172.17.0.1:8008/v1"
-      LITELLM_API_BASE: "http://172.17.0.1:8008/v1"
-      VLLM_BASE_URL: "http://172.17.0.1:8008/v1"
-      OPENAI_API_KEY: "sk-noauth"
-      LEX_STATIC_ROOT: ${LEX_STATIC_ROOT:-/app/static}
-      LEX_AVATAR_DIR: ${LEX_AVATAR_DIR:-/app/static/avatars}
-      LEX_IMAGE_DIR: ${LEX_IMAGE_DIR:-/app/static/avatars}
-      LEX_MEMORY_PATH: ${LEX_MEMORY_PATH:-/app/Lexi/lexi/memory/lexi_memory.jsonl}
-      LEX_DATA_DIR: ${LEX_DATA_DIR:-/app/Lexi}
-      HF_HOME: ${HF_HOME:-/data/hf_cache}
-      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
-      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
-      LEXI_ENABLE_NOW: ${LEXI_ENABLE_NOW:-0}
-      NVIDIA_VISIBLE_DEVICES: "all"
-      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
-      LEX_CORS_ORIGINS: ${LEX_CORS_ORIGINS:-https://lexicompanion.com,https://app.lexicompanion.com,https://api.lexicompanion.com,http://localhost:5173}
-    extra_hosts:
-      - "host.docker.internal:172.17.0.1"   # bridge IP so the container can reach host vLLM
+      - "80:80"
+      - "443:443"
+      - "8084:8080"
     volumes:
-      - ./Lexi:/app/Lexi
-      - ./data:/data
-      - hf_cache:/data/hf_cache
-    command: >-
-      python3 -m uvicorn lexi.core.backend_core:app
-      --host 0.0.0.0
-      --port 9000
-      --proxy-headers
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/lexi/health || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      - edge
+      - lexnet
+
+  comfy-sd:
+    build:
+      context: ./docker/comfyui
+    image: local/comfyui:plain
+    container_name: comfy-sd
+    restart: unless-stopped
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=4,5
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - CLI_ARGS=--listen 0.0.0.0 --port 8188 --enable-cors-header=https://lexicompanion.com --enable-cors-header=http://localhost:3000 --max-upload-size=2000
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              capabilities: ["gpu"]
-              count: all
-        limits:
-          cpus: "2.0"
-          memory: "4G"
-    restart: unless-stopped
-    networks:
-      - default
-      - edge
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=edge
-
-      # Strip the /api prefix before forwarding to FastAPI
-
-      # API router (give it higher priority so it always wins over the SPA)
-      - traefik.http.routers.lexi-api.rule=Host(`lexicompanion.com`) && PathPrefix(`/api`)
-      - traefik.http.routers.lexi-api.entrypoints=web,websecure
-      - traefik.http.routers.lexi-api.tls.certresolver=le
-      - traefik.http.routers.lexi-api.middlewares=lexi-api-strip
-      - traefik.http.routers.lexi-api.priority=100
-      - traefik.http.routers.lexi-api.service=lexi-api
-      - traefik.http.services.lexi-api.loadbalancer.server.port=9000
-  lexi-frontend:
-    <<: *frontend_base
-    networks:
-      - default
-      - edge
+              count: 2
+              capabilities: [gpu]
+    volumes:
+      - /mnt/data/comfy/input:/app/ComfyUI/input
+      - /mnt/data/comfy/output:/app/ComfyUI/output
+      - /mnt/data/comfy/models:/app/ComfyUI/models
+      - /mnt/data/comfy/custom_nodes:/app/ComfyUI/custom_nodes
+      - /mnt/data/comfy/extra_model_paths.yaml:/app/ComfyUI/extra_model_paths.yaml:ro
+      - /mnt/data/Lex/assets/default.png:/app/ComfyUI/input/default.png:ro
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
-      interval: 20s
-      timeout: 3s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: "512M"
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=edge
-      - traefik.http.routers.lexi-frontend.rule=Host(`lexicompanion.com`)
-      - traefik.http.routers.lexi-frontend.entrypoints=web,websecure
-      - traefik.http.routers.lexi-frontend.tls.certresolver=le
-      - traefik.http.routers.lexi-frontend.priority=10
-      - traefik.http.services.lexi-frontend.loadbalancer.server.port=80
-  lexi-frontend-dev:
-    <<: *frontend_base
+      test: ["CMD", "bash", "-lc", "curl -sf http://127.0.0.1:8188/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    networks:
+      - lexnet
+
+  lexi-backend:
+    build:
+      context: .
+      dockerfile: docker/lexi-backend/Dockerfile
+    image: lexi-backend:alpha
+    env_file:
+      - .env.development
+    environment:
+      <<: *common_env
+      LLM_API_BASE: ${LLM_API_BASE:-http://host.docker.internal:8008/v1}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-http://host.docker.internal:8008/v1}
+      SUMMARIZER_ENDPOINT: ${SUMMARIZER_ENDPOINT:-http://host.docker.internal:8008/v1/chat/completions}
+      COMFY_URL: ${COMFY_URL:-http://comfy-sd:8188}
+      COMFY_BASE_URL: ${COMFY_BASE_URL:-http://comfy-sd:8188}
+      IMAGE_API_BASE: ${IMAGE_API_BASE:-http://comfy-sd:8188}
+      LEX_SDXL_CHECKPOINT: ${LEX_SDXL_CHECKPOINT:-flux1-kontext-dev.safetensors}
+      LEX_VAE: ${LEX_VAE:-ae.safetensors}
+      LEX_CLIP: ${LEX_CLIP:-clip_l.safetensors}
+      LEX_T5: ${LEX_T5:-t5xxl_fp8_e4m3fn.safetensors}
+      LEXI_PERSONA_API_BASE: ${LEXI_PERSONA_API_BASE:-http://host.docker.internal:8008/v1}
+      LEXI_PERSONA_TIMEOUT: ${LEXI_PERSONA_TIMEOUT:-10}
+      LEX_SKIP_MODEL_PREFLIGHT: ${LEX_SKIP_MODEL_PREFLIGHT:-1}
+      LEX_AVATAR_DIR: ${LEX_AVATAR_DIR:-/app/static/avatars}
+      LEX_PUBLIC_BASE: ${LEX_PUBLIC_BASE:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://lexicompanion.com}
     ports:
-      - target: 80
-        published: ${FRONTEND_PORT:-3000}
-        protocol: tcp
-        mode: host
-    profiles: ["local"]
+      - "${API_PORT:-9000}:9000"
+    expose:
+      - "9000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - comfy-sd
+    volumes:
+      - ./Lexi:/app/Lexi
+      - ./data:/data
+      - ./logs/sessions:/app/logs/sessions
+      - hf_cache:/data/hf_cache
+    command: >
+      python3 -m uvicorn lexi.core.backend_core:app
+      --host 0.0.0.0
+      --port 9000
+      --proxy-headers
+    restart: unless-stopped
+    networks: [lexnet]
+
+  lexi-frontend:
+    build:
+      context: .
+      dockerfile: docker/lexi-frontend/Dockerfile
+    image: lexi-frontend:alpha
+    env_file:
+      - .env.development
+    environment:
+      <<: *common_env
+    depends_on:
+      - lexi-backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    expose:
+      - "80"
+    restart: unless-stopped
+    networks: [lexnet]
 
   cloudflared:
     image: cloudflare/cloudflared:latest
     command: tunnel run
+    volumes:
+      - ./cloudflared:/etc/cloudflared
     depends_on:
+      - lexi-frontend
       - lexi-backend
     restart: unless-stopped
-    networks:
-      - default
-      - edge
-    volumes:
-      - ./cloudflared:/etc/cloudflared:ro
-  lexi-backend-devlocal:
-    image: python:3.11-slim
-    working_dir: /app
-    environment:
-      PYTHONPATH: backend
-      LEX_MEMORY_PATH: /data/memory.jsonl
-    volumes:
-      - .:/app
-      - ./frontend/public:/app/frontend/public:ro
-      - ./data:/data
-    command: >
-      bash -lc "
-        python -m pip install --no-cache-dir fastapi uvicorn &&
-        touch /data/memory.jsonl &&
-        uvicorn lexi.core.backend_core:app --host 0.0.0.0 --port 9000
-      "
-    ports:
-      - "9000:9000"
-    profiles:
-      - local
-
+    networks: [lexnet]
 
 volumes:
   hf_cache:
@@ -164,3 +138,5 @@ volumes:
 networks:
   edge:
     external: true
+  lexnet:
+    driver: bridge

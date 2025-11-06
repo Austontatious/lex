@@ -13,6 +13,7 @@ import logging
 import asyncio
 import base64
 import re
+import os
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, Optional
 from uuid import uuid4
@@ -26,6 +27,7 @@ from ..sd.sd_pipeline import generate_avatar_pipeline
 from ..utils.prompt_sifter import build_sd_prompt, extract_categories
 from .lexi_persona import _load_traits, _save_traits
 from .now import router as now_router, tools as tools_router
+from ..config.config import AVATAR_URL_PREFIX, STARTER_AVATAR_PATH
 
 # alias public names
 load_traits = _load_traits
@@ -35,10 +37,29 @@ from ..persona.persona_config import PERSONA_MODE_REGISTRY
 from ..memory.memory_core import memory
 from ..memory.memory_types import MemoryShard
 from ..alpha.session_manager import SessionRegistry
+from ..session_logging import log_event
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Lexi Core"])
+
+USE_COMFY_ONLY = os.getenv("LEX_USE_COMFY_ONLY", "0") == "1"
+
+_DEFAULT_AVATAR_DIR = Path(__file__).resolve().parent.parent / "static" / "lexi" / "avatars"
+_AVATAR_DIR_OVERRIDE = os.getenv("LEX_AVATAR_DIR")
+if _AVATAR_DIR_OVERRIDE:
+    try:
+        AVATAR_DIR: Path = Path(_AVATAR_DIR_OVERRIDE).expanduser().resolve()
+    except Exception:
+        logger.warning("⚠️ Invalid LEX_AVATAR_DIR=%r; falling back to default.", _AVATAR_DIR_OVERRIDE)
+        AVATAR_DIR = _DEFAULT_AVATAR_DIR
+else:
+    AVATAR_DIR = _DEFAULT_AVATAR_DIR
+
+try:
+    AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as exc:  # pragma: no cover - defensive fallback
+    logger.warning("⚠️ Could not ensure avatar directory %s: %s", AVATAR_DIR, exc)
 
 
 def _external_base(request: Request) -> str:
@@ -68,9 +89,53 @@ router.include_router(now_router)  # /now
 router.include_router(tools_router)  # /tools/web_search
 
 # Paths for avatar storage and trait state persistence
-AVATAR_DIR: Path = Path(__file__).resolve().parent.parent / "static" / "lexi" / "avatars"
-AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 TRAIT_STATE_PATH: Path = Path(__file__).resolve().parent / "lexi_persona_state.json"
+
+
+def _avatar_dir() -> Path:
+    """Resolve the active avatar directory, ensuring it exists."""
+    dir_path = AVATAR_DIR
+    try:
+        dir_path.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        logger.warning("⚠️ Could not ensure avatar directory %s: %s", dir_path, exc)
+    return dir_path
+
+
+def _avatar_filename(session_id: Optional[str], requested: Optional[str]) -> str:
+    """Choose a safe filename for avatar outputs."""
+    if isinstance(requested, str) and requested.strip():
+        name = requested.strip()
+    elif isinstance(session_id, str) and session_id.strip():
+        name = f"{session_id.strip()}.png"
+    else:
+        name = f"{uuid4().hex}.png"
+
+    if not name.lower().endswith(".png"):
+        name = f"{name}.png"
+    return name
+
+
+def _safe_join_avatar(filename: Optional[str], session_id: Optional[str]) -> Path:
+    """Join avatar directory with filename, defaulting when missing."""
+    return _avatar_dir() / _avatar_filename(session_id, filename)
+
+
+def _fallback_avatar_url(request: Request) -> str:
+    """Return a safe avatar URL (public) for warn/error paths."""
+    public_base = os.getenv("LEX_PUBLIC_BASE")
+    default_path = f"{AVATAR_URL_PREFIX}/default.png"
+    if public_base:
+        public_base = public_base.rstrip("/")
+        return f"{public_base}{default_path}"
+    return _absolute_url(request, default_path)
+
+
+def _ensure_avatar_url(request: Request, candidate: Optional[str]) -> str:
+    """Ensure avatar URL is absolute, falling back to public default."""
+    if isinstance(candidate, str) and candidate.strip():
+        return _absolute_url(request, candidate)
+    return _fallback_avatar_url(request)
 
 
 # ---------------------------------------------------------------------
@@ -78,6 +143,7 @@ TRAIT_STATE_PATH: Path = Path(__file__).resolve().parent / "lexi_persona_state.j
 # ---------------------------------------------------------------------
 class ChatRequest(BaseModel):
     prompt: str
+    intent: Optional[str] = None
 
 
 class IntentRequest(BaseModel):
@@ -222,7 +288,7 @@ def infer_intent_and_nsfw(prompt: Optional[str], changes: Optional[str]) -> tupl
 # ---------------------------------------------------------------------
 def _append_session_memory(request: Request, event: Dict[str, Any]) -> None:
     registry = getattr(request.app.state, "alpha_sessions", None)
-    session_id = request.headers.get("X-Lexi-Session")
+    session_id = getattr(request.state, "session_id", None) or request.headers.get("X-Lexi-Session")
     if not session_id or not isinstance(registry, SessionRegistry):
         return
     try:
@@ -234,6 +300,7 @@ def _append_session_memory(request: Request, event: Dict[str, Any]) -> None:
 @router.post("/process")
 async def process(req: ChatRequest, request: Request):
     logger.info("🗨️ /process prompt=%r", req.prompt)
+    log_event(request, "user", req.prompt or "", event="chat_prompt")
     _append_session_memory(
         request,
         {"role": "user", "event": "chat_prompt", "text": req.prompt},
@@ -242,14 +309,124 @@ async def process(req: ChatRequest, request: Request):
     # Guard against assistant loops
     if req.prompt.startswith(("Lexi:", "assistant:")):
         logger.warning("🛑 Ignoring looped assistant prompt: %r", req.prompt)
+        log_event(
+            request,
+            "system",
+            "[loop detected, halted]",
+            event="chat_loop_guard",
+        )
         return JSONResponse(
             {
                 "cleaned": "[loop detected, halted]",
                 "raw": "",
                 "choices": [],
                 "mode": lexi_persona.get_mode(),
+                "session_id": getattr(request.state, "session_id", None),
             }
         )
+
+    incoming_intent = (req.intent or "").strip().lower()
+    if incoming_intent in {"avatar_edit", "new_look"}:
+        traits_state = load_traits()
+        if traits_state is None:
+            traits_state = {}
+        has_traits = bool(traits_state)
+
+        fresh_base = incoming_intent == "new_look" or not has_traits
+        use_img2img = incoming_intent == "avatar_edit" and has_traits and not fresh_base
+
+        prompt_arg: Optional[str] = req.prompt if fresh_base else None
+        changes_arg: Optional[str] = req.prompt if incoming_intent == "avatar_edit" and not fresh_base else None
+        mode_arg = "img2img" if use_img2img else "txt2img"
+        intent_strength = "medium" if incoming_intent == "avatar_edit" else "strong"
+
+        try:
+            result = generate_avatar_pipeline(
+                prompt=prompt_arg,
+                traits=traits_state if has_traits else None,
+                changes=changes_arg,
+                mode=mode_arg,
+                intent=intent_strength,
+                fresh_base=fresh_base,
+                allow_feedback_loop=False,
+            )
+        except Exception as exc:
+            if USE_COMFY_ONLY:
+                logger.warning("Avatar intent pipeline failed (non-fatal): %s", exc)
+                return JSONResponse(
+                    {
+                        "status": "warn",
+                        "detail": str(exc),
+                        "avatar_pipeline": "skipped",
+                        "mode": lexi_persona.get_mode(),
+                        "session_id": getattr(request.state, "session_id", None),
+                        "avatar_url": _fallback_avatar_url(request),
+                    }
+                )
+            logger.error("Avatar intent pipeline failed: %s", exc)
+            raise HTTPException(status_code=502, detail=str(exc))
+
+        if not result.get("ok"):
+            error_msg = result.get("error", "avatar generation failed")
+            if USE_COMFY_ONLY:
+                logger.warning("Avatar intent preflight skipped (warn-only): %s", error_msg)
+                return JSONResponse(
+                    {
+                        "status": "warn",
+                        "detail": error_msg,
+                        "avatar_pipeline": "skipped",
+                        "mode": lexi_persona.get_mode(),
+                        "session_id": getattr(request.state, "session_id", None),
+                        "avatar_url": _fallback_avatar_url(request),
+                    }
+                )
+            logger.error("Avatar intent pipeline returned error: %s", error_msg)
+            raise HTTPException(status_code=502, detail=error_msg)
+
+        url = result.get("url")
+        abs_url = (
+            _absolute_url(request, url)
+            if isinstance(url, str) and url.startswith("/")
+            else url
+        )
+        avatar_url = _ensure_avatar_url(request, abs_url or url)
+        narration = result.get("narration") or "Got it, updating her look! 💄"
+
+        if url:
+            try:
+                lexi_persona.set_avatar_path(url)  # type: ignore
+                save_traits(traits_state, avatar_path=url)
+            except Exception as exc:
+                logger.warning("⚠️ Persona state update failed: %s", exc)
+
+        _append_session_memory(
+            request,
+            {
+                "role": "assistant",
+                "event": "chat_avatar_update",
+                "traits": traits_state,
+                "avatar_url": avatar_url,
+            },
+        )
+        log_event(
+            request,
+            "assistant",
+            narration,
+            event="chat_avatar_update",
+            avatar_url=avatar_url,
+        )
+
+        response_payload: Dict[str, Any] = {
+            "cleaned": narration,
+            "avatar_url": avatar_url,
+            "traits": traits_state,
+            "mode": lexi_persona.get_mode(),
+            "session_id": getattr(request.state, "session_id", None),
+        }
+        if result.get("meta"):
+            response_payload["meta"] = result["meta"]
+
+        return JSONResponse(response_payload)
 
     # Trait extraction (optional; only if wired)
     inferred = extract_traits_from_text(req.prompt)
@@ -265,6 +442,7 @@ async def process(req: ChatRequest, request: Request):
             )
 
         url = result.get("url")
+        avatar_url = _ensure_avatar_url(request, url)
         if url:
             lexi_persona.set_avatar_path(url)  # type: ignore
             save_traits(traits, avatar_path=url)
@@ -275,15 +453,23 @@ async def process(req: ChatRequest, request: Request):
                 "role": "assistant",
                 "event": "chat_avatar_update",
                 "traits": traits,
-                "avatar_url": url,
+                "avatar_url": avatar_url,
             },
+        )
+        log_event(
+            request,
+            "assistant",
+            "Got it, updating her look! 💄",
+            event="chat_avatar_update",
+            avatar_url=avatar_url,
         )
         return JSONResponse(
             {
                 "cleaned": "Got it, updating her look! 💄",
-                "avatar_url": url,
+                "avatar_url": avatar_url,
                 "traits": traits,
                 "mode": lexi_persona.get_mode(),
+                "session_id": getattr(request.state, "session_id", None),
             }
         )
 
@@ -312,12 +498,19 @@ async def process(req: ChatRequest, request: Request):
             request,
             {"role": "assistant", "event": "chat_reply", "text": reply_text},
         )
+        log_event(
+            request,
+            "assistant",
+            reply_text,
+            event="chat_reply",
+        )
 
         return {
             "cleaned": reply_text,
             "raw": reply_text,
             "choices": [{"text": reply_text}],
             "mode": lexi_persona.get_mode(),
+            "session_id": getattr(request.state, "session_id", None),
         }
 
     if wants_stream:
@@ -529,7 +722,7 @@ def image_from_prompt(req: ChatRequest) -> Any:
         return PlainTextResponse("/static/lexi/avatars/default.png", status_code=500)
 
     fname = f"lexi_avatar_{uuid4().hex[:6]}.png"
-    file_path = AVATAR_DIR / fname
+    file_path = _safe_join_avatar(fname, getattr(request.state, "session_id", None))
     file_path.write_bytes(base64.b64decode(img_b64))
     return {"image_url": cache_busted_url(file_path)}
 

@@ -1,0 +1,3 @@
+# Legacy placeholder kept for tooling references. ComfyUI now lives in docker-compose.yml.
+version: "3.9"
+services: {}

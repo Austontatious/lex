@@ -77,12 +77,20 @@ elif isinstance(_cors_origins, str):
     elif _cors_origins:
         _cors_origins = [_cors_origins.strip()]
     else:
-        _cors_origins = ["*"]
+        _cors_origins = []
 elif not isinstance(_cors_origins, list):
-    _cors_origins = ["*"]
+    _cors_origins = []
+
+DEFAULT_CORS_ORIGINS = [
+    "https://lexicompanion.com",
+    "http://localhost:3000",
+]
+
+# Wildcard origin cannot be used when allow_credentials=True; drop it so we fall back to defaults.
+_cors_origins = [origin for origin in _cors_origins if origin and origin != "*"]
 
 if not _cors_origins:
-    _cors_origins = ["*"]
+    _cors_origins = DEFAULT_CORS_ORIGINS.copy()
 
 app.add_middleware(
     CORSMiddleware,

@@ -8,7 +8,7 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
 
 - **Memory-aware conversations** (short-term, long-term, internal monologue)
 - **Dynamic persona modes** with mood shifting
-- **Custom avatar generation** via Stable Diffusion XL + GFPGAN
+- **Custom avatar generation** via ComfyUI (Flux/SDXL workflows) with warn-only fallbacks
 - **Frontend interface** (React + Tailwind + Vite)
 - **Offline-friendly** (no external API calls or cloud dependencies)
 - **Extendable modular backend** with FastAPI
@@ -21,45 +21,96 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
 
 > All commands below assume you are in the repository root (same folder as this README).
 
-### Option A — Docker Compose (recommended)
+### Environment Layout
 
-This spins up the FastAPI backend plus the production React build. The backend expects to
-reverse-proxy out to local ComfyUI and vLLM instances that run on the **host**, so the
-compose file maps those endpoints to the Docker bridge IP (`172.17.0.1`).
+- Copy `.env.example` to `.env.development` and `.env.production`.
+- `docker compose up` (and `make dev`) read `.env.development` by default.
+- Production runs layer `docker-compose.override.prod.yml` and `.env.production`.
+- Secrets belong only in the real runtime `.env.*` files, Docker/Swarm secrets, or a vault.
+- Session NDJSON logs land under `logs/sessions/YYYY-MM-DD/<session>.ndjson`. Mount this path in prod for durability.
+
+- Host integrations rely on the Compose-provided gateway alias:
+  - `LLM_API_BASE`, `OPENAI_API_BASE`, `SUMMARIZER_ENDPOINT` → `http://host.docker.internal:8008/v1`
+  - `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE`, `LEX_COMFY_URL` → `http://comfy-sd:8188` (bundled ComfyUI). Switch to `http://host.docker.internal:8188` only if you run Comfy on the host.
+  - `LEX_SDXL_CHECKPOINT` must be the checkpoint **filename** (e.g. `flux1-kontext-dev.safetensors`) so Comfy’s `CheckpointLoaderSimple` can resolve it.
+- `LEX_USE_COMFY_ONLY=1` keeps avatar preflight errors soft (warn JSON instead of 502). `LEX_AVATAR_DIR` (default `/app/static/avatars`) and `LEX_PUBLIC_BASE` influence the generated avatar URLs.
+- The frontend defaults to `https://api.lexicompanion.com/lexi` whenever `window.location.hostname` ends with `lexicompanion.com`. Dev builds continue to use `/lexi` unless `/config.json` provides a different base.
+- FastAPI ships with permissive CORS, but production should set `CORS_ORIGINS=https://lexicompanion.com` (append other origins with commas). The middleware already exposes `X-Lexi-Session`.
+- Running the optional Cloudflare tunnel requires attaching `lex-cloudflared-1` to `lexnet` so service discovery finds `lexi-frontend` and `lexi-backend`.
+
+### Local Dev (bundled Comfy + host vLLM)
 
 ```bash
-cp .env.example .env          # customise ports/secrets if needed
-docker compose up -d lexi-backend lexi-frontend
+cp .env.example .env.development
+make dev
+make backcurl     # curl $COMFY_URL/api/version from inside the backend container
 ```
 
-Key environment knobs (all overridable via `.env`):
+- `docker-compose.yml` builds the `comfy-sd` image (Flux-ready ComfyUI) and pins GPUs `4,5` by default; adjust `NVIDIA_VISIBLE_DEVICES` as needed.
+- Containers still map `host.docker.internal` → the host gateway so the backend reaches vLLM (`http://host.docker.internal:8008`) and other host-only services.
+- `BASE_MODELS_DIR` defaults to `/mnt/data/models`; override it per machine in `.env.development`.
+- `make logs`, `make ps`, and `make sh` are handy while iterating (`make help` lists everything).
 
-| Variable | Purpose |
-| --- | --- |
-| `LLM_API_BASE`, `OPENAI_API_BASE`, `VLLM_BASE_URL`, `LITELLM_API_BASE` | bridge to your host vLLM at `172.17.0.1:8008/v1` |
-| `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE` | bridge to host ComfyUI at `172.17.0.1:8188` |
-| `LEX_STATIC_ROOT` | path inside the container where static assets (avatars) live (`/app/static`) |
-| `CORS_ORIGINS` | comma-separated list of allowed browser origins |
+### Production (bundled Comfy service)
 
-The backend returns avatar URLs such as `/lexi/static/avatars/default.png`. Traefik (or any
-edge proxy) must forward both `/lexi/*` API calls and `/lexi/static/*` asset requests to the
-`lexi-backend` container.
+```bash
+cp .env.example .env.production
+make prod
+make backcurl
+```
 
-### Option B — Local venv + Vite dev server
+- `docker-compose.override.prod.yml` mounts `/var/lib/lex/models` into the backend as read-only `/models`.
+- The backend favors the `/models` mount but still honors `LEX_SDXL_CHECKPOINT` (filename only) to pick the base checkpoint.
+- Keep `host.docker.internal:host-gateway` unless every service runs in the same compose project. When everything lives inside Compose, attach the services to `lexnet` so DNS succeeds.
+- Prefer the bundled `comfy-sd` service; if you have a host ComfyUI, set `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE`, and `LEX_COMFY_URL` to `http://host.docker.internal:8188` (or whatever address you expose).
+
+### Alternate Comfy setups
+
+The default build wraps the upstream ComfyUI repo in `docker/comfyui/Dockerfile`. Add extra Python deps for custom nodes there, rebuild, then run `make dev` / `make prod`.
+If you disable the `comfy-sd` service, remember to point every Comfy-related environment variable at your replacement endpoint.
+
+### Manual dev (venv + Vite)
 
 ```bash
 python3.10 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-# Optional: customise `backend/lexi/config/config.py`
-
 PYTHONPATH=backend uvicorn lexi.routes.lex:app --reload
 
 cd frontend
 npm install
 npm run dev
 ```
+
+### Sanity checks
+
+```bash
+# 1) Build/run in dev
+make dev && make backcurl
+
+# 2) Inspect container gateway
+docker compose exec lexi-backend sh -lc 'ip route | awk "/default/ {print \$3}"'
+
+# 3) Confirm backend → Comfy reachability
+docker compose exec lexi-backend sh -lc 'curl -sS $COMFY_URL/api/version && echo'
+
+# 4) Build/run prod (bundled Comfy service)
+make prod && make backcurl
+
+# 5) Trigger an avatar edit (warn-only paths still return HTTP 200)
+curl -sS https://api.lexicompanion.com/lexi/process \
+  -H 'Content-Type: application/json' \
+  --data '{"prompt":"make my avatar purple hair","intent":"avatar_edit"}' | jq
+
+# 6) Confirm warn-only behaviour in logs
+docker logs -f lex-lexi-backend-1 | grep "Avatar intent"
+```
+
+### Key API routes
+
+- `POST /lexi/intent` → `{"text": str}` and returns `{"intent": str}`.
+- `POST /lexi/process` expects `{"prompt": str, "intent"?: str}`; include `intent="avatar_edit"` to trigger the Comfy avatar pipeline.
+- `GET /lexi/health` and `/lexi/ready` provide basic container status checks.
 
 ---
 

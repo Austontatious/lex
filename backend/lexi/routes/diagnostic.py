@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from ..memory.memory_core import memory
 from ..memory.memory_types import MemoryShard
 from ..persona.persona_core import lexi_persona
+from ..config.runtime_env import COMFY_URL, OPENAI_API_BASE
 from ..sd import sd_pipeline
 from ..sd.sd_pipeline import generate_avatar_pipeline
 
@@ -80,9 +81,8 @@ async def run_self_diagnostic() -> DiagnosticPayload:
         results[name] = outcome
 
     # External service URLs
-    COMFY_URL = os.getenv("COMFY_URL", "http://127.0.0.1:8188").rstrip("/")
     VLLM_URL = os.getenv(
-        "OPENAI_API_BASE", os.getenv("LLM_API_BASE", "http://127.0.0.1:8008/v1")
+        "OPENAI_API_BASE", os.getenv("LLM_API_BASE", OPENAI_API_BASE)
     ).rstrip("/")
 
     safe_test("GPU available", lambda: torch.cuda.is_available())

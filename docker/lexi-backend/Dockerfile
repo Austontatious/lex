@@ -1,3 +1,4 @@
+# codex-managed: update via deployment automation
 # syntax=docker/dockerfile:1
 
 FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04 AS base

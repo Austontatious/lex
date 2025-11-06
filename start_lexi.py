@@ -5,12 +5,12 @@ Lexi unified launcher (no local models)
 - Starts FastAPI backend
 - Starts Vite/React frontend
 - Does NOT boot SD/LLM; those are external services:
-    * ComfyUI: http://127.0.0.1:8188
-    * vLLM (OpenAI API): http://127.0.0.1:8008/v1
+    * ComfyUI: http://host.docker.internal:8188
+    * vLLM (OpenAI API): http://host.docker.internal:8008/v1
 
 Env:
-  COMFY_URL           (default: http://127.0.0.1:8188)
-  OPENAI_API_BASE     (default: http://127.0.0.1:8008/v1)
+  COMFY_URL           (default: http://host.docker.internal:8188)
+  OPENAI_API_BASE     (default: http://host.docker.internal:8008/v1)
   OPENAI_API_KEY      (default: "dummy")
   REQUIRE_COMFY       (default: "0") -> "1" to wait for Comfy to respond
   REQUIRE_VLLM        (default: "0") -> "1" to wait for /v1/models
@@ -33,8 +33,8 @@ if str(NESTED_PKG) not in sys.path:
     sys.path.insert(0, str(NESTED_PKG))
 
 # External services (updated defaults)
-COMFY_URL = os.getenv("COMFY_URL", "http://127.0.0.1:8188").rstrip("/")
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "http://127.0.0.1:8008/v1").rstrip("/")
+COMFY_URL = os.getenv("COMFY_URL", "http://host.docker.internal:8188").rstrip("/")
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "http://host.docker.internal:8008/v1").rstrip("/")
 OPENAI_API_KEY  = os.getenv("OPENAI_API_KEY", "dummy")
 # Prefer caller-provided LLM_MODEL; otherwise default to the served alias
 LLM_MODEL = os.getenv("LLM_MODEL", "Lexi")

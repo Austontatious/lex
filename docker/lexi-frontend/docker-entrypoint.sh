@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-API_BASE="${LEX_API_BASE:-/lexi}"
+API_BASE="${LEX_API_BASE:-${LEX_API_BASE_PUBLIC:-https://api.lexicompanion.com/lexi}}"
 COMFY="${COMFY_URL:-http://172.17.0.1:8188}"
 VLLM="${VLLM_URL:-http://172.17.0.1:8008/v1}"
 

@@ -52,6 +52,8 @@ venv/
 .env
 .env.*
 !.env.example
+!.env.development
+!.env.production
 # Node / frontend
 node_modules/
 dist/
