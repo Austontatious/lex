@@ -1,7 +1,18 @@
 # generate.py  (replace with this)
 from __future__ import annotations
+
+from pathlib import Path
 from typing import Any, Dict, Optional
-from .sd_pipeline import generate_avatar_pipeline  # our Comfy-backed impl
+
+from .comfy_client import comfy_flux_generate, _normalize_ip_seed
+from .prompts import BASE_POS_1, BASE_POS_2, BASE_NEG_1, BASE_NEG_2
+from .sd_pipeline import (
+    _download_image,
+    _wait_for_images,
+    generate_avatar_pipeline,  # our Comfy-backed impl
+    normalize_portrait_image,
+)
+from ..utils.ip_seed import normalize_ip
 
 _PIPELINE_KEYS = {
     "prompt",
@@ -39,6 +50,7 @@ _PIPELINE_KEYS = {
     "scheduler",
     "denoise",
     "allow_feedback_loop",
+    "base_name",
 }
 
 
@@ -60,6 +72,7 @@ def generate_avatar(
     refiner: bool = True,
     refiner_strength: float = 0.28,
     upscale_factor: float = 1.0,
+    base_name: Optional[str] = None,
     **extra: Any,
 ) -> str:
     res: Dict[str, Any] = generate_avatar_pipeline(
@@ -78,6 +91,7 @@ def generate_avatar(
         refiner=refiner if mode == "txt2img" else False,  # edits: base only
         refiner_strength=refiner_strength,
         upscale_factor=upscale_factor,
+        base_name=base_name,
         **extra,
     )
     if not res.get("ok"):
@@ -117,3 +131,41 @@ def generate_avatar_meta(**kwargs) -> Dict[str, Any]:
         result["meta"] = {**meta, **result["meta"]}
 
     return result
+
+
+def generate_default_avatar_for_ip(ip: str, outdir: str) -> Dict[str, Any]:
+    """
+    Render (or reuse) the default per-IP portrait using the Flux workflow template.
+    """
+    seed = _normalize_ip_seed(ip or "")
+    target_dir = Path(outdir).expanduser()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / f"default_{seed}.png"
+    if target.exists():
+        return {"seed": seed, "path": str(target), "created": False}
+
+    response = comfy_flux_generate(
+        BASE_POS_1,
+        BASE_POS_2,
+        BASE_NEG_1,
+        BASE_NEG_2,
+        seed=seed,
+        filename_prefix=normalize_ip(ip),
+    )
+    prompt_id = response.get("prompt_id") or response.get("id")
+    if not prompt_id:
+        raise RuntimeError("Comfy response missing prompt_id for default avatar")
+
+    images = _wait_for_images(prompt_id)
+    if not images:
+        raise RuntimeError("Comfy returned no images for default avatar")
+
+    meta = images[0]
+    out_path = _download_image(
+        meta.get("filename", ""),
+        meta.get("subfolder", ""),
+        meta.get("type", "output"),
+        dst=target,
+    )
+    normalize_portrait_image(out_path)
+    return {"seed": seed, "path": str(out_path), "created": True, "prompt_id": prompt_id}

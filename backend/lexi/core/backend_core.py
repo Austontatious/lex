@@ -1,9 +1,12 @@
 # Lexi/lexi/core/backend_core.py
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
+
+import requests
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,8 +18,10 @@ from ..alpha.session_manager import SessionRegistry
 from ..boot.avatar_first_render import router as avatar_bootstrap_router
 from ..config.config import REPO_ROOT, STATIC_ROOT, STATIC_URL_PREFIX
 from ..config.now import ENABLE_NOW as CONFIG_ENABLE_NOW
+from ..config.runtime_env import COMFY_URL
 from ..session import session_middleware
 from ..utils.now_utils import log_now
+from ..sd.sd_pipeline import generate_avatar_pipeline
 
 log = logging.getLogger("lexi.backend")
 
@@ -34,7 +39,7 @@ def _unique_id(route: APIRoute) -> str:
 
 _start_now_scheduler = None
 _refresh_now_feed = None
-_env_now_enabled = os.getenv("LEXI_ENABLE_NOW", "0").lower() not in ("0", "false", "no", "off")
+_env_now_enabled = os.getenv("LEXI_ENABLE_NOW", "1").lower() not in ("0", "false", "no", "off")
 _now_enabled = CONFIG_ENABLE_NOW and _env_now_enabled
 
 if _now_enabled:
@@ -74,7 +79,10 @@ if _cors_origins is None:
 
 DEFAULT_CORS_ORIGINS = [
     "https://lexicompanion.com",
+    "https://www.lexicompanion.com",
+    "https://api.lexicompanion.com",
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 if isinstance(_cors_origins, (set, tuple)):
@@ -100,13 +108,7 @@ app.add_middleware(
     allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=[
-        "Content-Type",
-        "X-Lexi-Session",
-        "Authorization",
-        "Accept",
-        "X-Requested-With",
-    ],
+    allow_headers=["*"],
     expose_headers=["*"],
     max_age=600,
 )
@@ -161,11 +163,13 @@ if FRONT_BUILD:
 # - Including it with prefix="/lexi" → final paths /lexi/persona, /lexi/persona/...
 from ..routes.lexi import router as lexi_router
 from ..routes.gen import router as gen_router
+from ..routes.health import router as health_router
 from ..routes.love_loop import router as love_router
 from ..routes.now import router as now_router, tools as tools_router
 from ..routes.alpha import router as alpha_router
 
 app.include_router(lexi_router)
+app.include_router(health_router)
 app.include_router(gen_router)
 app.include_router(love_router)
 app.include_router(now_router)  # <-- this exposes /now/...
@@ -224,6 +228,31 @@ async def _startup_now_feed():
         log.info("Now Feed warmed successfully.")
     except Exception as e:
         log.warning("Now Feed warm-up failed: %s", e)
+
+
+@app.on_event("startup")
+async def _warmup_flux_backend():
+    if os.getenv("LEXI_SKIP_FLUX_WARMUP", "0").lower() in ("1", "true", "yes", "on"):
+        log.info("Flux warmup skipped via LEXI_SKIP_FLUX_WARMUP")
+        return
+    try:
+        requests.get(f"{COMFY_URL}/system_stats", timeout=5)
+    except Exception as exc:
+        log.warning("Flux warmup system stats request failed: %s", exc)
+    try:
+        await asyncio.to_thread(
+            generate_avatar_pipeline,
+            prompt="Lexi flux warmup portrait",
+            traits={"hair": "warmup blonde hair"},
+            steps=2,
+            cfg_scale=1.5,
+            seed=42,
+            base_name="_warmup_flux",
+            fresh_base=True,
+        )
+        log.info("Flux pipeline warmup completed")
+    except Exception as exc:
+        log.warning("Flux warmup skipped: %s", exc)
 
 
 # ---------------- Health / Ready under /lexi ----------------

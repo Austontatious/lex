@@ -70,6 +70,7 @@ services:
       OPENAI_API_BASE: ${OPENAI_API_BASE:-http://host.docker.internal:8008/v1}
       SUMMARIZER_ENDPOINT: ${SUMMARIZER_ENDPOINT:-http://host.docker.internal:8008/v1/chat/completions}
       COMFY_URL: ${COMFY_URL:-http://comfy-sd:8188}
+      LEX_COMFY_URL: ${LEX_COMFY_URL:-http://comfy-sd:8188}
       COMFY_BASE_URL: ${COMFY_BASE_URL:-http://comfy-sd:8188}
       IMAGE_API_BASE: ${IMAGE_API_BASE:-http://comfy-sd:8188}
       LEX_SDXL_CHECKPOINT: ${LEX_SDXL_CHECKPOINT:-flux1-kontext-dev.safetensors}
@@ -82,6 +83,12 @@ services:
       LEX_AVATAR_DIR: ${LEX_AVATAR_DIR:-/app/static/avatars}
       LEX_PUBLIC_BASE: ${LEX_PUBLIC_BASE:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://lexicompanion.com}
+      FLUX_MODELS_DIR: ${FLUX_MODELS_DIR:-/mnt/data/comfy/models}
+      FLUX_DIFFUSION_DIR: ${FLUX_DIFFUSION_DIR:-/mnt/data/comfy/models/diffusion_models}
+      FLUX_TEXT_ENCODER_DIR: ${FLUX_TEXT_ENCODER_DIR:-/mnt/data/comfy/models/clip}
+      FLUX_VAE_PATH: ${FLUX_VAE_PATH:-/mnt/data/comfy/models/vae/ae.safetensors}
+      FLUX_CLIP_L: ${FLUX_CLIP_L:-/mnt/data/comfy/models/clip/clip_l.safetensors}
+      FLUX_T5XXL: ${FLUX_T5XXL:-/mnt/data/comfy/models/text_encoders/t5xxl_fp8_e4m3fn.safetensors}
     ports:
       - "${API_PORT:-9000}:9000"
     expose:
@@ -95,6 +102,9 @@ services:
       - ./data:/data
       - ./logs/sessions:/app/logs/sessions
       - hf_cache:/data/hf_cache
+      - /mnt/data/models:/mnt/data/models:ro
+      - /mnt/data/comfy:/mnt/data/comfy:ro
+      - /mnt/data/avatars:/app/frontend/public/avatars
     command: >
       python3 -m uvicorn lexi.core.backend_core:app
       --host 0.0.0.0
@@ -118,6 +128,8 @@ services:
       - "${FRONTEND_PORT:-3000}:80"
     expose:
       - "80"
+    volumes:
+      - /mnt/data/avatars:/usr/share/nginx/html/avatars:ro
     restart: unless-stopped
     networks: [lexnet]
 
