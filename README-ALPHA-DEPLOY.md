@@ -50,7 +50,9 @@ Populate the following fields at minimum:
 | `LEX_API_BASE_PUBLIC`   | Public API base presented to the frontend (e.g. `/api`).            |
 | `LEX_STATIC_ROOT`       | Directory inside the backend image where avatars & static assets live. |
 | `CORS_ORIGINS`          | Comma-separated list of allowed browser origins (include `https://lexicompanion.com`). |
-| `SD_BACKEND`, `FLUX_*`  | Stable Diffusion/FLUX model configuration paths.                    |
+| `FLUX_*`                | Flux model configuration paths.                                  |
+| `LEXI_AVATAR_JOB_TTL`   | Seconds to retain completed avatar jobs in memory (default `600`). |
+| `LEXI_SKIP_FLUX_WARMUP` | Set to `1` to skip the Flux warm-up call at startup (default runs once). |
 
 Secrets live only in `.env`; the file is git-ignored.
 
@@ -115,6 +117,11 @@ Mount `/mnt/data/Lex/cloudflared/config.yml` with your ingress settings and keep
 # Backend health through Traefik (API router strips /api prefix)
 curl -fsS https://lexicompanion.com/api/health
 
+# Avatar queue behaviour (should return queued/done quickly)
+curl -fsS https://lexicompanion.com/api/lexi/persona/avatar
+# If you see {"status":"queued","job_id":...}, poll the status endpoint:
+curl -fsS https://lexicompanion.com/api/lexi/persona/avatar/status/<job_id>
+
 # Avatar & static assets are served by the backend itself
 curl -I https://lexicompanion.com/lexi/static/avatars/default.png
 
@@ -144,6 +151,7 @@ docker compose logs -f cloudflared
 | Traefik still serving old config          | Restart Traefik or run `docker network disconnect edge <container>` then reconnect. |
 | Backend cannot reach Comfy/vLLM           | Confirm `COMFY_URL`/`OPENAI_API_BASE` endpoints from inside the container. |
 | Browser reports "CORS blocked" on `/lexi/process` | Usually an upstream 502. Check that ComfyUI (8188) and vLLM (8008) are reachable from inside the `lexi-backend` container and that `CORS_ORIGINS` includes the requesting origin. |
+| `/lexi/persona/avatar` takes >100s and Cloudflare shows 524 | The route now returns immediately; if you still see long waits verify your proxy isn’t buffering responses and that the frontend is polling `/lexi/persona/avatar/status/<job_id>`. |
 | Session header missing                    | Ensure your proxy forwards `X-Lexi-Session` and that `CORSMiddleware`’s `allow_headers` includes it. |
 
 ---

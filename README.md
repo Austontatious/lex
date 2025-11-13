@@ -32,9 +32,11 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
 - Host integrations rely on the Compose-provided gateway alias:
   - `LLM_API_BASE`, `OPENAI_API_BASE`, `SUMMARIZER_ENDPOINT` → `http://host.docker.internal:8008/v1`
   - `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE`, `LEX_COMFY_URL` → `http://comfy-sd:8188` (bundled ComfyUI). Switch to `http://host.docker.internal:8188` only if you run Comfy on the host.
-  - `LEX_SDXL_CHECKPOINT` must be the checkpoint **filename** (e.g. `flux1-kontext-dev.safetensors`) so Comfy’s `CheckpointLoaderSimple` can resolve it.
-- `LEX_USE_COMFY_ONLY=1` keeps avatar preflight errors soft (warn JSON instead of 502). `LEX_AVATAR_DIR` (default `/app/static/avatars`) and `LEX_PUBLIC_BASE` influence the generated avatar URLs.
+  - `FLUX_MODELS_DIR`, `FLUX_DIFFUSION_DIR`, `FLUX_TEXT_ENCODER_DIR`, and `FLUX_VAE_PATH` must resolve to your Flux assets (e.g. `flux1-kontext-dev.safetensors`, `clip_l.safetensors`, `t5xxl_fp8_e4m3fn.safetensors`, `ae.safetensors`).
+- `LEX_USE_COMFY_ONLY=1` keeps avatar preflight errors soft (warn JSON instead of 502). `LEX_AVATAR_DIR` (default `/app/frontend/public/avatars`) and `LEX_PUBLIC_BASE` influence the generated avatar URLs.
+- `LEX_SKIP_COMFY_WARMUP=1` skips the Comfy warm-up call if you need ultra-fast cold starts (not recommended for production).
 - The frontend defaults to `https://api.lexicompanion.com/lexi` whenever `window.location.hostname` ends with `lexicompanion.com`. Dev builds continue to use `/lexi` unless `/config.json` provides a different base.
+- The bundled NGINX config now proxies `/lexi/*` to the backend and falls back to `index.html` for deep SPA routes.
 - FastAPI ships with permissive CORS, but production should set `CORS_ORIGINS=https://lexicompanion.com` (append other origins with commas). The middleware already exposes `X-Lexi-Session`.
 - Running the optional Cloudflare tunnel requires attaching `lex-cloudflared-1` to `lexnet` so service discovery finds `lexi-frontend` and `lexi-backend`.
 
@@ -60,7 +62,7 @@ make backcurl
 ```
 
 - `docker-compose.override.prod.yml` mounts `/var/lib/lex/models` into the backend as read-only `/models`.
-- The backend favors the `/models` mount but still honors `LEX_SDXL_CHECKPOINT` (filename only) to pick the base checkpoint.
+- The backend favors the `/models` mount; configure `FLUX_MODELS_DIR`, `FLUX_DIFFUSION_DIR`, `FLUX_TEXT_ENCODER_DIR`, and `FLUX_VAE_PATH` so the container sees your Flux checkpoint bundle.
 - Keep `host.docker.internal:host-gateway` unless every service runs in the same compose project. When everything lives inside Compose, attach the services to `lexnet` so DNS succeeds.
 - Prefer the bundled `comfy-sd` service; if you have a host ComfyUI, set `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE`, and `LEX_COMFY_URL` to `http://host.docker.internal:8188` (or whatever address you expose).
 
@@ -104,13 +106,29 @@ curl -sS https://api.lexicompanion.com/lexi/process \
 
 # 6) Confirm warn-only behaviour in logs
 docker logs -f lex-lexi-backend-1 | grep "Avatar intent"
+
+# 7) Health probes
+docker compose exec lexi-backend sh -lc 'curl -sS http://127.0.0.1:9000/lexi/healthz && echo'
+docker compose exec lexi-backend sh -lc 'curl -sS http://127.0.0.1:9000/lexi/readyz && echo'
 ```
 
 ### Key API routes
 
 - `POST /lexi/intent` → `{"text": str}` and returns `{"intent": str}`.
-- `POST /lexi/process` expects `{"prompt": str, "intent"?: str}`; include `intent="avatar_edit"` to trigger the Comfy avatar pipeline.
-- `GET /lexi/health` and `/lexi/ready` provide basic container status checks.
+- `POST /lexi/process` expects `{"prompt": str, "intent"?: str}`; include `intent="avatar_edit"` to trigger the Comfy avatar pipeline (its `avatar_url` now reflects the per-IP static asset described below).
+- `GET /lexi/persona/avatar` is now asynchronous: if an avatar already exists the backend returns `{"status":"done","avatar_url":...}` immediately; otherwise it enqueues a job and replies `{"status":"queued","job_id":"..."}`
+- `GET /lexi/persona/avatar/status/{job_id}` reports `queued | running | done | error` and, once complete, includes the final `avatar_url`.
+- `POST /lexi/alpha/session/start` returns `{"session_id": "...", ...}`. Keep the ID and send it back in the `X-Lexi-Session` header for persona/avatar routes.
+- `POST /lexi/gen/avatar` requires `X-Lexi-Session`; otherwise the backend returns HTTP 401 with a hint to start a session.
+- `GET /lexi/healthz` performs a lightweight liveness check (Comfy `/object_info` + avatar-dir write).
+- `GET /lexi/readyz` validates the schema expectations and submits a no-op `/prompt` to ensure Comfy is ready.
+
+**Avatar job queue highlights**
+
+- Every IP maps to `/lexi/static/avatars/<ip>.png`. If a render is missing, `GET /lexi/persona/avatar` enqueues a background job and returns `{"status":"queued","job_id":...}` immediately, eliminating Cloudflare 524s and proxy read timeouts.
+- Poll `/lexi/persona/avatar/status/<job_id>` until it returns `{"status":"done","avatar_url":...}` (or `{"status":"error","error":...}`) and then use that URL directly in the UI.
+- Completed jobs stick around in-memory for `LEXI_AVATAR_JOB_TTL` seconds (default 600). Override this env var if you need a different retention window.
+- `frontend/src/lib/refreshAvatar.ts` implements the polling + swap logic so browsers always render the freshest PNG (note the built-in cache buster).
 
 ---
 
@@ -121,6 +139,42 @@ docker logs -f lex-lexi-backend-1 | grep "Avatar intent"
 - `frontend/` — Vite/React client; serves static assets from `frontend/public/`
 - `frontend/public/avatars/` — shared avatar outputs for backend ↔ frontend
 - `_quarantine/` — preserved duplicates & conflict snapshots from legacy trees
+
+### Snapshot duplicates & why they exist
+
+You’ll notice two almost-identical trees: `backend/lexi/...` and `Lexi/lexi/...`.
+Docker builds, tests, and imports all target `backend/lexi`, so treat it as the **source of truth**.
+The `Lexi/` tree is a frozen snapshot kept around to hotfix older deployments without rebasing.
+
+When you patch backend code, edit `backend/lexi/...` first, then mirror the change into
+`Lexi/lexi/...` only if the snapshot still needs to track it. Otherwise you’ll see confusing
+behaviour where containers keep serving the old code even though your local tests pass.
+
+Signs you touched the wrong tree:
+
+- Docker builds succeed but your change never appears at runtime.
+- `pytest` can’t see the change that “worked in dev”.
+- Git diffs show noise under `_quarantine`.
+
+Keep the duplication in mind whenever you modify routes, persona logic, or SD helpers.
+
+### Avatar pipeline quick facts
+
+- The backend always pushes graphs to ComfyUI; the legacy local diffusers path is disabled.
+- Flux is the only supported avatar backend; SDXL workflows and refiners have been retired.
+- `FLUX_*` environment variables must match the paths visible to the Comfy container (Compose mounts `/mnt/data/comfy` read-only into the backend to guarantee this).
+- Flux tuning lives in `backend/lexi/sd/flux_defaults.py`; update that file once and every Comfy graph + backend default stays in sync.
+- Prompt scaffolding lives in `backend/lexi/sd/flux_prompt_builder.py`, keeping the “Lexiverse” base text immutable while allowing trait/style deltas appended at runtime.
+- `backend/lexi/utils/request_ip.py` and `utils/ip_seed.py` derive deterministic per-IP seeds and filenames so every user keeps a consistent identity unless you override the seed manually.
+- Populate those folders with the Flux bundle (e.g. `flux1-kontext-dev.safetensors`, `clip_l.safetensors`, `t5xxl_fp8_e4m3fn.safetensors`, `ae.safetensors`). Example:
+
+```bash
+mkdir -p /mnt/data/comfy/models/diffusion_models
+wget https://example.com/flux1-kontext-dev.safetensors -O /mnt/data/comfy/models/diffusion_models/flux1-kontext-dev.safetensors
+```
+- On import we call `/object_info`, validate the schema, and warm up Comfy once. Set `LEXI_SKIP_FLUX_WARMUP=1` if you need to disable the warmup hit.
+- The base avatar (`lexi_base.png`) is written under a file lock so simultaneous prompts do not corrupt the baseline image.
+- The frontend no longer waits on long-running HTTP responses: avatar renders happen in the background, and the `/lexi/persona/avatar` + `/status/<job_id>` pair carries progress to the UI. If you need longer retention for completed jobs, tweak `LEXI_AVATAR_JOB_TTL`.
 
 ---
 
