@@ -2,7 +2,7 @@ SHELL := /bin/bash
 PY := python3
 VENV := venv
 
-.PHONY: init lint fix typecheck test smoke smoke-versions dev prod prod-comfy up down comfy local-up local-down ps logs sh backcurl help
+.PHONY: init lint fix typecheck test smoke smoke-versions smoke-flux dev prod prod-comfy up down comfy local-up local-down ps logs sh backcurl help
 
 help:
 	@echo "Targets:"
@@ -45,6 +45,9 @@ smoke:
 
 smoke-versions:
 	PYTHONPATH=backend $(PY) -c "import runpy; runpy.run_path('backend/smoke_versions.py')"
+
+smoke-flux:
+	@scripts/smoke_flux.sh
 
 dev:
 	docker compose up -d --build

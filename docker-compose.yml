@@ -73,14 +73,17 @@ services:
       LEX_COMFY_URL: ${LEX_COMFY_URL:-http://comfy-sd:8188}
       COMFY_BASE_URL: ${COMFY_BASE_URL:-http://comfy-sd:8188}
       IMAGE_API_BASE: ${IMAGE_API_BASE:-http://comfy-sd:8188}
-      LEX_SDXL_CHECKPOINT: ${LEX_SDXL_CHECKPOINT:-flux1-kontext-dev.safetensors}
       LEX_VAE: ${LEX_VAE:-ae.safetensors}
       LEX_CLIP: ${LEX_CLIP:-clip_l.safetensors}
       LEX_T5: ${LEX_T5:-t5xxl_fp8_e4m3fn.safetensors}
+      LEXI_STATIC_DIR: ${LEXI_STATIC_DIR:-/app/frontend/public}
+      LEX_IMAGE_DIR: ${LEX_IMAGE_DIR:-/app/frontend/public/avatars}
+      AVATARS_PUBLIC_DIR: ${AVATARS_PUBLIC_DIR:-/app/frontend/public/avatars}
+      AVATARS_PUBLIC_URL: ${AVATARS_PUBLIC_URL:-/lexi/static/avatars}
       LEXI_PERSONA_API_BASE: ${LEXI_PERSONA_API_BASE:-http://host.docker.internal:8008/v1}
       LEXI_PERSONA_TIMEOUT: ${LEXI_PERSONA_TIMEOUT:-10}
       LEX_SKIP_MODEL_PREFLIGHT: ${LEX_SKIP_MODEL_PREFLIGHT:-1}
-      LEX_AVATAR_DIR: ${LEX_AVATAR_DIR:-/app/static/avatars}
+      LEX_AVATAR_DIR: ${LEX_AVATAR_DIR:-/app/frontend/public/avatars}
       LEX_PUBLIC_BASE: ${LEX_PUBLIC_BASE:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://lexicompanion.com}
       FLUX_MODELS_DIR: ${FLUX_MODELS_DIR:-/mnt/data/comfy/models}
@@ -98,7 +101,6 @@ services:
     depends_on:
       - comfy-sd
     volumes:
-      - ./Lexi:/app/Lexi
       - ./data:/data
       - ./logs/sessions:/app/logs/sessions
       - hf_cache:/data/hf_cache
@@ -110,6 +112,8 @@ services:
       --host 0.0.0.0
       --port 9000
       --proxy-headers
+      --timeout-keep-alive 300
+      --timeout-graceful-shutdown 300
     restart: unless-stopped
     networks: [lexnet]
 
