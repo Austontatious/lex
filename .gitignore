@@ -78,3 +78,9 @@ Lexi/lexi/sd/weights/
 
 # cloudflared creds
 cloudflared/cred.json
+
+# Local scratch / artifacts
+.pytest_state/
+_backup/
+_investigation/
+models/
