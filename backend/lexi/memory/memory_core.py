@@ -1,23 +1,66 @@
 """High‑level memory manager facade used by Lex backend."""
 
 from __future__ import annotations
-from typing import List
+import os
+import time
+from typing import List, Optional, Dict, Any
 from pathlib import Path
 from .memory_types import MemoryShard
 from .memory_store_json import MemoryStoreJSON
 from ..utils.emotion_core import infer_emotion
+from ..utils.user_identity import normalize_user_id, user_bucket, user_id_feature_enabled
+
+try:  # optional vector path (env-gated)
+    from .vector_store import archive_context_to_chroma, vector_feature_enabled
+except Exception:  # pragma: no cover - optional dependency
+    def vector_feature_enabled() -> bool:
+        return False
+
+    def archive_context_to_chroma(*args, **kwargs) -> Dict[str, object]:
+        return {"ok": False, "enabled": False}
 
 
 # ---- MemoryManager class ----
 class MemoryManager:
-    def __init__(self, store: MemoryStoreJSON):
+    def __init__(self, store: MemoryStoreJSON, user_enabled: bool = False):
+        self._default_store = store
         self.store = store
         self._cache: List[MemoryShard] = self.store.load()
+        self._user_enabled = user_enabled
+        self._user_id: Optional[str] = None
 
     def remember(self, shard: MemoryShard) -> None:
         """Persist a conversational shard and keep it in cache."""
         self._cache.append(shard)
         self.store.append(shard)
+        self._maybe_vectorize(shard)
+
+    def set_user(self, user_id: Optional[str]) -> None:
+        """Swap memory store/cache based on user_id if feature flag is on."""
+        if not self._user_enabled:
+            return
+        normalized = normalize_user_id(user_id)
+        if normalized == self._user_id:
+            return
+
+        if not normalized:
+            self.store = self._default_store
+            self._cache = self._default_store.load()
+            self._user_id = None
+            return
+
+        user_dir = user_bucket(Path(DEFAULT_MEMORY_PATH).parent, normalized)
+        if not user_dir:
+            return
+        per_user_path = user_dir / "ltm.jsonl"
+            self.store = MemoryStoreJSON(filepath=per_user_path)
+            self._cache = self.store.load()
+            self._user_id = normalized
+            return
+        # fall back to shared store if bucket creation failed
+        self.store = self._default_store
+        self._cache = self._default_store.load()
+        self._user_id = None
 
     def store_context(self, user_msg: str, lex_reply: str):
         if not isinstance(user_msg, str) or not isinstance(lex_reply, str):
@@ -38,6 +81,30 @@ class MemoryManager:
         }
         shard = MemoryShard.from_json(shard_data)
         self.remember(shard)
+
+    def _maybe_vectorize(self, shard: MemoryShard) -> None:
+        """Best-effort vector ingest when enabled."""
+        if not vector_feature_enabled():
+            return
+        text = (shard.content or "").strip()
+        if not text:
+            return
+        meta: Dict[str, Any] = {}
+        if isinstance(shard.meta, dict):
+            meta.update(shard.meta)
+        meta.setdefault("role", shard.role)
+        meta.setdefault("user_id", self._user_id or "shared")
+        meta.setdefault("created_at", shard.created_at)
+        session_id = str(meta.get("session_id") or f"ltm-{self._user_id or 'shared'}")
+        doc_id = f"{session_id}-{int(time.time() * 1000)}-{len(self._cache)}"
+        try:
+            archive_context_to_chroma(
+                [{"id": doc_id, "text": text, "metadata": meta}],
+                session_id=session_id,
+                user_id=self._user_id,
+            )
+        except Exception:  # pragma: no cover - defensive
+            return
 
     def _should_store_turn(self, user_msg: str, lex_msg: str) -> bool:
         if not user_msg or not lex_msg:
@@ -99,7 +166,8 @@ class MemoryManager:
 
 # ---- Global instance ----
 absolute_path = Path(__file__).parents[2] / "memory" / "lex_memory.jsonl"
-store = MemoryStoreJSON(filepath=absolute_path)
-memory = MemoryManager(store)
+DEFAULT_MEMORY_PATH = os.getenv("LEX_MEMORY_PATH", str(absolute_path))
+store = MemoryStoreJSON(filepath=Path(DEFAULT_MEMORY_PATH))
+memory = MemoryManager(store, user_enabled=user_id_feature_enabled())
 
 __all__ = ["memory", "MemoryManager"]

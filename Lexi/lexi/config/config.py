@@ -118,7 +118,8 @@ MEMORY_PATH: Final[str] = os.getenv(
 MAX_MEMORY_ENTRIES: Final[int] = _get_env("LEX_MAX_MEMORY_ENTRIES", "1000", int, (100, 10000))
 
 # Static assets
-STARTER_AVATAR_PATH: Final[str] = f"{AVATAR_URL_PREFIX}/default.png"
+# point new sessions at the rolling base avatar; per-IP publishing still overrides later
+STARTER_AVATAR_PATH: Final[str] = f"{AVATAR_URL_PREFIX}/lexi_base.png"
 
 # Branding
 LEX_NAME: Final[str] = os.getenv("LEX_NAME", "Lex")

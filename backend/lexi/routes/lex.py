@@ -82,11 +82,16 @@ def ready():
 
 
 @router.post("/process")
-async def process(req: ChatRequest) -> JSONResponse:
+async def process(req: ChatRequest, request: Request) -> JSONResponse:
     """
     Handle chat input: infer appearance traits to regenerate avatar or pass through normal chat.
     """
     logger.info("🗨️ /process prompt=%r", req.prompt)
+    user_id = getattr(request.state, "user_id", None)
+    try:
+        lexi_persona.set_user(user_id)
+    except Exception as exc:
+        logger.debug("set_user failed (non-fatal): %s", exc)
 
     # 🛡️ PROTECT AGAINST FEEDBACK LOOPS:
     if req.prompt.startswith("Lex:") or req.prompt.startswith("assistant:"):
@@ -139,6 +144,7 @@ async def process(req: ChatRequest) -> JSONResponse:
 
     # 3) Memory write
     try:
+        memory.set_user(user_id)
         memory.remember(
             MemoryShard(
                 role="assistant", content=reply, meta={"tags": ["chat"], "compressed": True}

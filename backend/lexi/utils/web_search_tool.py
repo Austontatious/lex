@@ -1,5 +1,6 @@
+import asyncio
 import httpx
-from typing import List
+from typing import List, Callable, Awaitable
 from datetime import datetime
 from ..config.now import settings_now
 from .now_models import WebSearchRequest, WebDoc
@@ -16,13 +17,52 @@ def _as_dt(s: str | None):
 
 
 async def web_search(req: WebSearchRequest) -> List[WebDoc]:
-    if settings_now.BRAVE_API_KEY:
-        return await _brave(req)
-    elif settings_now.TAVILY_API_KEY:
-        return await _tavily(req)
+    provider = (req.provider or "auto").lower()
+    pipeline: List[tuple[str, Callable[[WebSearchRequest], Awaitable[List[WebDoc]]]]] = []
+
+    def _enqueue(name: str):
+        if name == "tavily" and settings_now.TAVILY_API_KEY:
+            pipeline.append((name, _tavily))
+        elif name == "brave" and settings_now.BRAVE_API_KEY:
+            pipeline.append((name, _brave))
+
+    if provider == "brave":
+        _enqueue("brave")
+    elif provider == "tavily":
+        _enqueue("tavily")
+        if req.allow_brave_fallback:
+            _enqueue("brave")
     else:
-        log_now("web_search: no API key configured; returning empty.")
+        _enqueue("tavily")
+        if req.allow_brave_fallback:
+            _enqueue("brave")
+
+    if not pipeline:
+        log_now("web_search: no providers configured; returning placeholder.")
+        if req.stall_on_failure:
+            await asyncio.sleep(0.5)
+            return [_stall_doc("No search providers configured yet.")]
         return []
+
+    errors: List[str] = []
+    for name, fn in pipeline:
+        try:
+            docs = await fn(req)
+            if docs:
+                return docs
+        except Exception as exc:
+            msg = f"{name}: {exc}"
+            errors.append(msg)
+            log_now(f"web_search {msg}")
+            continue
+
+    if req.allow_brave_fallback and settings_now.BRAVE_API_KEY and "brave" not in [n for n, _ in pipeline]:
+        log_now("web_search: brave fallback requested but no key configured.")
+
+    if req.stall_on_failure:
+        await asyncio.sleep(0.5)
+        return [_stall_doc("; ".join(errors) if errors else None)]
+    return []
 
 
 async def _brave(req: WebSearchRequest) -> List[WebDoc]:
@@ -87,3 +127,13 @@ async def _tavily(req: WebSearchRequest) -> List[WebDoc]:
             )
         )
     return docs
+
+
+def _stall_doc(reason: str | None = None) -> WebDoc:
+    note = reason or "retrying alternate feeds"
+    return WebDoc(
+        url="https://lexicompanion.com/now",
+        title="Still fetching live sources…",
+        snippet=f"Lexi is refreshing the feed ({note}); check back shortly.",
+        source="Lexi",
+    )

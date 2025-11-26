@@ -14,6 +14,7 @@ import asyncio
 import base64
 import re
 import os
+import time
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, Optional
 from uuid import uuid4
@@ -25,11 +26,9 @@ from pydantic import BaseModel
 
 from ..sd.sd_pipeline import generate_avatar_pipeline
 from ..utils.prompt_sifter import build_sd_prompt, extract_categories
-from .lexi_persona import _load_traits, _save_traits
-from ..core.config import settings
-from ..config.config import STATIC_URL_PREFIX, STARTER_AVATAR_PATH, AVATAR_URL_PREFIX
-
-# alias public names
+from .lexi_persona import _load_traits, _save_traits, ensure_per_ip_avatar
+from .now import router as now_router, tools as tools_router
+from ..config.config import AVATAR_URL_PREFIX, STARTER_AVATAR_PATH
 load_traits = _load_traits
 save_traits = _save_traits
 from ..persona.persona_core import lexi_persona
@@ -37,12 +36,44 @@ from ..persona.persona_config import PERSONA_MODE_REGISTRY
 from ..memory.memory_core import memory
 from ..memory.memory_types import MemoryShard
 from ..alpha.session_manager import SessionRegistry
+from ..session_logging import log_event
+from ..utils.ip_seed import (
+    avatars_public_url_base,
+    avatars_static_dir,
+    client_ip_from_headers,
+    filename_for_ip,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Lexi Core"])
 
 USE_COMFY_ONLY = os.getenv("LEX_USE_COMFY_ONLY", "0") == "1"
+
+_DEFAULT_AVATAR_DIR = Path(__file__).resolve().parent.parent / "static" / "lexi" / "avatars"
+_AVATAR_DIR_OVERRIDE = os.getenv("LEX_AVATAR_DIR")
+if _AVATAR_DIR_OVERRIDE:
+    try:
+        AVATAR_DIR: Path = Path(_AVATAR_DIR_OVERRIDE).expanduser().resolve()
+    except Exception:
+        logger.warning("⚠️ Invalid LEX_AVATAR_DIR=%r; falling back to default.", _AVATAR_DIR_OVERRIDE)
+        AVATAR_DIR = _DEFAULT_AVATAR_DIR
+else:
+    AVATAR_DIR = _DEFAULT_AVATAR_DIR
+
+try:
+    AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as exc:  # pragma: no cover - defensive fallback
+    logger.warning("⚠️ Could not ensure avatar directory %s: %s", AVATAR_DIR, exc)
+
+AVATARS_PUBLIC_DIR = avatars_static_dir()
+LEGACY_BASE_NAME = "lexi_base.png"
+AV_PUBLIC_URL = avatars_public_url_base()
+
+def _client_ip(request: Request) -> str:
+    headers = {k.lower(): v for k, v in (request.headers or {}).items()}
+    fallback = getattr(getattr(request, "client", None), "host", None) or "127.0.0.1"
+    return client_ip_from_headers(headers, fallback)
 
 
 def _external_base(request: Request) -> str:
@@ -69,31 +100,52 @@ def _absolute_url(request: Request, path: str) -> str:
     target = path or ""
     return f"{base}/{target.lstrip('/')}"
 
+
+def _public_avatar_url(name: str, cache_path: Optional[Path] = None) -> str:
+    base = (AV_PUBLIC_URL or AVATAR_URL_PREFIX).rstrip("/")
+    url = f"{base}/{name}"
+    if cache_path and cache_path.exists():
+        try:
+            ts = int(cache_path.stat().st_mtime)
+            return f"{url}?v={ts}"
+        except Exception:
+            return url
+    return url
+
+
+def _per_ip_avatar_path(request: Request) -> Optional[str]:
+    ip = _client_ip(request)
+    filename = filename_for_ip(ip)
+    candidate = AVATARS_PUBLIC_DIR / filename
+    if candidate.exists():
+        return _public_avatar_url(filename, candidate)
+    return None
+router.include_router(now_router)  # /now
+router.include_router(tools_router)  # /tools/web_search
+
 # Paths for avatar storage and trait state persistence
-AVATAR_DIR: Path = settings.AVATAR_DIR
-AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 TRAIT_STATE_PATH: Path = Path(__file__).resolve().parent / "lexi_persona_state.json"
-STATIC_ROOT: Path = settings.STATIC_ROOT
 
 
 def _avatar_dir() -> Path:
-    """Resolve the active avatar directory and ensure it exists."""
+    """Resolve the active avatar directory, ensuring it exists."""
     dir_path = AVATAR_DIR
     try:
         dir_path.mkdir(parents=True, exist_ok=True)
-    except Exception as exc:
+    except Exception as exc:  # pragma: no cover - defensive fallback
         logger.warning("⚠️ Could not ensure avatar directory %s: %s", dir_path, exc)
     return dir_path
 
 
 def _avatar_filename(session_id: Optional[str], requested: Optional[str]) -> str:
-    """Pick a safe avatar filename, defaulting to session or UUID."""
+    """Choose a safe filename for avatar outputs."""
     if isinstance(requested, str) and requested.strip():
         name = requested.strip()
     elif isinstance(session_id, str) and session_id.strip():
         name = f"{session_id.strip()}.png"
     else:
         name = f"{uuid4().hex}.png"
+
     if not name.lower().endswith(".png"):
         name = f"{name}.png"
     return name
@@ -104,35 +156,43 @@ def _safe_join_avatar(filename: Optional[str], session_id: Optional[str]) -> Pat
     return _avatar_dir() / _avatar_filename(session_id, filename)
 
 
+def _lexi_base_path() -> Path:
+    return AVATARS_PUBLIC_DIR / LEGACY_BASE_NAME
+
+
 def _fallback_avatar_url(request: Request) -> str:
+    """Return a safe avatar URL (public) for warn/error paths."""
+    candidate = _per_ip_avatar_path(request)
+    if not candidate:
+        candidate = _public_avatar_url(LEGACY_BASE_NAME, _lexi_base_path())
     public_base = os.getenv("LEX_PUBLIC_BASE")
-    default_path = f"{AVATAR_URL_PREFIX}/default.png"
     if public_base:
         public_base = public_base.rstrip("/")
-        return f"{public_base}{default_path}"
-    return _absolute_url(request, default_path)
+        return f"{public_base}{candidate}"
+    return _absolute_url(request, candidate)
 
 
 def _ensure_avatar_url(request: Request, candidate: Optional[str]) -> str:
+    """Ensure avatar URL is absolute, falling back to public default."""
     if isinstance(candidate, str) and candidate.strip():
         return _absolute_url(request, candidate)
     return _fallback_avatar_url(request)
 
 
-
-def _fallback_avatar_url(request: Request) -> str:
-    public_base = os.getenv("LEX_PUBLIC_BASE")
-    default_path = f"{AVATAR_URL_PREFIX}/default.png"
-    if public_base:
-        public_base = public_base.rstrip("/")
-        return f"{public_base}{default_path}"
-    return _absolute_url(request, default_path)
-
-
-def _ensure_avatar_url(request: Request, candidate: Optional[str]) -> str:
-    if isinstance(candidate, str) and candidate.strip():
-        return _absolute_url(request, candidate)
-    return _fallback_avatar_url(request)
+async def _per_ip_avatar_or_fallback(request: Request) -> str:
+    """
+    Ensure a deterministic per-IP avatar exists, falling back to the legacy base.
+    """
+    ip = _client_ip(request)
+    try:
+        avatar_path = await ensure_per_ip_avatar(ip)
+        return _absolute_url(
+            request,
+            _public_avatar_url(avatar_path.name, avatar_path),
+        )
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        logger.debug("Per-IP avatar ensure failed for %s: %s", ip, exc)
+        return _fallback_avatar_url(request)
 
 
 # ---------------------------------------------------------------------
@@ -152,9 +212,9 @@ class AvatarGenRequest(BaseModel):
     changes: Optional[str] = None  # appended when doing img2img/inpaint
     traits: Optional[Dict[str, str]] = None
 
-    mode: Optional[str] = None  # "txt2img" | "img2img" | "inpaint" (pipeline may override)
-    source_path: Optional[str] = None  # for inpaint
-    mask_path: Optional[str] = None  # for inpaint
+    mode: Optional[str] = None  # "txt2img" | "img2img" (pipeline may override)
+    source_path: Optional[str] = None  # optional override for img2img
+    mask_path: Optional[str] = None  # legacy: ignored in flux-only pipeline
 
     seed: Optional[int] = None
     steps: Optional[int] = None
@@ -180,15 +240,11 @@ class AvatarGenRequest(BaseModel):
 # ---------------------------------------------------------------------
 def cache_busted_url(file_path: Path) -> str:
     """Append file mtime to static URL to bust caches."""
-    file_path = file_path.resolve()
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Avatar not found")
-    try:
-        rel_path = file_path.relative_to(STATIC_ROOT).as_posix()
-    except ValueError:
-        raise HTTPException(status_code=500, detail="Avatar path outside static root")
-    ts = int(file_path.stat().st_mtime)
-    return f"{STATIC_URL_PREFIX}/{rel_path}?v={ts}"
+    if file_path.exists():
+        ts = int(file_path.stat().st_mtime)
+        rel_path = file_path.as_posix().split("/static")[-1]
+        return f"/static{rel_path}?v={ts}"
+    return f"/static/{file_path.name}"
 
 
 # ---------------------------------------------------------------------
@@ -289,7 +345,7 @@ def infer_intent_and_nsfw(prompt: Optional[str], changes: Optional[str]) -> tupl
 # ---------------------------------------------------------------------
 def _append_session_memory(request: Request, event: Dict[str, Any]) -> None:
     registry = getattr(request.app.state, "alpha_sessions", None)
-    session_id = request.headers.get("X-Lexi-Session")
+    session_id = getattr(request.state, "session_id", None) or request.headers.get("X-Lexi-Session")
     if not session_id or not isinstance(registry, SessionRegistry):
         return
     try:
@@ -301,6 +357,7 @@ def _append_session_memory(request: Request, event: Dict[str, Any]) -> None:
 @router.post("/process")
 async def process(req: ChatRequest, request: Request):
     logger.info("🗨️ /process prompt=%r", req.prompt)
+    log_event(request, "user", req.prompt or "", event="chat_prompt")
     _append_session_memory(
         request,
         {"role": "user", "event": "chat_prompt", "text": req.prompt},
@@ -309,26 +366,57 @@ async def process(req: ChatRequest, request: Request):
     # Guard against assistant loops
     if req.prompt.startswith(("Lexi:", "assistant:")):
         logger.warning("🛑 Ignoring looped assistant prompt: %r", req.prompt)
+        log_event(
+            request,
+            "system",
+            "[loop detected, halted]",
+            event="chat_loop_guard",
+        )
         return JSONResponse(
             {
                 "cleaned": "[loop detected, halted]",
                 "raw": "",
                 "choices": [],
                 "mode": lexi_persona.get_mode(),
+                "session_id": getattr(request.state, "session_id", None),
             }
         )
 
+    prompt_text = (req.prompt or "").strip()
+    prompt_lower = prompt_text.lower()
     incoming_intent = (req.intent or "").strip().lower()
-    if incoming_intent in {"avatar_edit", "new_look"}:
-        traits_state = load_traits() or {}
-        has_traits = bool(traits_state)
-        fresh_base = incoming_intent == "new_look" or not has_traits
-        use_img2img = incoming_intent == "avatar_edit" and has_traits and not fresh_base
+    if (
+        incoming_intent == "avatar_edit"
+        or "let's change your look" in prompt_lower
+        or "lets change your look" in prompt_lower
+    ):
+        logger.info("Avatar edit intent disabled for prompt=%r", req.prompt)
+        avatar_url = await _per_ip_avatar_or_fallback(request)
+        log_event(
+            request,
+            "assistant",
+            "Avatar edit is disabled.",
+            event="avatar_edit_disabled",
+        )
+        return JSONResponse(
+            {
+                "intent": "avatar_edit_disabled",
+                "message": "Avatar edit is temporarily disabled.",
+                "avatar_url": avatar_url,
+            }
+        )
 
+    if incoming_intent == "new_look":
+        traits_state = load_traits()
+        if traits_state is None:
+            traits_state = {}
+        has_traits = bool(traits_state)
+
+        fresh_base = incoming_intent == "new_look" or not has_traits
         prompt_arg: Optional[str] = req.prompt if fresh_base else None
-        changes_arg: Optional[str] = req.prompt if incoming_intent == "avatar_edit" and not fresh_base else None
-        mode_arg = "img2img" if use_img2img else "txt2img"
-        intent_strength = "medium" if incoming_intent == "avatar_edit" else "strong"
+        changes_arg: Optional[str] = None
+        mode_arg = "txt2img"
+        intent_strength = "strong"
 
         try:
             result = generate_avatar_pipeline(
@@ -343,6 +431,7 @@ async def process(req: ChatRequest, request: Request):
         except Exception as exc:
             if USE_COMFY_ONLY:
                 logger.warning("Avatar intent pipeline failed (non-fatal): %s", exc)
+                avatar_url = await _per_ip_avatar_or_fallback(request)
                 return JSONResponse(
                     {
                         "status": "warn",
@@ -350,7 +439,7 @@ async def process(req: ChatRequest, request: Request):
                         "avatar_pipeline": "skipped",
                         "mode": lexi_persona.get_mode(),
                         "session_id": getattr(request.state, "session_id", None),
-                        "avatar_url": _fallback_avatar_url(request),
+                        "avatar_url": avatar_url,
                     }
                 )
             logger.error("Avatar intent pipeline failed: %s", exc)
@@ -360,6 +449,7 @@ async def process(req: ChatRequest, request: Request):
             error_msg = result.get("error", "avatar generation failed")
             if USE_COMFY_ONLY:
                 logger.warning("Avatar intent preflight skipped (warn-only): %s", error_msg)
+                avatar_url = await _per_ip_avatar_or_fallback(request)
                 return JSONResponse(
                     {
                         "status": "warn",
@@ -367,7 +457,7 @@ async def process(req: ChatRequest, request: Request):
                         "avatar_pipeline": "skipped",
                         "mode": lexi_persona.get_mode(),
                         "session_id": getattr(request.state, "session_id", None),
-                        "avatar_url": _fallback_avatar_url(request),
+                        "avatar_url": avatar_url,
                     }
                 )
             logger.error("Avatar intent pipeline returned error: %s", error_msg)
@@ -398,15 +488,24 @@ async def process(req: ChatRequest, request: Request):
                 "avatar_url": avatar_url,
             },
         )
+        log_event(
+            request,
+            "assistant",
+            narration,
+            event="chat_avatar_update",
+            avatar_url=avatar_url,
+        )
 
         response_payload: Dict[str, Any] = {
             "cleaned": narration,
             "avatar_url": avatar_url,
             "traits": traits_state,
             "mode": lexi_persona.get_mode(),
+            "session_id": getattr(request.state, "session_id", None),
         }
         if result.get("meta"):
             response_payload["meta"] = result["meta"]
+
         return JSONResponse(response_payload)
 
     # Trait extraction (optional; only if wired)
@@ -419,7 +518,7 @@ async def process(req: ChatRequest, request: Request):
         result = generate_avatar_pipeline(traits=traits)
         if not result.get("ok"):
             raise HTTPException(
-                status_code=200, detail=result.get("error", "avatar generation failed")
+                status_code=502, detail=result.get("error", "avatar generation failed")
             )
 
         url = result.get("url")
@@ -437,12 +536,20 @@ async def process(req: ChatRequest, request: Request):
                 "avatar_url": avatar_url,
             },
         )
+        log_event(
+            request,
+            "assistant",
+            "Got it, updating her look! 💄",
+            event="chat_avatar_update",
+            avatar_url=avatar_url,
+        )
         return JSONResponse(
             {
                 "cleaned": "Got it, updating her look! 💄",
                 "avatar_url": avatar_url,
                 "traits": traits,
                 "mode": lexi_persona.get_mode(),
+                "session_id": getattr(request.state, "session_id", None),
             }
         )
 
@@ -471,12 +578,19 @@ async def process(req: ChatRequest, request: Request):
             request,
             {"role": "assistant", "event": "chat_reply", "text": reply_text},
         )
+        log_event(
+            request,
+            "assistant",
+            reply_text,
+            event="chat_reply",
+        )
 
         return {
             "cleaned": reply_text,
             "raw": reply_text,
             "choices": [{"text": reply_text}],
             "mode": lexi_persona.get_mode(),
+            "session_id": getattr(request.state, "session_id", None),
         }
 
     if wants_stream:
@@ -485,10 +599,76 @@ async def process(req: ChatRequest, request: Request):
         final_payload: Dict[str, Any] = {}
         error_holder: Dict[str, str] = {}
 
+        _think_start_re = re.compile(r"<(think|thinking|scratchpad)[^>]*>", re.I)
+        _think_end_re = re.compile(r"</(think|thinking|scratchpad)>", re.I)
+        _strip_tokens_re = re.compile(
+            r"<\|\s*(?:im_start|im_end|system|user|assistant|endoftext|object_ref_start|object_ref_end|box_start|box_end|quad_start|quad_end|vision_start|vision_end)\s*\|>",
+            re.I,
+        )
+        _inline_think_re = re.compile(
+            r"<(think|thinking|scratchpad)[^>]*>.*?(?:</(think|thinking|scratchpad)>|$)",
+            re.I | re.S,
+        )
+
+        def _sanitize_chunk(raw: str, state: Dict[str, Any]) -> str:
+            buf = state.get("buf", "") + raw
+            in_think = state.get("in_think", False)
+            out_parts: list[str] = []
+
+            while buf:
+                if in_think:
+                    m_end = _think_end_re.search(buf)
+                    if not m_end:
+                        state["buf"] = ""
+                        state["in_think"] = True
+                        return ""
+                    buf = buf[m_end.end() :]
+                    in_think = False
+                    continue
+
+                m_start = _think_start_re.search(buf)
+                if not m_start:
+                    out_parts.append(buf)
+                    buf = ""
+                    break
+
+                if m_start.start() > 0:
+                    out_parts.append(buf[: m_start.start()])
+                buf = buf[m_start.end() :]
+                m_end = _think_end_re.search(buf)
+                if m_end:
+                    buf = buf[m_end.end() :]
+                    in_think = False
+                    continue
+                buf = ""
+                in_think = True
+                break
+
+            state["buf"] = buf
+            state["in_think"] = in_think
+            text = "".join(out_parts)
+            if not text:
+                return ""
+
+            text = _strip_tokens_re.sub("", text)
+            text = re.sub(r"</?(assistant|system|user)>", "", text, flags=re.I)
+            text = re.sub(r"</?tool_call>|</?tool_response>", "", text, flags=re.I)
+            text = _inline_think_re.sub("", text)
+            text = _think_start_re.sub("", text)
+            text = _think_end_re.sub("", text)
+            return text.strip()
+
         def stream_callback(chunk: str) -> None:
             if not chunk:
                 return
-            loop.call_soon_threadsafe(queue.put_nowait, chunk)
+            try:
+                cleaned = _sanitize_chunk(chunk, state)
+                if cleaned:
+                    loop.call_soon_threadsafe(queue.put_nowait, cleaned)
+            except Exception as exc:
+                logger.warning("stream sanitize failed: %s", exc)
+                state["buf"] = ""
+                state["in_think"] = False
 
         async def run_chat() -> None:
             try:
@@ -497,7 +677,7 @@ async def process(req: ChatRequest, request: Request):
                 )
                 final_payload.update(finalize_reply(reply_value))
             except Exception as exc:
-                logger.warning("❌ LexiPersona.chat failed: %s", exc)
+                logger.error("❌ LexiPersona.chat failed: %s", exc)
                 error_holder["message"] = str(exc)
                 _append_session_memory(
                     request,
@@ -518,7 +698,6 @@ async def process(req: ChatRequest, request: Request):
             if error_holder:
                 yield json.dumps({"error": error_holder["message"]}) + "\n"
             else:
-                # Ensure we always emit a completion payload
                 if not final_payload:
                     final_payload.update(finalize_reply(""))
                 yield json.dumps({"done": True, **final_payload}) + "\n"
@@ -528,7 +707,7 @@ async def process(req: ChatRequest, request: Request):
     try:
         reply = await asyncio.to_thread(lexi_persona.chat, req.prompt)
     except Exception as exc:
-        logger.warning("❌ LexiPersona.chat failed: %s", exc)
+        logger.error("❌ LexiPersona.chat failed: %s", exc)
         _append_session_memory(
             request,
             {"role": "assistant", "event": "chat_error", "error": str(exc)},
@@ -607,11 +786,12 @@ async def generate_avatar(request: Request, req: AvatarGenRequest) -> JSONRespon
             or bool(_NEW_LOOK.search((prompt or "") + " " + (changes or ""))),
         )
     except Exception as exc:
-        logger.warning("Avatar pipeline failed: %s", exc)
+        logger.error("Avatar pipeline failed: %s", exc)
+        fallback_url = await _per_ip_avatar_or_fallback(request)
         return JSONResponse(
             {
                 "ok": False,
-                "url": _absolute_url(request, STARTER_AVATAR_PATH),
+                "url": fallback_url,
                 "error": str(exc),
                 "intent": intent,
                 "nsfw": nsfw,
@@ -619,10 +799,11 @@ async def generate_avatar(request: Request, req: AvatarGenRequest) -> JSONRespon
         )
 
     if not result.get("ok"):
+        fallback_url = await _per_ip_avatar_or_fallback(request)
         return JSONResponse(
             {
                 "ok": False,
-                "url": _absolute_url(request, STARTER_AVATAR_PATH),
+                "url": fallback_url,
                 "error": result.get("error", "Comfy pipeline error"),
                 "intent": intent,
                 "nsfw": nsfw,
@@ -649,11 +830,18 @@ async def generate_avatar(request: Request, req: AvatarGenRequest) -> JSONRespon
 
 
 # Legacy alias for backwards compatibility
-@persona_router.post("/avatar")
-def avatar_endpoint(req: ChatRequest) -> JSONResponse:
+@persona_router.api_route("/avatar", methods=["GET", "POST"])
+async def avatar_endpoint(request: Request, req: Optional[ChatRequest] = None) -> JSONResponse:
+    if request.method.upper() == "GET":
+        avatar_url = await _per_ip_avatar_or_fallback(request)
+        return JSONResponse({"ok": True, "url": avatar_url, "avatar_url": avatar_url})
+
+    if req is None or not isinstance(req.prompt, str):
+        raise HTTPException(status_code=400, detail="Prompt is required")
+
     result = generate_avatar_pipeline(prompt=req.prompt, refiner=True, style="realistic")
     if not result.get("ok"):
-        pass  # preflight disabled)
+        raise HTTPException(status_code=502, detail=result.get("error", "avatar generation failed"))
     return JSONResponse({"ok": True, "url": result["url"], "meta": result.get("meta", {})})
 
 
@@ -685,8 +873,8 @@ def image_from_prompt(req: ChatRequest) -> Any:
         response.raise_for_status()
         img_b64 = response.json()["images"][0]
     except Exception as exc:
-        logger.warning("🛑 SD API failure: %s", exc)
-        return PlainTextResponse(STARTER_AVATAR_PATH, status_code=500)
+        logger.error("🛑 SD API failure: %s", exc)
+        return PlainTextResponse(f"{AVATAR_URL_PREFIX}/{LEGACY_BASE_NAME}", status_code=500)
 
     fname = f"lexi_avatar_{uuid4().hex[:6]}.png"
     file_path = _safe_join_avatar(fname, getattr(request.state, "session_id", None))

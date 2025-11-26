@@ -1,6 +1,9 @@
-from fastapi import APIRouter
-from ..utils.now_models import NowItem, WebDoc, WebSearchRequest
+import asyncio
+
+from fastapi import APIRouter, HTTPException
+from ..utils.now_models import MoviesNowRequest, NowItem, WebDoc, WebSearchRequest
 from ..utils.now_ingest import query_now
+from ..utils.movies_tool import movies_now
 from ..utils.now_summarize import summarize_for_smalltalk
 from ..config.now import settings_now
 
@@ -33,3 +36,13 @@ async def tool_web_search(req: WebSearchRequest):
     from ..utils.web_search_tool import web_search
 
     return await web_search(req)
+
+
+@tools.post("/movies_now")
+async def tool_movies_now(req: MoviesNowRequest):
+    try:
+        return await asyncio.to_thread(
+            movies_now, req.location, req.start_date, req.end_date, req.limit
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc))

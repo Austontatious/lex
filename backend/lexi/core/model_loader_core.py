@@ -1,6 +1,6 @@
 # model_loader_core.py (upgrade)
 from __future__ import annotations
-import os, json, time, logging
+import os, json, time, logging, re, copy
 from typing import Any, Dict, List, Optional, Union, Generator, Tuple
 import requests
 from requests.adapters import HTTPAdapter, Retry
@@ -70,17 +70,35 @@ class ModelLoader:
     # ---------- helpers ----------
     @staticmethod
     def _coerce_to_messages(
-        payload: Union[str, Dict[str, Any], List[Dict[str, str]]],
-    ) -> List[Dict[str, str]]:
+        payload: Union[str, Dict[str, Any], List[Dict[str, Any]]],
+    ) -> List[Dict[str, Any]]:
         if isinstance(payload, str):
-            return [{"role": "user", "content": payload}]
-        if isinstance(payload, list):
-            return payload
-        if isinstance(payload, dict) and isinstance(payload.get("messages"), list):
-            return payload["messages"]
-        raise TypeError(
-            "Unsupported payload: expected str, list[dict], or {'messages': [...]} dict."
-        )
+            msgs: List[Dict[str, Any]] = [{"role": "user", "content": payload}]
+        elif isinstance(payload, list):
+            msgs = [copy.deepcopy(m) if isinstance(m, dict) else {"role": "user", "content": str(m)} for m in payload]
+        elif isinstance(payload, dict) and isinstance(payload.get("messages"), list):
+            msgs = [copy.deepcopy(m) if isinstance(m, dict) else {"role": "user", "content": str(m)} for m in payload["messages"]]
+        else:
+            msgs = []
+
+        def _strip_tags(text: str) -> str:
+            return re.sub(r"</?tool_(call|response)>", "", text)
+
+        # Strip vestigial tool tags from content and tool_call arguments
+        for m in msgs:
+            if not isinstance(m, dict):
+                continue
+            if isinstance(m.get("content"), str):
+                m["content"] = _strip_tags(m["content"])
+            tool_calls = m.get("tool_calls")
+            if isinstance(tool_calls, list):
+                for call in tool_calls:
+                    if not isinstance(call, dict):
+                        continue
+                    fn = call.get("function")
+                    if isinstance(fn, dict) and isinstance(fn.get("arguments"), str):
+                        fn["arguments"] = _strip_tags(fn["arguments"])
+        return msgs
 
     def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{path}"
@@ -93,13 +111,18 @@ class ModelLoader:
                 err = r.json()
             except Exception:
                 err = {"text": r.text[:500]}
+            try:
+                body_preview = json.dumps(body, ensure_ascii=False)
+            except Exception:
+                body_preview = str(body)
             log.warning(
-                "LLM POST %s %s -> %s in %.0f ms: %s",
+                "LLM POST %s %s -> %s in %.0f ms: %s | body=%s",
                 path,
                 body.get("model"),
                 r.status_code,
                 dt,
                 err,
+                body_preview[:20000],
             )
             r.raise_for_status()
         return r.json()
@@ -163,6 +186,10 @@ class ModelLoader:
         (raw = full provider response)
         """
         messages = self._coerce_to_messages(payload)
+        # vLLM rejects "auto" unless launched with tool support; coerce to None
+        if tool_choice == "auto":
+            tool_choice = None
+
         params = self._safe_params(
             max_tokens=max_tokens,
             temperature=temperature,

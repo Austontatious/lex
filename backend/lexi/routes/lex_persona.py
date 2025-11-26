@@ -21,6 +21,7 @@ from ..config.config import (
     TRAIT_STATE_PATH,
 )
 from ..persona.persona_core import lex_persona
+from ..utils.user_identity import normalize_user_id, user_bucket, user_id_feature_enabled
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["persona"])
@@ -58,14 +59,30 @@ DESCRIBE_PATTERN = re.compile(
 )
 
 
+def _request_user_id(request: Request) -> Optional[str]:
+    if not user_id_feature_enabled():
+        return None
+    return normalize_user_id(getattr(request.state, "user_id", None))
+
+
 # --- Helper functions ---
-def _load_traits() -> Dict[str, str]:
+def _state_path(user_id: Optional[str]) -> Path:
+    """Resolve persona state file, optionally per-user when enabled."""
+    if user_id_feature_enabled():
+        bucket = user_bucket(TRAIT_STATE_PATH.parent, user_id)
+        if bucket:
+            return bucket / TRAIT_STATE_PATH.name
+    return TRAIT_STATE_PATH
+
+
+def _load_traits(user_id: Optional[str] = None) -> Dict[str, str]:
     """
     Load saved traits from state file.
     """
     try:
-        if TRAIT_STATE_PATH.exists():
-            data = json.loads(TRAIT_STATE_PATH.read_text())
+        path = _state_path(user_id)
+        if path.exists():
+            data = json.loads(path.read_text())
             traits = data.get("traits", {})
             if isinstance(traits, dict):
                 return {str(k): str(v) for k, v in traits.items()}
@@ -74,15 +91,16 @@ def _load_traits() -> Dict[str, str]:
     return {}
 
 
-def _save_traits(traits: Dict[str, str], avatar_path: Optional[str] = None) -> None:
+def _save_traits(traits: Dict[str, str], avatar_path: Optional[str] = None, user_id: Optional[str] = None) -> None:
     """
     Persist traits (and optional avatar path) to state file.
     """
+    path = _state_path(user_id)
     state: dict[str, Any] = {"traits": traits}
     if avatar_path:
         state["avatar_path"] = avatar_path
     try:
-        TRAIT_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+        path.write_text(json.dumps(state, ensure_ascii=False, indent=2))
     except Exception as exc:
         logger.warning("Failed to save traits: %s", exc)
 
@@ -163,15 +181,17 @@ async def add_trait(request: Request) -> Dict[str, Any]:
     Add a single trait to the next missing field in avatar flow.
     """
     payload = await request.json()
+    user_id = _request_user_id(request)
+    lex_persona.set_user(user_id)
     trait = str(payload.get("trait", "")).strip()
     if not trait:
         raise HTTPException(status_code=400, detail="Missing 'trait' field")
 
-    traits = _load_traits()
+    traits = _load_traits(user_id)
     missing = get_missing_fields(traits)
     if missing:
         traits[missing[0]] = trait
-        save_traits(traits)
+        save_traits(traits, user_id=user_id)
 
     ready = not get_missing_fields(traits)
     prompt = assemble_prompt(traits) if ready else ""
@@ -202,12 +222,14 @@ async def avatar_step(request: Request) -> Dict[str, Any]:
     Stepwise conversation for avatar traits: ask missing fields until done.
     """
     payload = await request.json()
+    user_id = _request_user_id(request)
+    lex_persona.set_user(user_id)
     traits: Dict[str, str] = payload.get("traits", {}) or {}
     reply: str = str(payload.get("reply", "")).strip()
 
     if reply and get_missing_fields(traits):
         traits[get_missing_fields(traits)[0]] = reply
-        save_traits(traits)
+        save_traits(traits, user_id=user_id)
 
     ready = not get_missing_fields(traits)
     prompt = assemble_prompt(traits) if ready else ""
@@ -232,12 +254,14 @@ async def avatar_step(request: Request) -> Dict[str, Any]:
 
 
 @router.get("/get")
-async def get_persona() -> Dict[str, Any]:
+async def get_persona(request: Request) -> Dict[str, Any]:
     """
     Retrieve current persona state and avatar path.
     """
     try:
-        state = json.loads(TRAIT_STATE_PATH.read_text())
+        user_id = _request_user_id(request)
+        lex_persona.set_user(user_id)
+        state = json.loads(_state_path(user_id).read_text())
         traits = state.get("traits", {})
         avatar = state.get("avatar_path", STARTER_AVATAR_PATH)
         avatar_name = Path(str(avatar).split("?")[0]).name

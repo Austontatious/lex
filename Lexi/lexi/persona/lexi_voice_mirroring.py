@@ -39,6 +39,8 @@ import statistics
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Tuple
 
+import random
+
 _WORD_RE = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
 _EMOJI_RE = re.compile(r"[\U0001F300-\U0001FAFF\U00002700-\U000027BF]")
@@ -332,9 +334,9 @@ def _mirror_punct(text: str, p: Dict) -> str:
     # Exclamations: add at most one if user's exclam habit is medium/high and none exists
     if p["exclam_ratio"] > 0.07 and "!" not in t and len(t) < 220:
         t = re.sub(r"([.!?])$", "!", t)
-    # Ellipses: if user uses them often, allow one soft trailing ellipsis sometimes
-    if p["ellipses_ratio"] > 0.08 and not t.endswith("...") and len(t) < 260:
-        if t.endswith("."):
+    # Ellipses: if user uses them often, rarely mirror with a trailing beat
+    if p["ellipses_ratio"] > 0.12 and not t.endswith("...") and len(t) < 260:
+        if t.endswith(".") and random.random() < 0.35:
             t = t[:-1] + "..."
     return t
 

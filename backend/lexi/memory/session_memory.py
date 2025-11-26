@@ -4,8 +4,18 @@ import os
 import re
 import json
 import time
-from typing import Callable, List, Dict, Optional
+from typing import Callable, List, Dict, Optional, Any
 from ..utils.emotion_core import infer_emotion  # import at top if not already
+from ..utils.user_identity import normalize_user_id
+
+try:  # optional vector sink
+    from .vector_store import archive_context_to_chroma, vector_feature_enabled
+except Exception:  # pragma: no cover - optional dependency
+    def vector_feature_enabled() -> bool:
+        return False
+
+    def archive_context_to_chroma(*args, **kwargs) -> Dict[str, object]:
+        return {"ok": False, "enabled": False}
 
 STOPWORDS = set(
     """
@@ -105,7 +115,20 @@ class SessionMemoryManager:
         self.max_pairs = max_pairs
         self.session_id = self._new_session_id()
         self.buffer: List[Dict] = []
+        self._user_id: Optional[str] = None
         self._load()
+
+    def set_session_path(self, session_path: Optional[str]) -> None:
+        """Swap persistence path and reload buffer."""
+        if session_path and session_path != self.session_path:
+            self.session_path = session_path
+            self.session_id = self._new_session_id()
+            self.buffer = []
+            self._load()
+
+    def set_user(self, user_id: Optional[str]) -> None:
+        """Record user_id for downstream vector tagging."""
+        self._user_id = normalize_user_id(user_id)
 
     def _new_session_id(self) -> str:
         # Use timestamp for now; could use uuid.uuid4() if you prefer
@@ -136,6 +159,7 @@ class SessionMemoryManager:
         if len(self.buffer) > self.max_pairs:
             self.buffer = self.buffer[-self.max_pairs :]
         self._save()
+        self._maybe_vectorize(entry)
 
     def total_tokens(self) -> int:
         """Fast token count using cached values if present."""
@@ -246,3 +270,28 @@ class SessionMemoryManager:
     def clear(self):
         """Alias for reset (for external calls)."""
         self.reset()
+
+    def _maybe_vectorize(self, entry: Dict[str, Any]) -> None:
+        """Best-effort vector ingest for session summaries."""
+        if not vector_feature_enabled():
+            return
+        user_msg = entry.get("user") or ""
+        ai_msg = entry.get("ai") or ""
+        summary = entry.get("summary") or ""
+        text = f"User: {user_msg}\nLex: {ai_msg}\nSummary: {summary}".strip()
+        if not text:
+            return
+        meta: Dict[str, Any] = {
+            "session_id": entry.get("session_id", self.session_id),
+            "user_id": self._user_id or "shared",
+            "emotion": entry.get("emotion"),
+        }
+        doc_id = f"{self.session_id}-{int(time.time() * 1000)}-{len(self.buffer)}"
+        try:
+            archive_context_to_chroma(
+                [{"id": doc_id, "text": text, "metadata": meta}],
+                session_id=str(meta["session_id"]),
+                user_id=self._user_id,
+            )
+        except Exception:  # pragma: no cover - defensive
+            return

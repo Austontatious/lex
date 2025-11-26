@@ -50,7 +50,6 @@ from ..config.runtime_env import (
 from .sd_prompt_styles import MODE_PRESETS
 from .comfy_client import comfy_flux_generate
 from .flux_defaults import FLUX_DEFAULTS
-from .flux_prompt_builder import build_prompts
 
 # ------------------------- Config/Paths -------------------------
 
@@ -947,20 +946,20 @@ def _run_flux_backend(
     upscale_height = int(FLUX_DEFAULTS["upscale_h"])
 
     preset_cfg = FLUX_PRESETS.get((preset or "").strip().lower())
+    preset_style_hint = preset_cfg.get("style") if preset_cfg else None
+    preset_subject_prefix = preset_cfg.get("subject_prefix", "") if preset_cfg else ""
+
     subject_prompt = positive_clip or prompt
     style_prompt = positive_t5 or ""
     if not subject_prompt:
         subject_prompt = prompt
+    if preset_subject_prefix:
+        subject_prompt = f"{preset_subject_prefix}{subject_prompt}"
     if not style_prompt:
-        style_hint = None
-        if preset_cfg:
-            subject_prompt = f"{preset_cfg.get('subject_prefix', '')}{subject_prompt}"
-            style_hint = preset_cfg.get("style")
+        style_hint = preset_style_hint
         subject_prompt, style_prompt = FluxPromptAdapter.split(subject_prompt, style_hint)
-
-    if positive_clip and positive_t5:
-        # Already explicit; nothing to do
-        pass
+    elif preset_style_hint:
+        style_prompt = ", ".join([p for p in (style_prompt, preset_style_hint) if p])
 
     if negative_clip and negative_t5:
         negative_flux_clip = negative_clip
@@ -970,33 +969,52 @@ def _run_flux_backend(
         negative_flux_clip = negative_flux
         negative_flux_t5 = negative_flux
 
-    if mode != "txt2img":
-        raise ValueError(
-            "Flux workflow currently supports txt2img only. "
-            "TODO(auston): default_<seed>.png → VAE Encode + mask for edits."
-        )
-
     paths = _flux_variant_paths(variant)
-    graph = _flux_txt2img_graph(
-        paths=paths,
-        subject_prompt=subject_prompt,
-        style_prompt=style_prompt,
-        negative_clip=negative_flux_clip,
-        negative_t5=negative_flux_t5,
-        width=width,
-        height=height,
-        steps=flux_steps,
-        cfg=flux_cfg,
-        guidance_pos=flux_guidance_pos,
-        guidance_neg=flux_guidance_neg,
-        seed=seed,
-        sampler=k_sampler,
-        scheduler=k_scheduler,
-        denoise=flux_denoise,
-        filename_prefix=_sanitize_filename_token(base_path.stem),
-        upscale_width=upscale_width,
-        upscale_height=upscale_height,
-    )
+    if mode == "img2img":
+        if not source_path:
+            raise ValueError("img2img requested without source image")
+        source_filename = _upload_image_to_comfy(str(source_path))
+        # Default to gentler denoise for identity-preserving edits
+        if denoise is None:
+            flux_denoise = 0.35
+        else:
+            flux_denoise = max(0.10, min(float(flux_denoise), 0.75))
+        graph = _flux_img2img_graph(
+            paths=paths,
+            subject_prompt=subject_prompt,
+            style_prompt=style_prompt,
+            negative_prompt=negative_flux_clip,
+            seed=seed,
+            steps=flux_steps,
+            cfg=flux_cfg,
+            guidance=flux_guidance_pos,
+            sampler=k_sampler,
+            scheduler=k_scheduler,
+            denoise=flux_denoise,
+            source_filename=source_filename,
+            filename_prefix=_sanitize_filename_token(base_path.stem),
+        )
+    else:
+        graph = _flux_txt2img_graph(
+            paths=paths,
+            subject_prompt=subject_prompt,
+            style_prompt=style_prompt,
+            negative_clip=negative_flux_clip,
+            negative_t5=negative_flux_t5,
+            width=width,
+            height=height,
+            steps=flux_steps,
+            cfg=flux_cfg,
+            guidance_pos=flux_guidance_pos,
+            guidance_neg=flux_guidance_neg,
+            seed=seed,
+            sampler=k_sampler,
+            scheduler=k_scheduler,
+            denoise=flux_denoise,
+            filename_prefix=_sanitize_filename_token(base_path.stem),
+            upscale_width=upscale_width,
+            upscale_height=upscale_height,
+        )
 
     start_time = time.time()
     try:
@@ -1171,32 +1189,18 @@ def generate_avatar_pipeline(
         if changes and mode == "img2img":
             prompt = f"{prompt}, {changes}"
 
-        trait_descriptors: list[str] = []
-        if prompt:
-            trait_descriptors.append(prompt)
-        if changes and mode != "txt2img":
-            trait_descriptors.append(changes)
-        if traits:
-            for key in ("hair", "eyes", "pose", "lighting", "background", "face", "skin"):
-                val = str(traits.get(key, "")).strip()
-                if val:
-                    trait_descriptors.append(f"{key}: {val}")
-
         style_delta = str((traits or {}).get("style", "") or "")
         outfit_desc = str((traits or {}).get("outfit", "") or "")
         mood_desc = str((traits or {}).get("vibe", "") or "")
         env_desc = str((traits or {}).get("background", "") or "")
 
-        positive_clip, positive_t5, negative_clip, negative_t5 = build_prompts(
-            traits=trait_descriptors,
-            style_delta=style_delta,
-            outfit=outfit_desc,
-            mood=mood_desc,
-            env=env_desc,
-        )
+        # Build compact Flux prompts following BFL guidance: subject first, then style/context.
+        style_parts = [style_delta, outfit_desc, mood_desc, env_desc]
+        style_hint = ", ".join([p.strip() for p in style_parts if p.strip()])
+        subject_prompt, style_prompt = FluxPromptAdapter.split(prompt, style_hint or None)
 
-        neg_components = [negative_clip, negative_t5, negative]
-        neg_full = ", ".join(x for x in neg_components if x)
+        # Single consolidated negative prompt for both encoders
+        neg_full = FluxPromptAdapter.negatives(negative)
 
         # Loosen negatives for outfit edits so clothing isn't suppressed
         if wants_outfit:
@@ -1236,6 +1240,11 @@ def generate_avatar_pipeline(
                 ]
             )
 
+        positive_clip = subject_prompt
+        positive_t5 = style_prompt
+        negative_clip = neg_full
+        negative_t5 = neg_full
+
         # 3) Seed (continuity) — always coerce to a 32-bit int
         # For img2img edits keep composition by default (no outfit salt);
         # allow salt only for fresh txt2img or explicit strong variation.
@@ -1246,14 +1255,21 @@ def generate_avatar_pipeline(
         #   - If fresh_base=True OR the per-IP base is missing -> txt2img, write the base image.
         #   - Otherwise default to img2img using either the caller's source or the stored base.
         force_output_to_base = False
-        sp: Optional[Path] = Path(source_path).resolve() if source_path else None
+        mode = (mode or "txt2img").strip().lower()
+        sp: Optional[Path] = Path(source_path).expanduser().resolve() if source_path else None
 
-        mode = "txt2img"
-        sp = None
-        force_output_to_base = True
-        # TODO(auston): re-introduce img2img by loading default_<seed>.png via VAE Encode + mask.
-        if mode != "txt2img":
-            raise ValueError("Flux backend currently supports txt2img only")
+        if fresh_base or base_missing:
+            mode = "txt2img"
+            force_output_to_base = True
+        else:
+            candidate = sp or base_path
+            if candidate.exists():
+                mode = "img2img"
+                sp = candidate
+            else:
+                # Fall back to txt2img (refresh base) if source is missing
+                mode = "txt2img"
+                force_output_to_base = True
 
         flux_variant = kwargs.get("flux_variant") or kwargs.get("variant")
         flux_preset = kwargs.get("flux_preset") or kwargs.get("preset")

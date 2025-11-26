@@ -114,18 +114,26 @@ async def _fetch_with_retry(
 
 
 async def ingest_tmdb() -> List[NowItem]:
-    key = settings_now.TMDB_API_KEY
-    if not key:
+    bearer = settings_now.TMDB_READ_ACCESS_TOKEN
+    api_key = settings_now.TMDB_API_KEY
+    if not bearer and not api_key:
         return []
     base = "https://api.themoviedb.org/3/trending"
     items: List[NowItem] = []
 
     async with httpx.AsyncClient(timeout=20) as client:
         for kind, cat in (("movie", "movies"), ("tv", "tv")):
-            url = f"{base}/{kind}/day?{urlencode({'language': 'en-US'})}"
+            params = {"language": "en-US"}
+            if api_key:
+                params["api_key"] = api_key
+            url = f"{base}/{kind}/day?{urlencode(params)}"
 
             async def _request() -> httpx.Response:
-                return await client.get(url, headers={"Authorization": f"Bearer {key}"})
+                headers = {}
+                token = bearer or None
+                if token:
+                    headers["Authorization"] = f"Bearer {token}"
+                return await client.get(url, headers=headers)
 
             try:
                 response = await _fetch_with_retry(f"tmdb:{kind}", _request)

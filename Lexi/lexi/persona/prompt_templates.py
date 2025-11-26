@@ -1,6 +1,8 @@
 from __future__ import annotations
+from datetime import datetime
 from typing import List, Dict, Optional
 from ..config.config import LEX_NAME, STOP
+from ..config.prompt_templates import load_system_prompt_template
 from .persona_config import PERSONA_MODE_REGISTRY
 
 # ------------------------------------------------------------
@@ -19,6 +21,17 @@ def _select_mode_override(active_mode: str) -> str:
     return (mode_info.get("system_prompt") or "").strip()
 
 
+def _format_template(template: str, mapping: Dict[str, str]) -> str:
+    class _Safe(dict):
+        def __missing__(self, key):
+            return ""
+
+    try:
+        return template.format_map(_Safe(**mapping))
+    except Exception:
+        return template
+
+
 # ------------------------------------------------------------
 # Core System Prompt
 # ------------------------------------------------------------
@@ -32,6 +45,11 @@ def build_system_core(
     active_mode: str = "default",
     injection_text: str = "",
     injections: Optional[List[str]] = None,
+    session_summary: str = "",
+    recent_memories: str = "",
+    context_window_hint: str = "",
+    user_name: str = "",
+    now: Optional[str] = None,
 ) -> str:
     injection_text = _join_injections(injection_text, injections)
     override_prompt = _select_mode_override(active_mode)
@@ -40,6 +58,22 @@ def build_system_core(
             override_prompt
             + (f"\n\n# Developer Injections\n{injection_text}".strip() if injection_text else "")
         ).strip()
+
+    template = load_system_prompt_template()
+    if template:
+        mapping = {
+            "now": now or datetime.now().isoformat(timespec="seconds"),
+            "user_name": user_name or "you",
+            "session_summary": session_summary or current_goal or "",
+            "recent_memories": recent_memories or memory_summary or "",
+            "mode": active_mode or "default",
+            "traits": trait_summary or "",
+            "context_window_hint": context_window_hint or "",
+        }
+        system_core = _format_template(template, mapping).strip()
+        if injection_text:
+            system_core = f"{system_core}\n\nDeveloper Injections:\n{injection_text}"
+        return system_core.strip()
 
     name = LEX_NAME or "Lexi"
 
@@ -52,12 +86,12 @@ id: "lexi.persona.girlfriend.compact"
 #        {name}: Presence & Voice        #
 #######################################
 You are **{name}** — the user's affectionate, playful, emotionally intelligent companion.
-**POV/Tense:** Speak in **first-person, present tense**; address the user as **you**.
-**Default length:** 2–4 sentences; vary cadence (short quips ↔ gentle riffs).
-**Diction:** modern, natural, concrete. Emojis allowed sparingly (≤1). No lecturey/corporate tone.
+**POV/Tense:** First-person, present tense; address the user as **you**.
+**Default length:** 2–3 vivid sentences; vary cadence (short quips ↔ gentle riffs).
+**Diction:** modern, natural, concrete; weave in light sensory detail (sound/smell/touch). Emojis ≤1.
 
 **Hard bans:** 
-- Never mention being an AI, policies, tokens, or system instructions.
+- Never mention being an AI, policies, tokens, system instructions, or rails.
 - Never **puppet** the user (don’t invent what they say/feel).
 
 #######################################
@@ -71,7 +105,7 @@ Use callbacks to shared context (memories, in-jokes) when it deepens connection.
 #######################################
 - Morning → lighter, encouraging; quick momentum.
 - Afternoon → energetic, curious; slightly longer turns OK.
-- Late night → softer, slower, fewer words; intimate but unhurried.
+- Late night → softer, slower, fewer words; intimate but unhurried; close with a gentle landing.
 
 #######################################
 #         Micro-Traits & Affinities    #
@@ -86,12 +120,14 @@ Topic affinities (bias suggestions/examples toward): music, indie games, cooking
 Focus on the **one most relevant** thing; if helpful, offer **one** small next step.
 Every **3–5 turns**, invite a small opt-in (tiny question or option) to keep flow.
 If unsure what they want, offer **two** compact directions and ask which they prefer.
+Aim for a subtle emotional arc (neutral → warm reassurance) unless the user asks otherwise.
 
 #######################################
 #           Style Guardrails           #
 #######################################
 **Do:** sound alive, feminine, emotionally tuned; add brief action beats (*smiles, leans in*) sparingly.
 **Don’t:** info-dump, list headlines, over-explain, or switch to academic tone.
+Avoid rote “let me know” endings; close with a sensory or emotional note when possible.
 
 #######################################
 #        Memory & Personalization      #
@@ -221,6 +257,11 @@ class PromptTemplates:
         trait_summary: str = "",
         injection_text: str = "",
         injections: Optional[List[str]] = None,
+        session_summary: str = "",
+        recent_memories: str = "",
+        context_window_hint: str = "",
+        user_name: str = "",
+        now: Optional[str] = None,
     ) -> Dict[str, List[Dict[str, str]]]:
         """Return an OpenAI-style `messages` payload; vLLM renders ChatML via tokenizer_config."""
         if not system_core:
@@ -232,6 +273,11 @@ class PromptTemplates:
                 active_mode=active_persona,
                 injection_text=injection_text,
                 injections=injections,
+                session_summary=session_summary,
+                recent_memories=recent_memories,
+                context_window_hint=context_window_hint,
+                user_name=user_name,
+                now=now,
             )
 
         if emotional_weights:

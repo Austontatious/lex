@@ -2,9 +2,11 @@ import os
 from typing import List, Optional
 
 from pydantic import AnyHttpUrl, Field
+from pydantic.fields import FieldInfo
 
 try:
     from pydantic_settings import BaseSettings
+    _P_SETTINGS = True
 except ModuleNotFoundError:  # pragma: no cover - optional dep
 
     class BaseSettings:  # type: ignore
@@ -17,18 +19,29 @@ except ModuleNotFoundError:  # pragma: no cover - optional dep
         def model_dump(self, *args, **kwargs):
             return dict(self.__dict__)
 
+    _P_SETTINGS = False
 
 from .settings import env
 
-ENABLE_NOW: bool = os.getenv("ENABLE_NOW", "0") == "1"
+
+def _truthy_env(name: str, *, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in ("0", "false", "no", "off")
 
 
-def _env_or_default(name: str, default: Optional[str] = None) -> Optional[str]:
-    if ENABLE_NOW:
-        return env(name)
+ENABLE_NOW: bool = _truthy_env("ENABLE_NOW", default=True)
+
+
+def _env_or_default(
+    name: str, default: Optional[str] = None, *, required_when_enabled: bool = False
+) -> Optional[str]:
     value = os.getenv(name)
     if value:
         return value
+    if ENABLE_NOW and required_when_enabled and default is None:
+        return env(name)
     return default
 
 
@@ -36,13 +49,16 @@ class NowSettings(BaseSettings):
     """Runtime configuration for the Now subsystem."""
 
     TMDB_API_KEY: Optional[str] = Field(default_factory=lambda: _env_or_default("TMDB_API_KEY"))
+    TMDB_READ_ACCESS_TOKEN: Optional[str] = Field(
+        default_factory=lambda: _env_or_default("TMDB_READ_ACCESS_TOKEN")
+    )
     BRAVE_API_KEY: Optional[str] = Field(default_factory=lambda: _env_or_default("BRAVE_API_KEY"))
     TAVILY_API_KEY: Optional[str] = Field(default_factory=lambda: _env_or_default("TAVILY_API_KEY"))
     NEWSAPI_KEY: Optional[str] = Field(default_factory=lambda: os.getenv("NEWSAPI_KEY"))
 
     SUMMARIZER_ENDPOINT: AnyHttpUrl = Field(
         default_factory=lambda: _env_or_default(
-            "SUMMARIZER_ENDPOINT", "http://host.docker.internal:8008/v1/chat/completions"
+            "SUMMARIZER_ENDPOINT", "http://172.17.0.1:8008/v1/chat/completions"
         )
     )
     SUMMARIZER_MODEL: str = Field(
@@ -73,3 +89,12 @@ class NowSettings(BaseSettings):
 
 
 settings_now = NowSettings()
+
+if not _P_SETTINGS:
+    for attr, value in NowSettings.__dict__.items():
+        if isinstance(value, FieldInfo):
+            if value.default_factory is not None:
+                computed = value.default_factory()
+            else:
+                computed = value.default
+            setattr(settings_now, attr, computed)

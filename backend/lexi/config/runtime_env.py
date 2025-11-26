@@ -58,10 +58,6 @@ def _env_path(name: str, default: Path) -> Path:
 COMFY_WORKSPACE_DIR: Path = _env_path("COMFY_WORKSPACE_DIR", BASE_MODELS_DIR / "comfy")
 COMFY_ROOT: Path = _env_path("COMFY_ROOT", COMFY_WORKSPACE_DIR)
 
-LEX_SDXL_CHECKPOINT: Path = _env_path(
-    "LEX_SDXL_CHECKPOINT", COMFY_WORKSPACE_DIR / "sd" / "checkpoints" / "sdxl.safetensors"
-)
-
 _comfy_raw = (
     _env("COMFY_URL")
     or _env("COMFY_BASE_URL")
@@ -93,7 +89,6 @@ __all__ = [
     "COMFY_WORKSPACE_DIR",
     "COMFY_ROOT",
     "COMFY_URL",
-    "LEX_SDXL_CHECKPOINT",
     "MODELS_MOUNT",
     "OPENAI_API_BASE",
     "OPENAI_API_KEY",

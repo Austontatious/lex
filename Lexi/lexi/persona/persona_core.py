@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import codecs
+import random
 import json
 import logging
 import os
@@ -55,6 +56,57 @@ logger = logging.getLogger(__name__)
 STATIC_PREFIX = f"{AVATAR_URL_PREFIX}/"
 SMALL = 1e-9
 NOW_SEED_EVERY_TURNS = 6
+FALLBACK_SOFT_REDIRECTS = [
+    "Let's keep it suggestive and cozy—want me to sketch a slow-burn scene instead?",
+    "I'll keep it playful and classy; want a teasing setup?",
+    "We can flirt around the edges and stay comfy—want playful or tender?",
+    "Happy to set a soft, romantic mood if you like—slow-burn or cozy night-in?",
+]
+
+
+def _strip_think_blocks(text: str) -> str:
+    """Remove any think/scratchpad sections regardless of casing or closure."""
+    if not text:
+        return ""
+    out = text
+    lower = out.lower()
+    tags = ("<think", "<thinking", "<scratchpad")
+    end_tags = ("</think", "</thinking", "</scratchpad")
+    while True:
+        idx_candidates = [lower.find(t) for t in tags if lower.find(t) != -1]
+        idx = min(idx_candidates) if idx_candidates else -1
+        if idx == -1:
+            break
+        end_candidates = [lower.find(e, idx) for e in end_tags if lower.find(e, idx) != -1]
+        end_idx = min(end_candidates) if end_candidates else -1
+        if end_idx == -1:
+            out = out[:idx]
+            lower = out.lower()
+            break
+        end_close = lower.find(">", end_idx)
+        if end_close == -1:
+            out = out[:idx]
+            lower = out.lower()
+            break
+        out = out[:idx] + out[end_close + 1 :]
+        lower = out.lower()
+
+    for tag in ("think", "thinking", "scratchpad"):
+        start_token = f"[{tag}]"
+        end_token = f"[/{tag}]"
+        while True:
+            s = lower.find(start_token)
+            if s == -1:
+                break
+            e = lower.find(end_token, s)
+            if e == -1:
+                out = out[:s]
+                lower = out.lower()
+                break
+            out = out[:s] + out[e + len(end_token) :]
+            lower = out.lower()
+
+    return out
 
 # --- Love Loop (optional) -----------------------------------------------------
 try:
@@ -101,7 +153,7 @@ def _sampler_policy(
     p.setdefault("top_p", 0.9)
     p.setdefault("presence_penalty", 0.6)
     p.setdefault("repetition_penalty", 1.15)
-    p.setdefault("max_tokens", 240)
+    p.setdefault("max_tokens", 280)
 
     # Mode adjustments
     if mode in ("girlfriend", "muse"):
@@ -112,7 +164,7 @@ def _sampler_policy(
             temperature=min(p["temperature"], 0.6),
             top_p=min(p["top_p"], 0.9),
             presence_penalty=0.3,
-            max_tokens=min(p["max_tokens"], 220),
+            max_tokens=min(p["max_tokens"], 260),
         )
 
     # Seriousness dampening
@@ -122,7 +174,7 @@ def _sampler_policy(
             top_p=0.9,
             presence_penalty=0.2,
             repetition_penalty=max(p.get("repetition_penalty", 1.1), 1.2),
-            max_tokens=min(p["max_tokens"], 220),
+            max_tokens=min(p["max_tokens"], 260),
         )
 
     # Daypart vibe
@@ -153,8 +205,13 @@ def safe_strip(val) -> str:
 # Heuristic trigger for “current events” searches
 _NEWS_CLUES = re.compile(
     r"\b(what(?:'s| is) new|what happened|catch me up|latest|news|did you see|"
-    r"update me|today|tonight|this week|who won|box office|episode|leak|trailer|finals|worlds|wsl|surf)\b",
+    r"update me|today|tonight|this week|who won|box office|episode|leak|trailer|finals|worlds|wsl|surf|"
+    r"watch|on tv|airing|premiere|release|breaking|headline|current events|score|game|match|series|concert|tour|"
+    r"weather|storm|earthquake|wildfire|stock|earnings|nba|nfl|mlb|nhl|soccer|world cup)\b",
     re.I,
+)
+_NEWS_URGENCY = re.compile(
+    r"\b(breaking|urgent|official|verify|fact ?check|exclusive|confirm|source|brave search)\b", re.I
 )
 
 
@@ -202,6 +259,7 @@ class LexiPersona:
         self._avatar_filename: Optional[str] = None
         self._last_prompt: str = ""
         self.system_injections: List[str] = []
+        self._last_gen_meta: Dict[str, Any] = {}
         self._strict_mode = False
 
         # step counter & hysteresis
@@ -287,13 +345,28 @@ class LexiPersona:
     def _maybe_live_search(self, user_text: str) -> Optional[str]:
         """If the user asks about a current topic, run a quick web search and inject 1–3 notes."""
         try:
-            if not _NEWS_CLUES.search(user_text or ""):
+            text = user_text or ""
+            if not _NEWS_CLUES.search(text):
                 return None
+            lowered = text.lower()
+            urgent = bool(_NEWS_URGENCY.search(text))
+            wants_brave = "brave" in lowered
+            provider = "brave" if wants_brave else "auto"
+            if wants_brave:
+                urgent = True
+            time_range = "7d"
+            if re.search(r"\b(today|tonight|right now|this (morning|afternoon|evening))\b", lowered):
+                time_range = "24h"
+            elif "month" in lowered or "30 days" in lowered:
+                time_range = "30d"
             payload = {
-                "query": (user_text or "").strip(),
-                "time_range": "week",
+                "query": text.strip(),
+                "time_range": time_range,
                 "max_results": 3,
                 "include_content": False,
+                "provider": provider,
+                "allow_brave_fallback": urgent,
+                "stall_on_failure": True,
             }
             r = requests.post("http://127.0.0.1:8000/tools/web_search", json=payload, timeout=6)
             if r.status_code != 200:
@@ -338,6 +411,8 @@ class LexiPersona:
             if isinstance(raw, dict) and "text" in raw
             else (raw.strip() if isinstance(raw, str) else str(raw))
         )
+
+        text = _strip_think_blocks(text)
 
         # 0) Strip ChatML & legacy tag tokens and tool tags
         text = _re.sub(
@@ -403,7 +478,10 @@ class LexiPersona:
 
         if not _re.search(r"[.!?…]$", text):
             text += "."
-        return text.strip()
+        text = text.strip()
+        if not text:
+            text = random.choice(FALLBACK_SOFT_REDIRECTS)
+        return text
 
     def _normalize_activations(self):
         total = sum(self.mode_activation.values()) or 1.0
@@ -460,6 +538,7 @@ class LexiPersona:
         )
         if sampler_overrides:
             gen_kwargs.update({k: v for k, v in sampler_overrides.items() if v is not None})
+        self._last_gen_meta = {"finish_reason": None, "usage": None, "params": dict(gen_kwargs)}
 
         # If prompt is large, shrink generation budget to protect latency/coherence
         try:
@@ -501,11 +580,21 @@ class LexiPersona:
             else:
                 summary.setdefault("text", final_text)
             raw = summary
+            if isinstance(summary, dict):
+                self._last_gen_meta.update(
+                    finish_reason=summary.get("finish_reason"),
+                    usage=summary.get("usage"),
+                )
         else:
             try:
                 raw = self.loader.generate(messages_pkg, **gen_kwargs)
             except TypeError:
                 raw = self.loader.generate(messages_pkg)
+            if isinstance(raw, dict):
+                self._last_gen_meta.update(
+                    finish_reason=raw.get("finish_reason"),
+                    usage=raw.get("usage"),
+                )
         return self._clean_reply(raw)
 
     # ------------------------------ axis & emotion ------------------------------
@@ -1069,7 +1158,13 @@ class LexiPersona:
                 active_persona=self._lead_mode,
             )
             self.log_chat("prompt_user_turn", prompt_pkg["messages"][-1]["content"])
+            self._last_gen_meta = {"finish_reason": None, "usage": None, "params": {}}
             raw = self.loader.generate(prompt_pkg)
+            if isinstance(raw, dict):
+                self._last_gen_meta.update(
+                    finish_reason=raw.get("finish_reason"),
+                    usage=raw.get("usage"),
+                )
             reply = self._clean_reply(raw)
             return reply or "[no reply]"
         except Exception as e:
