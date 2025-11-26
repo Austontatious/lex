@@ -1,40 +1,118 @@
-const PROD_FALLBACK = "https://api.lexicompanion.com/lexi";
-const DEFAULT_FALLBACK = "/lexi";
-const isProdHost =
-  typeof window !== "undefined" && window.location.hostname.endsWith("lexicompanion.com");
+const SAME_ORIGIN_BASE = "/lexi";
+const API_OVERRIDE_PARAM = "apiBase";
+const SESSION_STORAGE_KEY = "LEXI_ALPHA_SESSION";
+const USER_ID_STORAGE_KEY = "LEXI_USER_ID";
+const USER_ID_ENABLED = (() => {
+  try {
+    let viteFlag = false;
+    try {
+      viteFlag = (import.meta as any)?.env?.VITE_USER_ID_ENABLED === "1";
+    } catch {
+      viteFlag = false;
+    }
+    const reactFlag = typeof process !== "undefined" && process.env.REACT_APP_USER_ID_ENABLED === "1";
+    const viteFromProcess =
+      typeof process !== "undefined" && process.env.VITE_USER_ID_ENABLED === "1";
+    const runtimeFlag =
+      typeof window !== "undefined" && (window as any).__LEX_USER_ID_ENABLED === true;
+    return Boolean(viteFlag || reactFlag || viteFromProcess || runtimeFlag);
+  } catch {
+    return false;
+  }
+})();
 
-let API_BASE = isProdHost ? PROD_FALLBACK : DEFAULT_FALLBACK;
+function resolveApiBase(): string {
+  if (typeof window === "undefined") {
+    return SAME_ORIGIN_BASE;
+  }
+  try {
+    const current = new URL(window.location.href);
+    const override = current.searchParams.get(API_OVERRIDE_PARAM);
+    if (override) {
+      return override.replace(/\/+$/, "");
+    }
+  } catch {
+    // ignore URL parsing issues, fall through to default
+  }
+  return SAME_ORIGIN_BASE;
+}
+
+let API_BASE = resolveApiBase();
 let configLoaded = false;
+let cachedSessionId: string | null = null;
+let cachedUserId: string | null = null;
+
+export function setSessionId(id: string | null) {
+  cachedSessionId = id;
+  if (typeof window !== "undefined") {
+    try {
+      if (id) {
+        window.sessionStorage?.setItem(SESSION_STORAGE_KEY, id);
+      } else {
+        window.sessionStorage?.removeItem(SESSION_STORAGE_KEY);
+      }
+    } catch {
+      // sessionStorage might be blocked; ignore
+    }
+  }
+}
+
+export function getSessionId(): string | null {
+  if (cachedSessionId) {
+    return cachedSessionId;
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const stored = window.sessionStorage?.getItem(SESSION_STORAGE_KEY);
+      if (stored) {
+        cachedSessionId = stored;
+        return stored;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return cachedSessionId;
+}
+
+export function setUserId(id: string | null) {
+  cachedUserId = id;
+  if (typeof window !== "undefined") {
+    try {
+      if (id) {
+        window.localStorage?.setItem(USER_ID_STORAGE_KEY, id);
+      } else {
+        window.localStorage?.removeItem(USER_ID_STORAGE_KEY);
+      }
+    } catch {
+      // ignore storage issues
+    }
+  }
+}
+
+export function getUserId(): string | null {
+  if (cachedUserId) {
+    return cachedUserId;
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const stored = window.localStorage?.getItem(USER_ID_STORAGE_KEY);
+      if (stored) {
+        cachedUserId = stored;
+        return stored;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return cachedUserId;
+}
 
 export async function loadApiConfig() {
   if (configLoaded) return API_BASE;
-  try {
-    const r = await fetch("/config.json", { cache: "no-store" });
-    if (!r.ok) {
-      configLoaded = true;
-      console.warn("[API] /config.json responded", r.status);
-      return API_BASE;
-    }
-    const cfg = await r.json();
-    if (cfg?.API_BASE && typeof cfg.API_BASE === "string") {
-      const candidate = cfg.API_BASE.trim();
-      if (candidate) {
-        const normalized = candidate.replace(/\/+$/, "");
-        const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(normalized);
-        if (isProdHost && isLocalhost) {
-          console.warn(
-            "[API] Ignoring localhost API_BASE from config on production host; keeping fallback"
-          );
-        } else {
-          API_BASE = normalized;
-        }
-      }
-    }
-  } catch {
-    // ignore, fallback remains
-  }
+  API_BASE = resolveApiBase();
   configLoaded = true;
-  console.log("[API] Using API_BASE:", API_BASE);
+  console.info("[API] Using API_BASE:", API_BASE);
   return API_BASE;
 }
 
@@ -44,6 +122,16 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers || undefined);
   if (!headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+  const sessionHeader = getSessionId();
+  if (sessionHeader && !headers.has("X-Lexi-Session")) {
+    headers.set("X-Lexi-Session", sessionHeader);
+  }
+  if (USER_ID_ENABLED) {
+    const userHeader = getUserId();
+    if (userHeader && !headers.has("X-Lexi-User")) {
+      headers.set("X-Lexi-User", userHeader);
+    }
   }
 
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
@@ -114,10 +202,10 @@ export function detectIntent(text: string): Promise<IntentResult> {
 export const classifyIntent = detectIntent;
 
 /** POST /persona/add_trait */
-export function addTrait(trait: string): Promise<TraitResponse> {
+export function addTrait(text: string): Promise<TraitResponse> {
   return jsonFetch<TraitResponse>(`${PERSONA_PREFIX}/add_trait`, {
     method: "POST",
-    body: JSON.stringify({ trait }),
+    body: JSON.stringify({ text }),
   });
 }
 
@@ -131,7 +219,7 @@ export function avatarStep(input: { traits?: Traits; reply?: string }): Promise<
 
 /** Alias for avatarStep for old code expecting generateAvatar */
 export async function generateAvatar(prompt: string) {
-  return apiFetch(`/generate_avatar`, {
+  return apiFetch(`/persona/generate_avatar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt }),
@@ -249,6 +337,151 @@ export async function sendPrompt({ prompt, intent, onChunk }: SendPromptOptions)
   return finalPayload;
 }
 
+export type LexiEventPayload = {
+  type: "system_onboarding";
+  mode: "tour" | "skip";
+  flags?: Record<string, any>;
+};
+
+export interface LexiEventResponse {
+  ok: boolean;
+  message?: { role?: string; content: string };
+  fallback?: boolean;
+  tool_used?: boolean;
+  tools_contract?: Record<string, any>;
+}
+
+export function sendLexiEvent(payload: LexiEventPayload): Promise<LexiEventResponse> {
+  return jsonFetch<LexiEventResponse>(`/onboarding/boot`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export type AlphaTourStep = {
+  slug: string;
+  prompt: string;
+  narration: string;
+};
+
+export interface AlphaTourScriptResponse {
+  steps: AlphaTourStep[];
+  onboarding?: Record<string, any>;
+  alpha_strict?: boolean;
+}
+
+export interface AlphaSessionResponse {
+  session_id: string;
+  consent: boolean;
+  variant?: string | null;
+  alpha_strict: boolean;
+}
+
+export async function startAlphaSession(payload?: {
+  consent?: boolean;
+  userId?: string | null;
+  variant?: string | null;
+  tags?: string[];
+}): Promise<AlphaSessionResponse> {
+  const body = JSON.stringify({
+    consent: payload?.consent ?? true,
+    user_id: payload?.userId ?? null,
+    variant: payload?.variant ?? null,
+    tags: payload?.tags ?? ["alpha"],
+  });
+  const data = await jsonFetch<AlphaSessionResponse>(`/alpha/session/start`, {
+    method: "POST",
+    body,
+  });
+  setSessionId(data.session_id);
+  if (USER_ID_ENABLED && payload?.userId) {
+    setUserId(payload.userId);
+  }
+  return data;
+}
+
+export async function updateAlphaConsent(consent: boolean): Promise<{ consent: boolean }> {
+  return jsonFetch<{ consent: boolean }>(`/alpha/session/consent`, {
+    method: "POST",
+    body: JSON.stringify({ consent }),
+  });
+}
+
+export async function endAlphaSession(): Promise<{ archived: boolean; archive_path?: string }> {
+  const res = await jsonFetch<{ archived: boolean; archive_path?: string }>(`/alpha/session/end`, {
+    method: "POST",
+    body: "{}",
+  });
+  setSessionId(null);
+  return res;
+}
+
+export async function fetchAlphaTourScript(): Promise<AlphaTourScriptResponse> {
+  return jsonFetch<AlphaTourScriptResponse>(`/alpha/tour/script`);
+}
+
+export async function requestTourAvatarPreview(
+  prompt: string
+): Promise<{ preview_url?: string; url?: string; alpha_strict?: boolean }> {
+  return jsonFetch(`/alpha/tour/avatar-preview`, {
+    method: "POST",
+    body: JSON.stringify({ prompt }),
+  });
+}
+
+export async function submitTourNowTopic(topic: string): Promise<{ now_topic: string }> {
+  return jsonFetch(`/alpha/tour/now-topic`, {
+    method: "POST",
+    body: JSON.stringify({ topic }),
+  });
+}
+
+export async function submitTourMemoryNote(note: string): Promise<{ ack: boolean }> {
+  return jsonFetch(`/alpha/tour/memory-note`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
+}
+
+export async function postAlphaTourMemory(body: { note: string }): Promise<{ ok: boolean; ack?: boolean }> {
+  return jsonFetch(`/alpha/tour/memory`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function sendTourFeedback(helpful: boolean, comment?: string): Promise<{ ok: boolean }> {
+  return jsonFetch(`/alpha/tour/feedback`, {
+    method: "POST",
+    body: JSON.stringify({ helpful, comment }),
+  });
+}
+
+export async function postAlphaMetric(
+  event: string,
+  detail?: Record<string, unknown>
+): Promise<{ ok: boolean }> {
+  return jsonFetch(`/alpha/session/metrics`, {
+    method: "POST",
+    body: JSON.stringify({ event, detail }),
+  });
+}
+
+export async function downloadSessionMemory(): Promise<{ blob: Blob; filename: string }> {
+  const res = await apiFetch(`/alpha/session/memory`, {
+    method: "GET",
+    headers: { Accept: "application/jsonl" },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`[API] GET /alpha/session/memory failed (${res.status}): ${text}`);
+  }
+  const disposition = res.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+  const filename = decodeURIComponent(match?.[1] || match?.[2] || "memory.jsonl");
+  const blob = await res.blob();
+  return { blob, filename };
+}
 
 export type Persona = PersonaState;
 
@@ -263,6 +496,18 @@ export const API = {
   debugTraits,
   sendPrompt,
   apiFetch,
+  startAlphaSession,
+  updateAlphaConsent,
+  endAlphaSession,
+  fetchAlphaTourScript,
+  requestTourAvatarPreview,
+  submitTourNowTopic,
+  submitTourMemoryNote,
+  postAlphaTourMemory,
+  sendTourFeedback,
+  postAlphaMetric,
+  downloadSessionMemory,
+  sendLexiEvent,
 };
 
 export { API_BASE as BACKEND };

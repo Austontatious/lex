@@ -4,7 +4,6 @@ import React, {
   useEffect,
   KeyboardEvent,
   useCallback,
-  useContext,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -14,12 +13,14 @@ import {
   HStack,
   IconButton,
   Image,
+  Input,
   Spacer,
   Textarea,
   VStack,
   useColorMode,
   useColorModeValue,
   Spinner,
+  useToast,
 } from "@chakra-ui/react";
 import { MoonIcon, SunIcon } from "@chakra-ui/icons";
 
@@ -28,12 +29,23 @@ import {
   addTrait,
   generateAvatar,
   sendPrompt,
+  sendLexiEvent,
   loadApiConfig,
-  classifyIntent
+  classifyIntent,
+  startAlphaSession,
+  endAlphaSession,
+  fetchAlphaTourScript,
+  postAlphaTourMemory,
+  downloadSessionMemory,
+  getUserId,
+  setUserId,
 } from "./services/api";
 import type { TraitResponse, Persona } from "./services/api";
-import { TourContext } from "./tour/TourProvider";
+import AlphaWelcome, { AlphaWelcomeCopy } from "./components/onboarding/AlphaWelcome";
+import { FeedbackButton } from "./components/FeedbackButton";
 import "./styles/chat.css";
+import "./styles/avatar.css";
+import { refreshAvatar } from "./lib/refreshAvatar";
 
 interface ChatMessage {
   id: string;
@@ -43,8 +55,34 @@ interface ChatMessage {
   error?: boolean;
 }
 
+type PrefillMessage = Pick<ChatMessage, "sender" | "content">;
+
+interface ChatShellProps {
+  prefillMessages?: PrefillMessage[];
+  onPrefillConsumed?: () => void;
+  onDownloadSession?: () => void;
+}
+
 const DEFAULT_STATIC_AVATAR_BASE = "https://api.lexicompanion.com/lexi/static/avatars/";
 const DEFAULT_AVATAR_URL = `${DEFAULT_STATIC_AVATAR_BASE}default.png`;
+const USER_ID_ENABLED = (() => {
+  try {
+    let viteFlag = false;
+    try {
+      viteFlag = (import.meta as any)?.env?.VITE_USER_ID_ENABLED === "1";
+    } catch {
+      viteFlag = false;
+    }
+    const reactFlag = typeof process !== "undefined" && process.env.REACT_APP_USER_ID_ENABLED === "1";
+    const viteFromProcess =
+      typeof process !== "undefined" && process.env.VITE_USER_ID_ENABLED === "1";
+    const runtimeFlag =
+      typeof window !== "undefined" && (window as any).__LEX_USER_ID_ENABLED === true;
+    return Boolean(viteFlag || reactFlag || viteFromProcess || runtimeFlag);
+  } catch {
+    return false;
+  }
+})();
 
 function resolveAvatarUrl(
   imagePath: string | null | undefined,
@@ -70,11 +108,10 @@ function mkId() {
   return `m_${uuidv4()}`;
 }
 
-function App() {
+function ChatShell({ prefillMessages, onPrefillConsumed, onDownloadSession }: ChatShellProps) {
   const { colorMode, toggleColorMode } = useColorMode();
   const bg = useColorModeValue("gray.50", "gray.800");
 
-  const { start: startTour } = useContext(TourContext);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [staticAvatarBase, setStaticAvatarBase] = useState(DEFAULT_STATIC_AVATAR_BASE);
@@ -85,9 +122,31 @@ function App() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const triggerAvatarRefresh = useCallback(async () => {
+    try {
+      const fresh = await refreshAvatar();
+      if (fresh) {
+        setAvatarUrl(fresh);
+      }
+    } catch (err) {
+      console.warn("avatar refresh failed:", err);
+    }
+  }, [setAvatarUrl]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (!prefillMessages || prefillMessages.length === 0) {
+      return;
+    }
+    setMessages((prev) => [
+      ...prev,
+      ...prefillMessages.map((msg) => ({ id: mkId(), ...msg })),
+    ]);
+    onPrefillConsumed?.();
+  }, [prefillMessages, onPrefillConsumed]);
 
   useEffect(() => {
     let mounted = true;
@@ -106,14 +165,6 @@ function App() {
       const data = await fetchPersona();
       if (!mounted || !data) return;
       setPersona(data);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: mkId(),
-          sender: "system",
-          content: `👋 ${(data as any).mode ?? "default"} persona loaded!`,
-        },
-      ]);
       setAvatarUrl(resolveAvatarUrl((data as any).image_path, nextStaticBase));
     })();
     return () => {
@@ -121,6 +172,9 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    void triggerAvatarRefresh();
+  }, [triggerAvatarRefresh]);
 
   const appendMessage = useCallback(
     (msg: Omit<ChatMessage, "id"> & { id?: string }) => {
@@ -157,11 +211,22 @@ const handleTraitFlow = useCallback(
       // ✅ Generate avatar, display it immediately (with cache bust)
       setAvatarFlow(false);
       const gen = await generateAvatar(res.prompt);
-      let img = (gen as any).image || (gen as any).image_url || (gen as any).path || "";
-      const imgUrl = resolveAvatarUrl(img, staticAvatarBase);
-      const finalUrl = `${imgUrl}${imgUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
-      setAvatarUrl(finalUrl);
-      appendMessage({ sender: "ai", content: "📸 Here's your avatar!" });
+      const avatarCandidate =
+        (gen as any)?.avatar_url ??
+        (gen as any)?.url ??
+        (gen as any)?.image ??
+        (gen as any)?.image_url ??
+        (gen as any)?.path ??
+        "";
+      if (typeof avatarCandidate === "string" && avatarCandidate) {
+        const imgUrl = resolveAvatarUrl(avatarCandidate, staticAvatarBase);
+        const finalUrl = `${imgUrl}${imgUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+        setAvatarUrl(finalUrl);
+        await triggerAvatarRefresh();
+        appendMessage({ sender: "ai", content: "📸 Here's your avatar!" });
+      } else {
+        appendMessage({ sender: "ai", content: "[Avatar update failed]" });
+      }
 
       // Now update persona, but do **NOT** set avatarUrl from it!
       const updated = await fetchPersona();
@@ -172,7 +237,7 @@ const handleTraitFlow = useCallback(
       appendMessage({ sender: "ai", content: "[Avatar update failed]" });
     }
   },
-  [appendMessage, staticAvatarBase]
+  [appendMessage, staticAvatarBase, triggerAvatarRefresh]
 );
 
 const handleAvatarEdit = useCallback(
@@ -196,6 +261,7 @@ const handleAvatarEdit = useCallback(
         const resolved = resolveAvatarUrl(avatarCandidate, staticAvatarBase);
         const finalUrl = `${resolved}${resolved.includes("?") ? "&" : "?"}v=${Date.now()}`;
         setAvatarUrl(finalUrl);
+        await triggerAvatarRefresh();
       }
       appendMessage({ sender: "ai", content: reply });
       try {
@@ -214,7 +280,7 @@ const handleAvatarEdit = useCallback(
       setLoading(false);
     }
   },
-  [appendMessage, staticAvatarBase]
+  [appendMessage, staticAvatarBase, triggerAvatarRefresh]
 );
 
 
@@ -360,13 +426,13 @@ const handleSend = useCallback(async () => {
         <Box fontWeight="bold" fontSize="xl">
           Lexi Chat
         </Box>
-        <Box fontSize="sm" color="pink.100" ml={2} data-tour="modes">
-          mode: {(persona as any)?.mode ?? "loading…"}
-        </Box>
         <Spacer />
-        <Button size="sm" variant="ghost" color="white" onClick={startTour}>
-          Take a tour
-        </Button>
+        {onDownloadSession && (
+          <Button size="sm" variant="outline" color="white" onClick={onDownloadSession}>
+            Download session
+          </Button>
+        )}
+        <FeedbackButton />
         <IconButton
           aria-label="Toggle dark mode"
           icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
@@ -396,6 +462,7 @@ const handleSend = useCallback(async () => {
                 }}
               >
                 <Image
+                  data-avatar
                   src={avatarUrl}
                   alt="Lex avatar"
                   w="100%"
@@ -516,4 +583,241 @@ const handleSend = useCallback(async () => {
   );
 }
 
-export default App;
+type OnboardingView = "loading" | "welcome" | "chat";
+
+export default function App() {
+  const toast = useToast();
+  const [view, setView] = useState<OnboardingView>("loading");
+  const [onboardingCopy, setOnboardingCopy] = useState<AlphaWelcomeCopy | null>(null);
+  const [onboardingChoice, setOnboardingChoice] = useState<"tour" | "skip" | null>(null);
+  const [prefillMessages, setPrefillMessages] = useState<PrefillMessage[]>([]);
+  const [userId, setUserIdState] = useState<string | null>(() =>
+    USER_ID_ENABLED ? getUserId() : null
+  );
+  const [userIdDraft, setUserIdDraft] = useState("");
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const [sessionStarting, setSessionStarting] = useState(false);
+
+  const startFlow = useCallback(
+    async (userIdentifier: string | null) => {
+      setSessionStarting(true);
+      try {
+        await startAlphaSession({ userId: USER_ID_ENABLED ? userIdentifier : null });
+        setSessionStarted(true);
+        const script = await fetchAlphaTourScript();
+        const onboarding = (script?.onboarding as AlphaWelcomeCopy | null) ?? null;
+        setOnboardingCopy(onboarding);
+        setView("welcome");
+      } catch (err) {
+        console.error("alpha onboarding init failed:", err);
+        setView("chat");
+      } finally {
+        setSessionStarting(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (sessionStarted || sessionStarting) return;
+    if (USER_ID_ENABLED && !userId) return;
+    void startFlow(userId);
+  }, [sessionStarted, sessionStarting, userId, startFlow]);
+
+  useEffect(() => {
+    return () => {
+      if (sessionStarted) {
+        void endAlphaSession().catch(() => {});
+      }
+    };
+  }, [sessionStarted]);
+
+  const beginSession = useCallback(
+    (id: string | null) => {
+      if (sessionStarting) return;
+      const trimmed = id?.trim() || null;
+      setUserId(trimmed);
+      setUserIdState(trimmed);
+      void startFlow(trimmed);
+    },
+    [sessionStarting, startFlow]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    let sessionStarted = false;
+    (async () => {
+      try {
+        await startAlphaSession();
+        sessionStarted = true;
+        if (!mounted) return;
+        const script = await fetchAlphaTourScript();
+        if (!mounted) return;
+        const onboarding = (script?.onboarding as AlphaWelcomeCopy | null) ?? null;
+        setOnboardingCopy(onboarding);
+        setView("welcome");
+      } catch (err) {
+        console.error("alpha onboarding init failed:", err);
+        if (mounted) {
+          setView("chat");
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+      if (sessionStarted) {
+        void endAlphaSession().catch(() => {});
+      }
+    };
+  }, []);
+
+  const queuePrefill = useCallback((message: PrefillMessage | PrefillMessage[]) => {
+    setPrefillMessages((prev) => [
+      ...prev,
+      ...(Array.isArray(message) ? message : [message]),
+    ]);
+  }, []);
+
+  const handlePrefillConsumed = useCallback(() => {
+    setPrefillMessages([]);
+  }, []);
+
+  const onboardingTourFallback =
+    "I'm Lexi... I can chat, use live info when enabled, remember session context, and help craft/update your avatar. Logs are anonymized for training. Want me to show you news or just vibe?";
+  const onboardingSkipFallback =
+    "Quick heads up: I reset when you close me, but anonymized logs might stick around so my makers can tune me up. What do you want to dive into first?";
+
+  const triggerOnboardingChoice = useCallback(
+    async (choice: "tour" | "skip") => {
+      if (onboardingChoice) return;
+      setOnboardingChoice(choice);
+      const fallback = choice === "tour" ? onboardingTourFallback : onboardingSkipFallback;
+      try {
+        const res = await sendLexiEvent({
+          type: "system_onboarding",
+          mode: choice,
+          flags: { nowEnabled: true, sentiment: true, avatarGen: true },
+        });
+        const text =
+          typeof res?.message?.content === "string" ? res.message.content.trim() : "";
+        queuePrefill({ sender: "ai", content: text || fallback });
+        try {
+          await postAlphaTourMemory({ note: `user chose ${choice} onboarding` });
+        } catch (err) {
+          console.warn("tour memory logging failed:", err);
+        }
+      } catch (err) {
+        console.warn("onboarding event failed:", err);
+        queuePrefill({ sender: "ai", content: fallback });
+      } finally {
+        setView("chat");
+        setOnboardingChoice(null);
+      }
+    },
+    [
+      onboardingChoice,
+      onboardingTourFallback,
+      onboardingSkipFallback,
+      queuePrefill,
+      sendLexiEvent,
+      postAlphaTourMemory,
+      setView,
+    ]
+  );
+
+  const handleDownloadSession = useCallback(async () => {
+    try {
+      const { blob, filename } = await downloadSessionMemory();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || "memory.jsonl";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : "download failed";
+      toast({
+        status: "error",
+        title: "couldn’t download session",
+        description: message,
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+  }, [toast]);
+
+  if (USER_ID_ENABLED && !sessionStarted && !sessionStarting && !userId) {
+    return (
+      <Flex align="center" justify="center" minH="100vh" px={6}>
+        <Box
+          bg="whiteAlpha.900"
+          _dark={{ bg: "gray.800" }}
+          borderRadius="xl"
+          boxShadow="xl"
+          p={{ base: 6, md: 8 }}
+          maxW="480px"
+          w="100%"
+        >
+          <VStack spacing={4} align="stretch">
+            <Box fontWeight="bold" fontSize="xl">
+              Who am I saving this as?
+            </Box>
+            <Box color="gray.500">
+              Drop an email or a name so I can keep your Lexi memories separate. No verification—
+              you can even type a nickname.
+            </Box>
+            <Input
+              placeholder="you@example.com or just a name"
+              value={userIdDraft}
+              onChange={(e) => setUserIdDraft(e.target.value)}
+              isDisabled={sessionStarting}
+            />
+            <HStack spacing={3}>
+              <Button
+                colorScheme="pink"
+                onClick={() => beginSession(userIdDraft)}
+                isDisabled={!userIdDraft.trim() || sessionStarting}
+              >
+                {sessionStarting ? <Spinner size="sm" mr={2} /> : null}
+                continue
+              </Button>
+              <Button variant="outline" onClick={() => beginSession(null)} isDisabled={sessionStarting}>
+                skip
+              </Button>
+            </HStack>
+          </VStack>
+        </Box>
+      </Flex>
+    );
+  }
+
+  if (view === "chat") {
+    return (
+      <ChatShell
+        prefillMessages={prefillMessages}
+        onPrefillConsumed={handlePrefillConsumed}
+        onDownloadSession={handleDownloadSession}
+      />
+    );
+  }
+
+  if (view === "loading" || !onboardingCopy) {
+    return (
+      <Flex align="center" justify="center" minH="100vh">
+        <Spinner size="xl" color="pink.400" />
+      </Flex>
+    );
+  }
+
+  return (
+    <AlphaWelcome
+      copy={onboardingCopy}
+      loadingChoice={onboardingChoice}
+      onChoose={(choice) => {
+        void triggerOnboardingChoice(choice);
+      }}
+    />
+  );
+}

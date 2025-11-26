@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 type Props = { children: React.ReactNode };
 
+const ENABLE_BEACON_TOUR = false;
+
 const steps: Step[] = [
   { target: '[data-tour="avatar"]', content: "Your persistent avatar lives here." },
   { target: '[data-tour="modes"]', content: "Switch Lexi modes or review persona status here." },
@@ -20,6 +22,7 @@ export default function TourProvider({ children }: Props) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!ENABLE_BEACON_TOUR) return;
     const params = new URLSearchParams(location.search);
     if (params.get("tour") === "start") {
       setRun(true);
@@ -31,6 +34,7 @@ export default function TourProvider({ children }: Props) {
   const contextValue = useMemo(
     () => ({
       start: () => {
+        if (!ENABLE_BEACON_TOUR) return;
         setKey((prev) => prev + 1);
         setRun(true);
       },
@@ -47,16 +51,18 @@ export default function TourProvider({ children }: Props) {
   return (
     <TourContext.Provider value={contextValue}>
       {children}
-      <Joyride
-        key={key}
-        steps={steps}
-        run={run}
-        continuous
-        showSkipButton
-        disableScrolling
-        styles={{ options: { zIndex: 10_000 } }}
-        callback={handleCallback}
-      />
+      {ENABLE_BEACON_TOUR && (
+        <Joyride
+          key={key}
+          steps={steps}
+          run={run}
+          continuous
+          showSkipButton
+          disableScrolling
+          styles={{ options: { zIndex: 10_000 } }}
+          callback={handleCallback}
+        />
+      )}
     </TourContext.Provider>
   );
 }
