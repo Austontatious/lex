@@ -32,7 +32,7 @@ def _unique_id(route: APIRoute) -> str:
 
 _start_now_scheduler = None
 _refresh_now_feed = None
-_env_now_enabled = os.getenv("LEXI_ENABLE_NOW", "0").lower() not in ("0", "false", "no", "off")
+_env_now_enabled = os.getenv("LEXI_ENABLE_NOW", "1").lower() not in ("0", "false", "no", "off")
 _now_enabled = CONFIG_ENABLE_NOW and _env_now_enabled
 
 if _now_enabled:
@@ -83,7 +83,10 @@ elif not isinstance(_cors_origins, list):
 
 DEFAULT_CORS_ORIGINS = [
     "https://lexicompanion.com",
+    "https://www.lexicompanion.com",
+    "https://api.lexicompanion.com",
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 # Wildcard origin cannot be used when allow_credentials=True; drop it so we fall back to defaults.
@@ -97,13 +100,7 @@ app.add_middleware(
     allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=[
-        "Content-Type",
-        "X-Lexi-Session",
-        "Authorization",
-        "Accept",
-        "X-Requested-With",
-    ],
+    allow_headers=["*"],
     expose_headers=["*"],
     max_age=600,
 )
@@ -161,6 +158,7 @@ from ..routes.gen import router as gen_router
 from ..routes.love_loop import router as love_router
 from ..routes.now import router as now_router, tools as tools_router
 from ..routes.alpha import router as alpha_router
+from ..routes.onboarding import router as onboarding_router
 from ..routes.lexi_persona import router as persona_router
 
 API_PREFIX = "/lexi"
@@ -171,6 +169,7 @@ app.include_router(persona_router, prefix=API_PREFIX)
 app.include_router(now_router, prefix=API_PREFIX)
 app.include_router(tools_router, prefix=API_PREFIX)
 app.include_router(alpha_router, prefix=API_PREFIX)
+app.include_router(onboarding_router, prefix=API_PREFIX)
 
 
 # ---------- Now Feed: scheduler + warm cache on startup ----------

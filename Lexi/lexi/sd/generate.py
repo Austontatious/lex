@@ -39,6 +39,7 @@ _PIPELINE_KEYS = {
     "scheduler",
     "denoise",
     "allow_feedback_loop",
+    "base_name",
 }
 
 
@@ -60,6 +61,7 @@ def generate_avatar(
     refiner: bool = True,
     refiner_strength: float = 0.28,
     upscale_factor: float = 1.0,
+    base_name: Optional[str] = None,
     **extra: Any,
 ) -> str:
     res: Dict[str, Any] = generate_avatar_pipeline(
@@ -78,6 +80,7 @@ def generate_avatar(
         refiner=refiner if mode == "txt2img" else False,  # edits: base only
         refiner_strength=refiner_strength,
         upscale_factor=upscale_factor,
+        base_name=base_name,
         **extra,
     )
     if not res.get("ok"):

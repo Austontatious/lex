@@ -13,6 +13,13 @@ import os
 from pathlib import Path
 from typing import Final, Callable, TypeVar
 
+from .paths import (
+    AVATAR_DIR as PATHS_AVATAR_DIR,
+    AVATAR_URL_BASE,
+    STATIC_DIR,
+    STATIC_URL_PREFIX as PATHS_STATIC_URL_PREFIX,
+)
+
 T = TypeVar("T")
 
 # ------------------------------------------------------------------
@@ -20,10 +27,10 @@ T = TypeVar("T")
 # ------------------------------------------------------------------
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
-STATIC_URL_PREFIX: Final[str] = "/lexi/static"
-STATIC_ROOT: Final[Path] = REPO_ROOT / "frontend" / "public"
-AVATAR_DIR: Final[Path] = STATIC_ROOT / "avatars"
-AVATAR_URL_PREFIX: Final[str] = f"{STATIC_URL_PREFIX}/avatars"
+STATIC_URL_PREFIX: Final[str] = PATHS_STATIC_URL_PREFIX
+STATIC_ROOT: Final[Path] = STATIC_DIR
+AVATAR_DIR: Final[Path] = PATHS_AVATAR_DIR
+AVATAR_URL_PREFIX: Final[str] = AVATAR_URL_BASE
 
 # ------------------------------------------------------------------
 # Helpers
@@ -118,7 +125,8 @@ MEMORY_PATH: Final[str] = os.getenv(
 MAX_MEMORY_ENTRIES: Final[int] = _get_env("LEX_MAX_MEMORY_ENTRIES", "1000", int, (100, 10000))
 
 # Static assets
-STARTER_AVATAR_PATH: Final[str] = f"{AVATAR_URL_PREFIX}/default.png"
+# point new sessions at the rolling base avatar; per-IP publishing still overrides later
+STARTER_AVATAR_PATH: Final[str] = f"{AVATAR_URL_PREFIX}/lexi_base.png"
 
 # Branding
 LEX_NAME: Final[str] = os.getenv("LEX_NAME", "Lex")

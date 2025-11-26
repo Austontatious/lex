@@ -165,6 +165,7 @@ def write_frontend_env(back_port: int, front_port: int) -> None:
         "VITE_VLLM_URL": OPENAI_API_BASE,
         "REACT_APP_API_URL": f"http://localhost:{back_port}/lexi",
         "REACT_APP_BACKEND_URL": f"http://localhost:{back_port}/lexi",
+        "VITE_USER_ID_ENABLED": os.getenv("LEXI_USER_ID_ENABLED", "0"),
     }
     FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
     (FRONTEND_DIR / "public").mkdir(parents=True, exist_ok=True)

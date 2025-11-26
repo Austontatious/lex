@@ -1,6 +1,8 @@
 from __future__ import annotations
+from datetime import datetime
 from typing import List, Dict, Optional
 from ..config.config import LEX_NAME, STOP
+from ..config.prompt_templates import load_system_prompt_template
 from .persona_config import PERSONA_MODE_REGISTRY
 
 # ------------------------------------------------------------
@@ -19,6 +21,63 @@ def _select_mode_override(active_mode: str) -> str:
     return (mode_info.get("system_prompt") or "").strip()
 
 
+def _format_template(template: str, mapping: Dict[str, str]) -> str:
+    class _Safe(dict):
+        def __missing__(self, key):
+            return ""
+
+    try:
+        return template.format_map(_Safe(**mapping))
+    except Exception:
+        return template
+
+
+def _strip_think_blocks(text: str) -> str:
+    """Remove any think/scratchpad sections regardless of casing or closure."""
+    if not text:
+        return ""
+    out = text
+    lower = out.lower()
+    tags = ("<think", "<thinking", "<scratchpad")
+    end_tags = ("</think", "</thinking", "</scratchpad")
+    while True:
+        idx = min((pos for pos in (lower.find(t) for t in tags) if pos != -1), default=-1)
+        if idx == -1:
+            break
+        end_idx = min(
+            (pos for pos in (lower.find(e, idx) for e in end_tags) if pos != -1),
+            default=-1,
+        )
+        if end_idx == -1:
+            out = out[:idx]
+            lower = out.lower()
+            break
+        end_close = lower.find(">", end_idx)
+        if end_close == -1:
+            out = out[:idx]
+            lower = out.lower()
+            break
+        out = out[:idx] + out[end_close + 1 :]
+        lower = out.lower()
+
+    for tag in ("think", "thinking", "scratchpad"):
+        start_token = f"[{tag}]"
+        end_token = f"[/{tag}]"
+        while True:
+            s = lower.find(start_token)
+            if s == -1:
+                break
+            e = lower.find(end_token, s)
+            if e == -1:
+                out = out[:s]
+                lower = out.lower()
+                break
+            out = out[:s] + out[e + len(end_token) :]
+            lower = out.lower()
+
+    return out
+
+
 # ------------------------------------------------------------
 # Core System Prompt
 # ------------------------------------------------------------
@@ -32,6 +91,11 @@ def build_system_core(
     active_mode: str = "default",
     injection_text: str = "",
     injections: Optional[List[str]] = None,
+    session_summary: str = "",
+    recent_memories: str = "",
+    context_window_hint: str = "",
+    user_name: str = "",
+    now: Optional[str] = None,
 ) -> str:
     injection_text = _join_injections(injection_text, injections)
     override_prompt = _select_mode_override(active_mode)
@@ -40,6 +104,23 @@ def build_system_core(
             override_prompt
             + (f"\n\n# Developer Injections\n{injection_text}".strip() if injection_text else "")
         ).strip()
+
+    # Prefer external template when available; fall back to inline prompt.
+    template = load_system_prompt_template()
+    if template:
+        mapping = {
+            "now": now or datetime.now().isoformat(timespec="seconds"),
+            "user_name": user_name or "you",
+            "session_summary": session_summary or current_goal or "",
+            "recent_memories": recent_memories or memory_summary or "",
+            "mode": active_mode or "default",
+            "traits": trait_summary or "",
+            "context_window_hint": context_window_hint or "",
+        }
+        system_core = _format_template(template, mapping).strip()
+        if injection_text:
+            system_core = f"{system_core}\n\nDeveloper Injections:\n{injection_text}"
+        return system_core.strip()
 
     name = LEX_NAME or "Lexi"
 
@@ -221,6 +302,11 @@ class PromptTemplates:
         trait_summary: str = "",
         injection_text: str = "",
         injections: Optional[List[str]] = None,
+        session_summary: str = "",
+        recent_memories: str = "",
+        context_window_hint: str = "",
+        user_name: str = "",
+        now: Optional[str] = None,
     ) -> Dict[str, List[Dict[str, str]]]:
         """Return an OpenAI-style `messages` payload; vLLM renders ChatML via tokenizer_config."""
         if not system_core:
@@ -232,6 +318,11 @@ class PromptTemplates:
                 active_mode=active_persona,
                 injection_text=injection_text,
                 injections=injections,
+                session_summary=session_summary,
+                recent_memories=recent_memories,
+                context_window_hint=context_window_hint,
+                user_name=user_name,
+                now=now,
             )
 
         if emotional_weights:

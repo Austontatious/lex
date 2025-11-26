@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import codecs
+import random
 import json
 import logging
 import os
@@ -9,8 +10,10 @@ import re
 import time
 import traceback
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Callable
+from uuid import uuid4
 
 import requests
 
@@ -39,6 +42,7 @@ from ..sd.generate import generate_avatar
 from ..utils import score_overlap
 from ..utils.emotion_core import infer_emotion
 from ..utils.summarize import summarize_pair
+from ..utils.movies_tool import MoviesToolError, default_movie_window, movies_now
 
 # >>> Voice mirroring kernel imports
 from .lexi_voice_mirroring import (
@@ -48,6 +52,7 @@ from .lexi_voice_mirroring import (
     sampler_from_profile,
     apply_postprocessing,
 )
+from ..utils.user_identity import normalize_user_id, user_bucket, user_id_feature_enabled
 
 # <<<
 
@@ -55,6 +60,197 @@ logger = logging.getLogger(__name__)
 STATIC_PREFIX = f"{AVATAR_URL_PREFIX}/"
 SMALL = 1e-9
 NOW_SEED_EVERY_TURNS = 6
+FALLBACK_SOFT_REDIRECTS = [
+    "Let's keep it suggestive and cozy—want me to sketch a slow-burn scene instead?",
+    "I'll keep it playful and classy; want a teasing setup?",
+    "We can flirt around the edges and stay comfy—want playful or tender?",
+    "Happy to set a soft, romantic mood if you like—slow-burn or cozy night-in?",
+]
+FRESHNESS_TRIGGERS = [
+    r"\bthis (week|weekend|month|year)\b",
+    r"\btoday\b",
+    r"\btonight\b",
+    r"\bnow\b",
+    r"\bcurrently\b",
+    r"\brelease(s|d| date)\b",
+    r"\bshowtimes?\b",
+    r"\bnear me\b",
+    r"\bprice(s)?\b",
+    r"\bscore(s)?\b",
+]
+_FRESHNESS_PATTERNS = [re.compile(p, re.I) for p in FRESHNESS_TRIGGERS]
+_MOVIE_TOPICS = re.compile(
+    r"\b(movie|movies|film|theater|theatre|cinema|showtimes?|screening|in theaters?|box office|tickets?|imax)\b",
+    re.I,
+)
+_NEWS_TOPICS = re.compile(r"\b(news|headline(s)?|current events?|breaking|updates?)\b", re.I)
+_WEATHER_TOPICS = re.compile(r"\b(weather|forecast|temperature|rain|snow|storm|wind|sunny|cloudy|humidity)\b", re.I)
+_WHATS_NEW = re.compile(r"\bwhat('s| is) new\b", re.I)
+
+PLANNER_SYS = (
+    'Decide required tools. Output STRICT JSON:\n'
+    '{"tools": ["movies_now"], "reason": "why"} \n'
+    'If tools not needed: {"tools": [], "reason": "..."}'
+)
+
+FACT_SYS = (
+    "You have structured movie data from the tool.\n"
+    "Rules:\n"
+    '- Only reference titles returned by the tool.\n'
+    '- If user asked "this week", prefer releases within [start_date, end_date].\n'
+    "- If none found, offer alternatives (next week / streaming), but label them clearly.\n"
+    "- Keep 1-2 flirty beats, but never invent titles or dates."
+)
+
+MOVIES_TOOL_DEF: Dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "movies_now",
+        "description": "What's in theaters between start_date and end_date near a location.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "location": {"type": "string", "description": "City, ST"},
+                "start_date": {"type": "string", "description": "YYYY-MM-DD"},
+                "end_date": {"type": "string", "description": "YYYY-MM-DD"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+            "required": ["start_date", "end_date"],
+        },
+    },
+}
+
+
+def needs_fresh_data(user_text: str) -> bool:
+    """Heuristic gate for time-sensitive questions (movies, weather, news, etc.)."""
+    txt = (user_text or "").lower()
+    if not txt:
+        return False
+
+    if _WEATHER_TOPICS.search(txt):
+        return True
+    if _NEWS_TOPICS.search(txt):
+        return True
+    if _WHATS_NEW.search(txt) and "with you" not in txt and "with u" not in txt:
+        return True
+
+    movie_hit = bool(_MOVIE_TOPICS.search(txt))
+    recency_hit = any(p.search(txt) for p in _FRESHNESS_PATTERNS)
+    return movie_hit and recency_hit
+
+
+def _extract_tool_calls(raw_resp: Dict[str, Any]) -> List[Dict[str, Any]]:
+    try:
+        choice = (raw_resp.get("choices") or [{}])[0]
+        msg = choice.get("message") or {}
+        calls = msg.get("tool_calls") or []
+        return calls if isinstance(calls, list) else []
+    except Exception:
+        return []
+
+
+def _coerce_movie_args(args_raw: Any, user_text: str) -> Dict[str, Any]:
+    base_start, base_end = default_movie_window(user_text)
+    args: Dict[str, Any] = {}
+    if isinstance(args_raw, str):
+        try:
+            args = json.loads(args_raw)
+        except Exception:
+            args = {}
+    elif isinstance(args_raw, dict):
+        args = dict(args_raw)
+
+    start = str(args.get("start_date") or base_start)
+    end = str(args.get("end_date") or base_end)
+    try:
+        limit = int(args.get("limit", 12))
+    except Exception:
+        limit = 12
+    limit = max(1, min(20, limit))
+    location = args.get("location") or None
+    return {"start_date": start, "end_date": end, "limit": limit, "location": location}
+
+
+def _titles_from_results(payload: Dict[str, Any]) -> List[str]:
+    titles: List[str] = []
+    results = payload.get("results") if isinstance(payload, dict) else None
+    if isinstance(results, list):
+        for item in results:
+            if isinstance(item, dict):
+                title = item.get("title")
+                if title:
+                    titles.append(str(title))
+    return titles
+
+
+def _hallucination_violation(reply: str, allowed_titles: List[str]) -> bool:
+    if not allowed_titles:
+        return False
+    allowed = {t.lower().strip() for t in allowed_titles if t}
+    quoted = re.findall(r'["“](.+?)["”]', reply)
+    for q in quoted:
+        if q.lower().strip() and q.lower().strip() not in allowed:
+            return True
+    return False
+
+
+def _parse_json_obj(text: str) -> Dict[str, Any]:
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    m = re.search(r"\{.*\}", text, flags=re.S)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            return {}
+    return {}
+
+
+def _strip_think_blocks(text: str) -> str:
+    """Remove any think/scratchpad sections regardless of casing or closure."""
+    if not text:
+        return ""
+    out = text
+    lower = out.lower()
+    tags = ("<think", "<thinking", "<scratchpad")
+    end_tags = ("</think", "</thinking", "</scratchpad")
+    while True:
+        idx_candidates = [lower.find(t) for t in tags if lower.find(t) != -1]
+        idx = min(idx_candidates) if idx_candidates else -1
+        if idx == -1:
+            break
+        end_candidates = [lower.find(e, idx) for e in end_tags if lower.find(e, idx) != -1]
+        end_idx = min(end_candidates) if end_candidates else -1
+        if end_idx == -1:
+            out = out[:idx]
+            lower = out.lower()
+            break
+        end_close = lower.find(">", end_idx)
+        if end_close == -1:
+            out = out[:idx]
+            lower = out.lower()
+            break
+        out = out[:idx] + out[end_close + 1 :]
+        lower = out.lower()
+
+    for tag in ("think", "thinking", "scratchpad"):
+        start_token = f"[{tag}]"
+        end_token = f"[/{tag}]"
+        while True:
+            s = lower.find(start_token)
+            if s == -1:
+                break
+            e = lower.find(end_token, s)
+            if e == -1:
+                out = out[:s]
+                lower = out.lower()
+                break
+            out = out[:s] + out[e + len(end_token) :]
+            lower = out.lower()
+
+    return out
 
 # --- Love Loop (optional) -----------------------------------------------------
 try:
@@ -101,7 +297,7 @@ def _sampler_policy(
     p.setdefault("top_p", 0.9)
     p.setdefault("presence_penalty", 0.6)
     p.setdefault("repetition_penalty", 1.15)
-    p.setdefault("max_tokens", 240)
+    p.setdefault("max_tokens", 280)
 
     # Mode adjustments
     if mode in ("girlfriend", "muse"):
@@ -112,7 +308,7 @@ def _sampler_policy(
             temperature=min(p["temperature"], 0.6),
             top_p=min(p["top_p"], 0.9),
             presence_penalty=0.3,
-            max_tokens=min(p["max_tokens"], 220),
+            max_tokens=min(p["max_tokens"], 260),
         )
 
     # Seriousness dampening
@@ -122,7 +318,7 @@ def _sampler_policy(
             top_p=0.9,
             presence_penalty=0.2,
             repetition_penalty=max(p.get("repetition_penalty", 1.1), 1.2),
-            max_tokens=min(p["max_tokens"], 220),
+            max_tokens=min(p["max_tokens"], 260),
         )
 
     # Daypart vibe
@@ -153,8 +349,13 @@ def safe_strip(val) -> str:
 # Heuristic trigger for “current events” searches
 _NEWS_CLUES = re.compile(
     r"\b(what(?:'s| is) new|what happened|catch me up|latest|news|did you see|"
-    r"update me|today|tonight|this week|who won|box office|episode|leak|trailer|finals|worlds|wsl|surf)\b",
+    r"update me|today|tonight|this week|who won|box office|episode|leak|trailer|finals|worlds|wsl|surf|"
+    r"watch|on tv|airing|premiere|release|breaking|headline|current events|score|game|match|series|concert|tour|"
+    r"weather|storm|earthquake|wildfire|stock|earnings|nba|nfl|mlb|nhl|soccer|world cup)\b",
     re.I,
+)
+_NEWS_URGENCY = re.compile(
+    r"\b(breaking|urgent|official|verify|fact ?check|exclusive|confirm|source|brave search)\b", re.I
 )
 
 
@@ -189,8 +390,13 @@ class LexiPersona:
         load_love_loop_state()
 
         # memory & persistent state
-        self.memory = MemoryManager(MemoryStoreJSON(MEMORY_PATH, max_entries=MAX_MEMORY_ENTRIES))
+        self._user_id_enabled = user_id_feature_enabled()
+        self.memory = MemoryManager(
+            MemoryStoreJSON(MEMORY_PATH, max_entries=MAX_MEMORY_ENTRIES),
+            user_enabled=self._user_id_enabled,
+        )
         self.session_memory = SessionMemoryManager(max_pairs=20)
+        self._active_user_id: Optional[str] = None
 
         # persona state
         self.current_emotion_state: Dict[str, float] = {"joy": 0.5, "sadness": 0.0, "arousal": 0.0}
@@ -202,6 +408,7 @@ class LexiPersona:
         self._avatar_filename: Optional[str] = None
         self._last_prompt: str = ""
         self.system_injections: List[str] = []
+        self._last_gen_meta: Dict[str, Any] = {}
         self._strict_mode = False
 
         # step counter & hysteresis
@@ -250,6 +457,33 @@ class LexiPersona:
             keys.append("romance")
         return ",".join(sorted(set([k for k in keys if k])))
 
+    # ------------------------------ user binding ------------------------------
+
+    def set_user(self, user_id: Optional[str]) -> None:
+        """Bind persona to a specific user if feature flag is enabled."""
+        if not self._user_id_enabled:
+            return
+        normalized = normalize_user_id(user_id)
+        if normalized == self._active_user_id:
+            return
+
+        self._active_user_id = normalized
+        self._style_user_id = normalized or os.environ.get("LEX_USER_ID", "default_user")
+        self.memory.set_user(normalized)
+
+        # swap session memory path per user
+        base = Path(MEMORY_PATH).parent
+        bucket = user_bucket(base, normalized) if normalized else None
+        if bucket:
+            path = bucket / "session_memory.json"
+            self.session_memory.set_session_path(str(path))
+            self.session_memory.set_user(normalized)
+        else:
+            # revert to default path
+            default_path = Path(__file__).resolve().parents[1] / "memory" / "session_memory.json"
+            self.session_memory.set_session_path(str(default_path))
+            self.session_memory.set_user(None)
+
     def _maybe_seed_now_feed(self) -> Optional[str]:
         """Occasionally fetch 1–2 items and inject as 'Now Feed' context."""
         try:
@@ -287,13 +521,28 @@ class LexiPersona:
     def _maybe_live_search(self, user_text: str) -> Optional[str]:
         """If the user asks about a current topic, run a quick web search and inject 1–3 notes."""
         try:
-            if not _NEWS_CLUES.search(user_text or ""):
+            text = user_text or ""
+            if not _NEWS_CLUES.search(text):
                 return None
+            lowered = text.lower()
+            urgent = bool(_NEWS_URGENCY.search(text))
+            wants_brave = "brave" in lowered
+            provider = "brave" if wants_brave else "auto"
+            if wants_brave:
+                urgent = True
+            time_range = "7d"
+            if re.search(r"\b(today|tonight|right now|this (morning|afternoon|evening))\b", lowered):
+                time_range = "24h"
+            elif "month" in lowered or "30 days" in lowered:
+                time_range = "30d"
             payload = {
-                "query": (user_text or "").strip(),
-                "time_range": "week",
+                "query": text.strip(),
+                "time_range": time_range,
                 "max_results": 3,
                 "include_content": False,
+                "provider": provider,
+                "allow_brave_fallback": urgent,
+                "stall_on_failure": True,
             }
             r = requests.post("http://127.0.0.1:8000/tools/web_search", json=payload, timeout=6)
             if r.status_code != 200:
@@ -338,6 +587,8 @@ class LexiPersona:
             if isinstance(raw, dict) and "text" in raw
             else (raw.strip() if isinstance(raw, str) else str(raw))
         )
+
+        text = _strip_think_blocks(text)
 
         # 0) Strip ChatML & legacy tag tokens and tool tags
         text = _re.sub(
@@ -403,7 +654,10 @@ class LexiPersona:
 
         if not _re.search(r"[.!?…]$", text):
             text += "."
-        return text.strip()
+        text = text.strip()
+        if not text:
+            text = random.choice(FALLBACK_SOFT_REDIRECTS)
+        return text
 
     def _normalize_activations(self):
         total = sum(self.mode_activation.values()) or 1.0
@@ -460,6 +714,7 @@ class LexiPersona:
         )
         if sampler_overrides:
             gen_kwargs.update({k: v for k, v in sampler_overrides.items() if v is not None})
+        self._last_gen_meta = {"finish_reason": None, "usage": None, "params": dict(gen_kwargs)}
 
         # If prompt is large, shrink generation budget to protect latency/coherence
         try:
@@ -500,11 +755,21 @@ class LexiPersona:
             else:
                 summary.setdefault("text", final_text)
             raw = summary
+            if isinstance(summary, dict):
+                self._last_gen_meta.update(
+                    finish_reason=summary.get("finish_reason"),
+                    usage=summary.get("usage"),
+                )
         else:
             try:
                 raw = self.loader.generate(messages_pkg, **gen_kwargs)
             except TypeError:
                 raw = self.loader.generate(messages_pkg)
+            if isinstance(raw, dict):
+                self._last_gen_meta.update(
+                    finish_reason=raw.get("finish_reason"),
+                    usage=raw.get("usage"),
+                )
         return self._clean_reply(raw)
 
     # ------------------------------ axis & emotion ------------------------------
@@ -605,6 +870,150 @@ class LexiPersona:
             self._normalize_activations()
             self._lead_mode = "therapist"
             self._lead_mode_lock_until = max(self._lead_mode_lock_until, self._step + 5)
+
+    # ------------------------------ tools + planner ------------------------------
+
+    def _plan_tools(self, user_text: str, tool_required: bool) -> tuple[List[str], str]:
+        """
+        Lightweight planner to decide which tools to invoke.
+        Returns (tools, reason). If tool_required and planner is empty -> fallback to movies_now.
+        """
+        planner_enabled = os.getenv("LEXI_ENABLE_TOOL_PLANNER", "1").lower() not in ("0", "false", "no", "off")
+        if not planner_enabled and not tool_required:
+            return [], ""
+
+        tools: List[str] = []
+        reason = ""
+        try:
+            planner = self.loader.generate(
+                [{"role": "system", "content": PLANNER_SYS}, {"role": "user", "content": user_text}],
+                max_tokens=80,
+                temperature=0.0,
+                top_p=0.1,
+                stop=["<|im_end|>"],
+            )
+            parsed = _parse_json_obj(planner.get("text") or "")
+            if isinstance(parsed.get("tools"), list):
+                tools = [t for t in parsed.get("tools") if isinstance(t, str) and t]
+            reason = str(parsed.get("reason") or "")
+        except Exception as exc:
+            logger.debug("tool planner failed: %s", exc)
+
+        if tool_required and not tools:
+            tools = ["movies_now"]
+        return tools, reason
+
+    def _run_movies_tool_flow(
+        self,
+        prompt_pkg: Dict[str, Any],
+        user_text: str,
+        sampler_overrides: Dict[str, Any],
+    ) -> tuple[str, bool, Optional[str], List[str], Dict[str, Any]]:
+        """
+        Execute movies_now via tool call and render a grounded reply.
+        Returns: reply text, tool_called, finish_reason, allowed_titles, tool_payload
+        """
+        messages = deepcopy(prompt_pkg.get("messages", [])) if isinstance(prompt_pkg, dict) else []
+        if messages:
+            sys0 = messages[0].get("content", "")
+            sys0 += "\n\n# Tool Router\nTool required: call movies_now for anything time-sensitive (movies/showtimes)."
+            messages[0] = dict(messages[0])
+            messages[0]["content"] = sys0
+
+        tool_called = False
+        tool_payload: Dict[str, Any] = {}
+        finish_reason: Optional[str] = None
+
+        # Always call movies_now directly (vLLM not running with tool-call parser)
+        args = _coerce_movie_args({}, user_text)
+        try:
+            tool_payload = movies_now(args.get("location"), args["start_date"], args["end_date"], args["limit"])
+            tool_called = True
+        except MoviesToolError:
+            self._last_gen_meta = {"finish_reason": finish_reason, "usage": None, "params": {"tool_call": True}}
+            return (
+                "I couldn't fetch that—want me to try again or search another source?",
+                False,
+                finish_reason,
+                [],
+                tool_payload,
+            )
+        except Exception as exc:
+            logger.warning("movies_now direct call failed: %s", exc)
+            self._last_gen_meta = {"finish_reason": finish_reason, "usage": None, "params": {"tool_call": True}}
+            return (
+                "I couldn't fetch that—want me to try again or search another source?",
+                False,
+                finish_reason,
+                [],
+                tool_payload,
+            )
+
+        # Deterministic rendering: avoid LLM function-calling surface entirely
+        titles = _titles_from_results(tool_payload)
+        results = tool_payload.get("results") if isinstance(tool_payload, dict) else None
+        if not results:
+            self._last_gen_meta = {"finish_reason": "stop", "usage": None, "params": {"tool_call": False}}
+            return (
+                "I couldn't pull fresh showtimes just now. Want me to try again or switch to streaming picks?",
+                tool_called,
+                "stop",
+                titles,
+                tool_payload,
+            )
+
+        # Build a concise grounded reply from tool payload
+        snippets: List[str] = []
+        for item in results[:5]:
+            if not isinstance(item, dict):
+                continue
+            title = item.get("title")
+            rel = item.get("release_date")
+            overview = (item.get("overview") or "").strip()
+            if overview and len(overview) > 140:
+                overview = overview[:137] + "..."
+            bit = title or ""
+            if rel:
+                bit += f" — {rel}"
+            if overview:
+                bit += f": {overview}"
+            if bit:
+                snippets.append(bit)
+        reply = "Here are current theatrical picks:\n- " + "\n- ".join(snippets[:5])
+        reply += "\nWant me to narrow by location or pull streaming instead?"
+
+        self._last_gen_meta = {"finish_reason": "stop", "usage": None, "params": {"tool_call": False}}
+        return reply, tool_called, "stop", titles, tool_payload
+
+    def _log_tool_trace(
+        self,
+        *,
+        turn_id: str,
+        freshness_required: bool,
+        planned_tools: List[str],
+        tool_called: bool,
+        finish_reason: Optional[str],
+        reply: str,
+        allowed_titles: List[str],
+        planner_reason: str = "",
+    ) -> None:
+        violation = _hallucination_violation(reply, allowed_titles)
+        trace = {
+            "turn_id": turn_id,
+            "freshness_required": bool(freshness_required),
+            "tool_choice": planned_tools,
+            "tool_called": bool(tool_called),
+            "finish_reason": finish_reason,
+            "hallucination_violation": violation,
+            "planner_reason": planner_reason,
+            "allowed_titles": allowed_titles,
+        }
+        try:
+            logger.info("tool_trace %s", json.dumps(trace, ensure_ascii=False))
+        except Exception:
+            logger.debug("tool_trace (fallback): %s", trace)
+        if freshness_required and not tool_called:
+            logger.warning("⚠️ freshness_required but tool_called=False (turn=%s)", turn_id)
 
     # ------------------------------ tokenization ------------------------------
 
@@ -756,9 +1165,16 @@ class LexiPersona:
         stream_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         self._step += 1
+        turn_id = uuid4().hex
         if not user_message:
             return "[no input]"
         msg_strip = safe_strip(user_message)
+        tool_required = needs_fresh_data(msg_strip)
+        planner_tools: List[str] = []
+        planner_reason = ""
+        tool_called = False
+        tool_titles: List[str] = []
+        tool_finish_reason: Optional[str] = None
 
         if not hasattr(self, "_strict_mode"):
             self._strict_mode = False
@@ -1007,19 +1423,34 @@ class LexiPersona:
         self.log_chat("prompt_user_turn", prompt_pkg["messages"][-1]["content"])
 
         # sampler tweaks from style profile + policy
-        recent_user_utts = [e["user"] for e in self.session_memory.buffer[-12:]]
-        prev_prof = self._style_mem.get(self._style_user_id)
-        style_prof = analyze_user_style(
-            recent_user_utts, prev_profile=prev_prof
-        )  # already computed above, but safe
         sampler = sampler_from_profile(style_prof) or {}
         sampler = _sampler_policy(self._lead_mode, serious, sampler)
 
-        reply = self._gen(
-            prompt_pkg,
-            sampler_overrides=sampler,
-            stream_callback=stream_callback,
-        )
+        planner_tools, planner_reason = ([], "")
+        planner_always = os.getenv("LEXI_PLANNER_ALWAYS", "0").lower() in ("1", "true", "yes", "on")
+        planner_enabled_env = os.getenv("LEXI_ENABLE_TOOL_PLANNER", "1").lower() not in ("0", "false", "no", "off")
+        if planner_enabled_env and (tool_required or planner_always):
+            planner_tools, planner_reason = self._plan_tools(msg_strip, tool_required)
+
+        if tool_required and not planner_tools:
+            planner_tools = ["movies_now"]
+        if not tool_required and planner_tools:
+            tool_required = True
+
+        reply: str
+        tool_payload: Dict[str, Any] = {}
+        if "movies_now" in planner_tools:
+            reply, tool_called, tool_finish_reason, tool_titles, tool_payload = self._run_movies_tool_flow(
+                prompt_pkg, msg_strip, sampler
+            )
+        else:
+            reply = self._gen(
+                prompt_pkg,
+                sampler_overrides=sampler,
+                stream_callback=stream_callback,
+            )
+            tool_finish_reason = self._last_gen_meta.get("finish_reason")
+
         # mirror punctuation/case tics lightly
         reply = apply_postprocessing(reply, style_prof)
         if not reply or len(reply) < 12:
@@ -1039,6 +1470,18 @@ class LexiPersona:
             self.session_memory.add_pair(msg_strip, reply, summary, token_counter=self.count_tokens)
         except Exception as e:
             logger.warning("[WARN] summarize/add_pair failed: %s", e)
+
+        finish_reason = tool_finish_reason or self._last_gen_meta.get("finish_reason")
+        self._log_tool_trace(
+            turn_id=turn_id,
+            freshness_required=tool_required,
+            planned_tools=planner_tools,
+            tool_called=tool_called,
+            finish_reason=finish_reason,
+            reply=reply,
+            allowed_titles=tool_titles,
+            planner_reason=planner_reason,
+        )
 
         return reply
 
@@ -1068,7 +1511,13 @@ class LexiPersona:
                 active_persona=self._lead_mode,
             )
             self.log_chat("prompt_user_turn", prompt_pkg["messages"][-1]["content"])
+            self._last_gen_meta = {"finish_reason": None, "usage": None, "params": {}}
             raw = self.loader.generate(prompt_pkg)
+            if isinstance(raw, dict):
+                self._last_gen_meta.update(
+                    finish_reason=raw.get("finish_reason"),
+                    usage=raw.get("usage"),
+                )
             reply = self._clean_reply(raw)
             return reply or "[no reply]"
         except Exception as e:

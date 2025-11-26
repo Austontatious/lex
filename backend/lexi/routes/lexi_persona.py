@@ -48,6 +48,13 @@ from ..utils.ip_seed import (
 )
 from ..utils.request_ip import request_ip
 from ..utils.publish_static import latest_output_png, publish_as
+from ..utils.user_identity import normalize_user_id
+from ..utils.avatar_manifest import (
+    record_avatar_event,
+    latest_avatar_path,
+    first_avatar_path,
+    AVATAR_MANIFEST_ENABLED,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/persona", tags=["persona"])
@@ -562,9 +569,10 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
     if _generate_fn is None:
         raise HTTPException(status_code=500, detail="Avatar pipeline is unavailable")
 
+    user_id = normalize_user_id(getattr(request.state, "user_id", None))
     traits = _load_traits()
     ip = _client_ip(request)
-    base_name = _avatar_basename_for_ip(ip)
+    base_name = normalize_user_id(user_id) or _avatar_basename_for_ip(ip)
 
     # ---- Resolve mode
     mode = (body.mode or "txt2img").lower()
@@ -615,6 +623,19 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
     src_fs: Optional[str] = None
     mask_fs: Optional[str] = None
 
+    manifest_src: Optional[str] = None
+    if AVATAR_MANIFEST_ENABLED and user_id:
+        manifest_src = latest_avatar_path(user_id) or first_avatar_path(user_id)
+        if manifest_src:
+            if manifest_src.startswith("/"):
+                p = _web_to_fs(manifest_src)
+                manifest_src = p.as_posix() if p else manifest_src
+            elif manifest_src.startswith("http"):
+                manifest_src = None  # skip http source for now
+            else:
+                p = Path(manifest_src)
+                manifest_src = p.as_posix() if p.exists() else None
+
     if mode in ("img2img", "inpaint"):
         # Prefer caller-provided source_path; otherwise fall back to saved avatar
         src_fs = resolve_path(body.source_path) if body.source_path else None
@@ -623,6 +644,8 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
             if saved_web:
                 p = _web_to_fs(saved_web)
                 src_fs = p.as_posix() if p else None
+        if src_fs is None and manifest_src:
+            src_fs = manifest_src
         if src_fs is None:
             # degrade gracefully to txt2img if no source image available
             mode = "txt2img"
@@ -703,6 +726,19 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
             url=url,
             traits=list(traits.keys()),
         )
+        if AVATAR_MANIFEST_ENABLED and user_id:
+            try:
+                record_avatar_event(
+                    user_id,
+                    image_path=url,
+                    prompt=prompt,
+                    traits=traits,
+                    mode=mode,
+                    seed=seed,
+                    session_id=getattr(request.state, "session_id", None),
+                )
+            except Exception:
+                logger.debug("avatar manifest record failed", exc_info=True)
 
     # ---- Execute pipeline (sync or async)
     try:

@@ -75,9 +75,12 @@ class SessionRegistry:
         user_id: Optional[str] = None,
         variant: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
+        session_id: Optional[str] = None,
     ) -> SessionState:
         with self._lock:
-            session_id = f"sess_{uuid.uuid4().hex[:12]}"
+            if session_id and session_id in self._sessions:
+                return self._sessions[session_id]
+            session_id = session_id or f"sess_{uuid.uuid4().hex[:12]}"
             today = _utc_now().date().isoformat()
             session_dir = self.sessions_root / today / session_id
             session_dir.mkdir(parents=True, exist_ok=True)

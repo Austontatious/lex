@@ -100,7 +100,7 @@ MODE_PRESETS: Dict[str, List[str]] = {
 def _style_realistically_unreal() -> Tuple[str, str]:
     """
     Returns (positive_style_scaffold, style_specific_negatives)
-    Positive is intentionally compact: SDXL respects concise, high-signal phrases.
+    Positive is intentionally compact: FLUX respects concise, high-signal phrases.
     """
     positive = ", ".join(
         [

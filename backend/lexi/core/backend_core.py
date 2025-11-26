@@ -164,17 +164,21 @@ if FRONT_BUILD:
 from ..routes.lexi import router as lexi_router
 from ..routes.gen import router as gen_router
 from ..routes.health import router as health_router
+from ..routes.feedback import router as feedback_router
 from ..routes.love_loop import router as love_router
 from ..routes.now import router as now_router, tools as tools_router
 from ..routes.alpha import router as alpha_router
+from ..routes.onboarding import router as onboarding_router
 
 app.include_router(lexi_router)
 app.include_router(health_router)
+app.include_router(feedback_router)
 app.include_router(gen_router)
 app.include_router(love_router)
 app.include_router(now_router)  # <-- this exposes /now/...
 app.include_router(tools_router)  # <-- ...and /tools/web_search
 app.include_router(alpha_router)
+app.include_router(onboarding_router, prefix="/lexi")
 # Core chat routes (optional)
 try:
     from ..routes import lexi as lexi_routes

@@ -18,7 +18,8 @@ from pydantic import BaseModel, Field
 from ..alpha.intent import classify_intent
 from ..alpha.session_manager import SessionRegistry, SessionState
 from ..alpha.settings import AlphaSettings
-from ..alpha.tour import preview_placeholder_url, tour_script
+from ..alpha.tour import onboarding_script, preview_placeholder_url, tour_script
+from ..utils.user_profile import upsert_user_profile, user_profile_feature_enabled
 
 router = APIRouter(prefix="/lexi/alpha", tags=["Lexi Alpha"])
 
@@ -100,6 +101,11 @@ def start_session(payload: SessionStartPayload, request: Request) -> JSONRespons
         variant=payload.variant,
         tags=payload.tags,
     )
+    if user_profile_feature_enabled() and payload.user_id:
+        try:
+            upsert_user_profile(payload.user_id, touch_last_seen=True)
+        except Exception:
+            pass
     registry.append_memory(
         state.session_id,
         {"role": "system", "event": "session_started", "consent": state.consent},
@@ -172,9 +178,25 @@ def download_memory(
     )
 
 
+@router.get("/session/download")
+def download_session_alias(
+    request: Request,
+    session: SessionState = Depends(_require_session),
+):
+    """Alias endpoint so the frontend can hit /session/download."""
+    return download_memory(request, session)
+
+
 @router.get("/tour/script")
 def get_tour_script() -> JSONResponse:
-    return JSONResponse({"steps": tour_script()})
+    settings = AlphaSettings()
+    return JSONResponse(
+        {
+            "steps": tour_script(),
+            "onboarding": onboarding_script(),
+            "alpha_strict": settings.alpha_strict,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +319,17 @@ def remember_note(
         session.session_id,
         {"event": "tour_memory_note"},
     )
-    return JSONResponse({"ack": True})
+    return JSONResponse({"ack": True, "ok": True})
+
+
+@router.post("/tour/memory")
+def remember_note_alias(
+    payload: MemoryNotePayload,
+    request: Request,
+    session: SessionState = Depends(_require_session),
+) -> JSONResponse:
+    """Alias endpoint that mirrors /tour/memory-note."""
+    return remember_note(payload, request, session)
 
 
 @router.post("/tour/feedback")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import logging
 import os
 import time
 import uuid
@@ -9,12 +10,22 @@ from typing import Awaitable, Callable, Dict
 
 import orjson
 from fastapi import Request, Response
+from starlette.concurrency import run_in_threadpool
+
+from .sd.generate import generate_default_avatar_for_ip
+from .utils.user_profile import touch_last_seen, user_profile_feature_enabled
+from .utils.user_identity import normalize_user_id, user_id_feature_enabled
 
 LOG_DIR = Path(os.getenv("LEX_LOG_DIR", "./logs/sessions")).resolve()
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 COOKIE_NAME = os.getenv("LEX_SESSION_COOKIE", "lex_session")
 COOKIE_MAX_AGE = int(os.getenv("LEX_SESSION_COOKIE_MAX_AGE", str(60 * 60 * 24 * 30)))
+DEFAULT_AVATAR_MEDIA_DIR = Path(
+    os.getenv("LEX_DEFAULT_AVATAR_DIR", "/app/media/defaults")
+).expanduser()
+
+logger = logging.getLogger("lexi.session")
 
 VisitMeta = Dict[str, object]
 
@@ -70,11 +81,27 @@ async def session_middleware(
 
     log_path = _session_file(session_id)
     client_ip = _safe_ip(request)
+    user_id = None
+    if user_id_feature_enabled():
+        user_id = normalize_user_id(request.headers.get("x-lexi-user"))
 
     request.state.session_id = session_id
     request.state.session_log_path = log_path
     request.state.client_ip = client_ip
     request.state.user_agent = request.headers.get("user-agent", "")
+    request.state.user_id = user_id
+    default_avatar_info = None
+    if new_session:
+        try:
+            DEFAULT_AVATAR_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+            default_avatar_info = await run_in_threadpool(
+                generate_default_avatar_for_ip,
+                client_ip,
+                str(DEFAULT_AVATAR_MEDIA_DIR),
+            )
+        except Exception as exc:  # pragma: no cover - best effort
+            logger.warning("Default avatar bootstrap failed: %s", exc)
+    request.state.default_avatar = default_avatar_info
 
     visit_meta: VisitMeta = {
         "ts": _now_ms(),
@@ -86,6 +113,7 @@ async def session_middleware(
         "ua": request.headers.get("user-agent", ""),
         "referer": request.headers.get("referer", ""),
         "session_id": session_id,
+        "user_id": user_id,
     }
     write_session_event(log_path, visit_meta)
 
@@ -101,6 +129,12 @@ async def session_middleware(
             secure=_should_use_secure_cookie(request),
             path="/",
         )
+        # best-effort touch user profile on first visit of a session
+        if user_profile_feature_enabled() and user_id:
+            try:
+                touch_last_seen(user_id)
+            except Exception:
+                logger.debug("touch_last_seen failed", exc_info=True)
 
     return response
 

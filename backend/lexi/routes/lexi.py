@@ -556,6 +556,10 @@ async def process(req: ChatRequest, request: Request):
             logger.warning("❌ Empty reply for prompt: %r", req.prompt)
             reply_text = "[no response]"
 
+        gen_meta = getattr(lexi_persona, "_last_gen_meta", {}) or {}
+        finish_reason = gen_meta.get("finish_reason")
+        usage = gen_meta.get("usage")
+
         try:
             memory.remember(
                 MemoryShard(
@@ -565,15 +569,24 @@ async def process(req: ChatRequest, request: Request):
         except Exception as mem_err:
             logger.warning("⚠️ Memory store skipped: %s", mem_err)
 
-        _append_session_memory(
-            request,
-            {"role": "assistant", "event": "chat_reply", "text": reply_text},
-        )
+        event_payload: Dict[str, Any] = {
+            "role": "assistant",
+            "event": "chat_reply",
+            "text": reply_text,
+        }
+        if finish_reason is not None:
+            event_payload["finish_reason"] = finish_reason
+        if usage is not None:
+            event_payload["usage"] = usage
+
+        _append_session_memory(request, event_payload)
         log_event(
             request,
             "assistant",
             reply_text,
             event="chat_reply",
+            finish_reason=finish_reason,
+            usage=usage,
         )
 
         return {
@@ -582,6 +595,8 @@ async def process(req: ChatRequest, request: Request):
             "choices": [{"text": reply_text}],
             "mode": lexi_persona.get_mode(),
             "session_id": getattr(request.state, "session_id", None),
+            "finish_reason": finish_reason,
+            "usage": usage,
         }
 
     if wants_stream:
@@ -590,10 +605,76 @@ async def process(req: ChatRequest, request: Request):
         final_payload: Dict[str, Any] = {}
         error_holder: Dict[str, str] = {}
 
+        _think_start_re = re.compile(r"<(think|thinking|scratchpad)[^>]*>", re.I)
+        _think_end_re = re.compile(r"</(think|thinking|scratchpad)>", re.I)
+        _strip_tokens_re = re.compile(
+            r"<\|\s*(?:im_start|im_end|system|user|assistant|endoftext|object_ref_start|object_ref_end|box_start|box_end|quad_start|quad_end|vision_start|vision_end)\s*\|>",
+            re.I,
+        )
+        _inline_think_re = re.compile(
+            r"<(think|thinking|scratchpad)[^>]*>.*?(?:</(think|thinking|scratchpad)>|$)",
+            re.I | re.S,
+        )
+
+        def _sanitize_chunk(raw: str, state: Dict[str, Any]) -> str:
+            buf = state.get("buf", "") + raw
+            in_think = state.get("in_think", False)
+            out_parts: list[str] = []
+
+            while buf:
+                if in_think:
+                    m_end = _think_end_re.search(buf)
+                    if not m_end:
+                        state["buf"] = ""
+                        state["in_think"] = True
+                        return ""
+                    buf = buf[m_end.end() :]
+                    in_think = False
+                    continue
+
+                m_start = _think_start_re.search(buf)
+                if not m_start:
+                    out_parts.append(buf)
+                    buf = ""
+                    break
+
+                if m_start.start() > 0:
+                    out_parts.append(buf[: m_start.start()])
+                buf = buf[m_start.end() :]
+                m_end = _think_end_re.search(buf)
+                if m_end:
+                    buf = buf[m_end.end() :]
+                    in_think = False
+                    continue
+                buf = ""
+                in_think = True
+                break
+
+            state["buf"] = buf
+            state["in_think"] = in_think
+            text = "".join(out_parts)
+            if not text:
+                return ""
+
+            text = _strip_tokens_re.sub("", text)
+            text = re.sub(r"</?(assistant|system|user)>", "", text, flags=re.I)
+            text = re.sub(r"</?tool_call>|</?tool_response>", "", text, flags=re.I)
+            text = _inline_think_re.sub("", text)
+            text = _think_start_re.sub("", text)
+            text = _think_end_re.sub("", text)
+            return text.strip()
+
         def stream_callback(chunk: str) -> None:
             if not chunk:
                 return
-            loop.call_soon_threadsafe(queue.put_nowait, chunk)
+            try:
+                cleaned = _sanitize_chunk(chunk, state)
+                if cleaned:
+                    loop.call_soon_threadsafe(queue.put_nowait, cleaned)
+            except Exception as exc:
+                logger.warning("stream sanitize failed: %s", exc)
+                state["buf"] = ""
+                state["in_think"] = False
 
         async def run_chat() -> None:
             try:

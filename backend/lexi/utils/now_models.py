@@ -3,6 +3,7 @@ from typing import List, Optional, Literal
 from datetime import datetime
 
 Category = Literal["movies", "tv", "news"]
+SearchProvider = Literal["auto", "tavily", "brave"]
 
 
 class NowItem(BaseModel):
@@ -31,6 +32,9 @@ class WebSearchRequest(BaseModel):
     site_filters: Optional[List[str]] = None
     max_results: int = 6
     include_content: bool = False
+    provider: SearchProvider = "auto"
+    allow_brave_fallback: bool = False
+    stall_on_failure: bool = True
 
 
 class WebDoc(BaseModel):
@@ -40,3 +44,10 @@ class WebDoc(BaseModel):
     content: Optional[str] = None
     published_at: Optional[datetime] = None
     source: Optional[str] = None
+
+
+class MoviesNowRequest(BaseModel):
+    location: Optional[str] = None
+    start_date: str
+    end_date: str
+    limit: int = Field(default=12, ge=1, le=20)
