@@ -1,0 +1,14 @@
+.avatar-fade-in {
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.avatar-fade-out {
+  opacity: 0.2;
+  transition: opacity 60ms linear;
+}
+
+img[data-avatar] {
+  display: block;
+  will-change: opacity;
+}
