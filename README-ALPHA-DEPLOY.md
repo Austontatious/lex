@@ -51,6 +51,7 @@ Populate the following fields at minimum:
 | `LEX_STATIC_ROOT`       | Directory inside the backend image where avatars & static assets live. |
 | `CORS_ORIGINS`          | Comma-separated list of allowed browser origins (include `https://lexicompanion.com`). |
 | `FLUX_*`                | Flux model configuration paths.                                  |
+| `TMDB_API_KEY` or `TMDB_READ_ACCESS_TOKEN` | Required for the movies/Now tool; set at least one. |
 | `LEXI_AVATAR_JOB_TTL`   | Seconds to retain completed avatar jobs in memory (default `600`). |
 | `LEXI_SKIP_FLUX_WARMUP` | Set to `1` to skip the Flux warm-up call at startup (default runs once). |
 
@@ -65,6 +66,7 @@ Frontend clients call `POST /lexi/alpha/session/start` once, persist the returne
 - The edge proxy forwards `X-Lexi-Session` to the backend.
 - FastAPI’s CORS middleware allows the header (`allow_headers` must include `X-Lexi-Session`).
 - Any Cloudflare Workers or other intermediaries also echo CORS headers on error paths; otherwise a 502 can masquerade as a “CORS blocked” message in DevTools.
+- Optional user-id header: if `LEXI_USER_ID_ENABLED=1` is set, the frontend sends `X-Lexi-User` (email-or-name, unvalidated). Forward this header too so per-user persona/memory buckets work; when the flag is off the header is ignored.
 
 ---
 

@@ -14,6 +14,28 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
 - **Extendable modular backend** with FastAPI
 - **Natural language trait extraction** for avatar customization
 - **Configurable prompt builder and visualizer tools**
+- **Model & prompt tuned** for Lexi: Qwen3-30B-A3B (MoE) base with a Lexi DPO adapter, plus an updated system prompt (`backend/lexi/persona/prompt_templates/lexi_system_qwen3_moe.txt`) emphasizing sensory detail, warm SFW tone, and concise arcs. Override with `LEXI_SYSTEM_PROMPT_PATH` to hot-swap or roll back.
+
+### Served model (merged)
+- Merged checkpoint: `/mnt/data/models/Qwen/lexi-qwen3-30b-a3b-dpo-merged`
+- Example vLLM launch:
+  ```
+  CUDA_VISIBLE_DEVICES=0,1,2,3 \
+  /mnt/data/vllm-venv/bin/python -m vllm.entrypoints.openai.api_server \
+    --model /mnt/data/models/Qwen/lexi-qwen3-30b-a3b-dpo-merged \
+    --served-model-name Lexi \
+    --tensor-parallel-size 4 \
+    --dtype float16 \
+    --max-model-len 4096 \
+    --gpu-memory-utilization 0.88 \
+    --max-num-seqs 64 \
+    --swap-space 12 \
+    --distributed-executor-backend mp \
+    --trust-remote-code \
+    --download-dir /mnt/data/models \
+    --disable-custom-all-reduce \
+    --host 0.0.0.0 --port 8008
+  ```
 
 ---
 
@@ -34,6 +56,7 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
   - `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE`, `LEX_COMFY_URL` → `http://comfy-sd:8188` (bundled ComfyUI). Switch to `http://host.docker.internal:8188` only if you run Comfy on the host.
   - `FLUX_MODELS_DIR`, `FLUX_DIFFUSION_DIR`, `FLUX_TEXT_ENCODER_DIR`, and `FLUX_VAE_PATH` must resolve to your Flux assets (e.g. `flux1-kontext-dev.safetensors`, `clip_l.safetensors`, `t5xxl_fp8_e4m3fn.safetensors`, `ae.safetensors`).
 - `LEX_USE_COMFY_ONLY=1` keeps avatar preflight errors soft (warn JSON instead of 502). `LEX_AVATAR_DIR` (default `/app/frontend/public/avatars`) and `LEX_PUBLIC_BASE` influence the generated avatar URLs.
+- Live “Now” feed + movies tool: set `TMDB_API_KEY` **or** `TMDB_READ_ACCESS_TOKEN` in `.env.*` (one is enough); leave `ENABLE_NOW` unset to keep the default `True`.
 - `LEX_SKIP_COMFY_WARMUP=1` skips the Comfy warm-up call if you need ultra-fast cold starts (not recommended for production).
 - The frontend defaults to `https://api.lexicompanion.com/lexi` whenever `window.location.hostname` ends with `lexicompanion.com`. Dev builds continue to use `/lexi` unless `/config.json` provides a different base.
 - The bundled NGINX config now proxies `/lexi/*` to the backend and falls back to `index.html` for deep SPA routes.
@@ -122,6 +145,23 @@ docker compose exec lexi-backend sh -lc 'curl -sS http://127.0.0.1:9000/lexi/rea
 - `POST /lexi/gen/avatar` requires `X-Lexi-Session`; otherwise the backend returns HTTP 401 with a hint to start a session.
 - `GET /lexi/healthz` performs a lightweight liveness check (Comfy `/object_info` + avatar-dir write).
 - `GET /lexi/readyz` validates the schema expectations and submits a no-op `/prompt` to ensure Comfy is ready.
+
+### Optional: per-user IDs (email-or-name) — disabled by default
+
+- Enable with `LEXI_USER_ID_ENABLED=1` on the backend. The dev launcher (`start_lexi.py`) mirrors it to the frontend as `VITE_USER_ID_ENABLED` so the prompt appears.
+- When enabled, the frontend asks for "email or name", stores it in `localStorage` (`LEXI_USER_ID`), and sends it on every request as `X-Lexi-User`. There is intentionally no validation; nicknames are fine.
+- Backend binds that id to:
+  - persona state under `backend/lexi/routes/users/<user>/lexi_persona_state.json`,
+  - long-term memory under `Lex/memory/users/<user>/ltm.jsonl`,
+  - session summaries under `Lex/memory/users/<user>/session_memory.json`,
+  - session logs/metrics tagged with the normalized id.
+- If the flag is off or the header is missing, everything continues to use the existing shared stores and UX. Users can also click "skip" and fall back to the shared bucket even when the flag is on.
+
+### Experimental: vector memory + avatar manifest (disabled by default)
+
+- Gate vector search/ingest behind `LEXI_VECTOR_ENABLED=1`. Storage lives at `LEXI_VECTOR_CHROMA_PATH` (default `/workspace/ai-lab/Lex/vector_store`) with collection name `LEXI_VECTOR_COLLECTION` (`lex_memory`). Embeddings use a local `sentence-transformers` model; no remote calls.
+- Turn on per-user profile + avatar manifests with `LEXI_USER_DATA_ENABLED=1` (writes under `LEX_USER_DATA_ROOT`, default `<repo>/memory/users/<id>/...`). Keeps the first avatar and the latest edit with prompt/traits/seed metadata for continuity; when disabled it is a no-op.
+- See `docs/user_data_and_vectors.md` for how the flags combine and where artifacts are stored.
 
 **Avatar job queue highlights**
 

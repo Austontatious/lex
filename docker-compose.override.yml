@@ -3,9 +3,28 @@ version: "3.9"
 services:
   lexi-backend:
     environment:
+      PYTHONPATH: /app/backend:/app
       LEX_COMFY_URL: http://comfy-sd:8188
       LEX_USE_COMFY_ONLY: "1"
       COMFY_URL: http://comfy-sd:8188
       IMAGE_API_BASE: http://comfy-sd:8188
-      LEX_AVATAR_DIR: /app/static/avatars
+      LEXI_STATIC_DIR: /app/frontend/public
+      LEX_AVATAR_DIR: /app/frontend/public/avatars
+      LEX_IMAGE_DIR: /app/frontend/public/avatars
+      AVATARS_PUBLIC_DIR: /app/frontend/public/avatars
+      AVATARS_STATIC_DIR: /app/frontend/public/avatars
+      AVATARS_PUBLIC_URL: /lexi/static/avatars
       LEX_PUBLIC_BASE: https://api.lexicompanion.com
+    volumes:
+      - /mnt/data/models:/mnt/data/models:ro
+      - /mnt/data/comfy:/mnt/data/comfy:ro
+      - /mnt/data/Lex/docker/comfy/workflows:/app/docker/comfy/workflows:ro
+      - /mnt/data/avatars:/app/frontend/public/avatars:rw
+      - /mnt/data/Lex/data:/data:rw
+      - /mnt/data/Lex/logs/sessions:/app/logs/sessions:rw
+      - lex_hf_cache:/data/hf_cache:rw
+      - /mnt/data/Lex/overrides/backend_routes/lexi.py:/app/backend/lexi/routes/lexi.py:ro
+      - /mnt/data/Lex/overrides/backend_routes/lexi_persona.py:/app/backend/lexi/routes/lexi_persona.py:ro
+
+volumes:
+  lex_hf_cache:
