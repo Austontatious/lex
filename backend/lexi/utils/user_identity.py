@@ -12,7 +12,7 @@ _INVALID_CHARS = re.compile(r"[^a-z0-9_.@-]+")
 
 def user_id_feature_enabled() -> bool:
     """Feature flag gate for per-user persona/memory buckets."""
-    flag = os.getenv("LEXI_USER_ID_ENABLED", "0")
+    flag = os.getenv("LEXI_USER_ID_ENABLED", "1")
     return str(flag).lower() in {"1", "true", "yes", "on"}
 
 

@@ -1,0 +1,5002 @@
+[
+  {
+    "filename": "Boudoir_Glam_0001_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0002_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0003_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0004_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0005_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0006_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0007_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0008_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0009_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0010_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0011_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0012_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0013_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0014_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0015_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0016_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0017_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0018_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0019_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0020_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0021_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0022_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0023_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0024_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0025_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0026_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0027_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0028_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0029_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0030_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0031_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0032_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0033_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0034_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0035_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0036_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0037_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0038_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0039_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0040_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0041_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0042_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0043_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0044_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0045_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0046_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0047_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0048_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0049_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0050_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0051_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0052_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0053_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0054_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0055_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0056_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0057_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0058_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0059_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0060_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0061_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0062_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0063_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0064_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0065_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0066_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0067_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0068_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0069_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0070_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0071_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0072_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0073_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0074_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0075_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0076_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0077_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0078_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0079_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0080_keypoints.json",
+    "shape_bucket": "POSE_5",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0081_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0082_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0083_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0084_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0085_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0086_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0087_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0088_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0089_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0090_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0091_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0092_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0093_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0094_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0095_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0096_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0097_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0098_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0099_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0100_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0101_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0102_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0103_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0104_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0105_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0106_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0107_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0108_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0109_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0110_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0111_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0112_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0113_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0114_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0115_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0116_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0117_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0118_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0119_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0120_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0121_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0122_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0123_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0124_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0125_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0126_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0127_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0128_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0129_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0130_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0131_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0132_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0133_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0134_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0135_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0136_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0137_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0138_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0139_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0140_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0141_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0142_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0143_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0144_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0145_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0146_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0147_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0148_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0149_keypoints.json",
+    "shape_bucket": "POSE_5",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0150_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0151_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0152_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0153_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0154_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0155_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0156_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0157_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0158_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0159_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0160_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0161_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0162_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0163_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0164_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0165_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0166_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0167_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0168_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0169_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0170_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0171_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0172_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0173_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0174_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0175_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0176_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0177_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0178_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0179_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0180_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0181_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0182_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0183_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0184_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0185_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0186_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0187_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0188_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0189_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0190_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0191_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0192_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0193_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0194_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0195_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0196_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0197_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0198_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0199_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0200_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0201_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0202_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0203_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0204_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0205_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0206_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0207_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0208_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0209_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0210_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0211_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0212_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0213_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0214_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0215_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0216_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0217_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0218_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0219_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0220_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0221_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0222_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0223_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0224_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0225_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0226_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0227_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0228_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0229_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0230_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0231_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0232_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0233_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0234_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0235_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0236_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0237_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0238_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0239_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0240_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0241_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0242_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0243_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0244_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0245_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0246_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0247_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0248_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0249_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0250_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0251_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0252_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0253_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0254_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0255_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0256_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0257_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0258_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0259_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0260_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0261_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0262_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0263_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0264_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0265_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0266_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0267_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0268_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0269_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0270_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0271_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0272_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0273_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0274_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0275_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0276_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0277_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0278_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0279_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0280_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0281_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0282_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0283_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0284_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0285_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0286_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0287_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0288_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0289_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0290_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0291_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0292_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0293_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0294_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0295_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0296_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0297_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0298_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0299_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0300_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0301_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0302_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0303_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0304_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0305_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0306_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0307_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0308_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0309_keypoints.json",
+    "shape_bucket": "POSE_2",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0310_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0311_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0312_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0313_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0314_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0315_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0316_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0317_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0318_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0319_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0320_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0321_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0322_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0323_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0324_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0325_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0326_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0327_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0328_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0329_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0330_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0331_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0332_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0333_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0334_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0335_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0336_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0337_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0338_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0339_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0340_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0341_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0342_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0343_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0344_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0345_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0346_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0347_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0348_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0349_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0350_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0351_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0352_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0353_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0354_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0355_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0356_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0357_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0358_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0359_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0360_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0361_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0362_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0363_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0364_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0365_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0366_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0367_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0368_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0369_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0370_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0371_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0372_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0373_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0374_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0375_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0376_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0377_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0378_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0379_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0380_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0381_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0382_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0383_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0384_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0385_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0386_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0387_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0388_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0389_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0390_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0391_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0392_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0393_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0394_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0395_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0396_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0397_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0398_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0399_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0400_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0401_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0402_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0403_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0404_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0405_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0406_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0407_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0408_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0409_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0410_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0411_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0412_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0413_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0414_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0415_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0416_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0417_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0418_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0419_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0420_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0421_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0422_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0423_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0424_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0425_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0426_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0427_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0428_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0429_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0430_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0431_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0432_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0433_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0434_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0435_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0436_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0437_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0438_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0439_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0440_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0441_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0442_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0443_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0444_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0445_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0446_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0447_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0448_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0449_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0450_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0451_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0452_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0453_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0454_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0455_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0456_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0457_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0458_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0459_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0460_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0461_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0462_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0463_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0464_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0465_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0466_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0467_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0468_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0469_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0470_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0471_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0472_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0473_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0474_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0475_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0476_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0477_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0478_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0479_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0480_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0481_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0482_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0483_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0484_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0485_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0486_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0487_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0488_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0489_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0490_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0491_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0492_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0493_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0494_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0495_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0496_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0497_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0498_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0499_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0500_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0501_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0502_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0503_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0504_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0505_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0506_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0507_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0508_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0509_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0510_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0511_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0512_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0513_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0514_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0515_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0516_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0517_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0518_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0519_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0520_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0521_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0522_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0523_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0524_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0525_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0526_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0527_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0528_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0529_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0530_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0531_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0532_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0533_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0534_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0535_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0536_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0537_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0538_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0539_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0540_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0541_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0542_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0543_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0544_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0545_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0546_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0547_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0548_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0549_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0550_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0551_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0552_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0553_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0554_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0555_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0556_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0557_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0558_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0559_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0560_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0561_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0562_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0563_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0564_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0565_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0566_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0567_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0568_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0569_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0570_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0571_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0572_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0573_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0574_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0575_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0576_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0577_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0578_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0579_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0580_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0581_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0582_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0583_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0584_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0585_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0586_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0587_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0588_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0589_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0590_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0591_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0592_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0593_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0594_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0595_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0596_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0597_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0598_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0599_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0600_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0601_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0602_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0603_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0604_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0605_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0606_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0607_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0608_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0609_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0610_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0611_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0612_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0613_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0614_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0615_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0616_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0617_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0618_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0619_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0620_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0621_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0622_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0623_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0624_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0625_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0626_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0627_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0628_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0629_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0630_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0631_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0632_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0633_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0634_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0635_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0636_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0637_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0638_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0639_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0640_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0641_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0642_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0643_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0644_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0645_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0646_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0647_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0648_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0649_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0650_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0651_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0652_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0653_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0654_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0655_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0656_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0657_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0658_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0659_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0660_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0661_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0662_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0663_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0664_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0665_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0666_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0667_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0668_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0669_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0670_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0671_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0672_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0673_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0674_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0675_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0676_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0677_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0678_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0679_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0680_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0681_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0682_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0683_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0684_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0685_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0686_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0687_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0688_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0689_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0690_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0691_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0692_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0693_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0694_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0695_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0696_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0697_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0698_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0699_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0700_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0701_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0702_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0703_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0704_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0705_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0706_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0707_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0708_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0709_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0710_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0711_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0712_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0713_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0714_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0715_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0716_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0717_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0718_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0719_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0720_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0721_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0722_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0723_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0724_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0725_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0726_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0727_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0728_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0729_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0730_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0731_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0732_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0733_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0734_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0735_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0736_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0737_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0738_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0739_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0740_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0741_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0742_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0743_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0744_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0745_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0746_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0747_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0748_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0749_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0750_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0751_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0752_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0753_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0754_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0755_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0756_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0757_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0758_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0759_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0760_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0761_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0762_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0763_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0764_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0765_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0766_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0767_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0768_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0769_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0770_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0771_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0772_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0773_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0774_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0775_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0776_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0777_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0778_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0779_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0780_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0781_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0782_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0783_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0784_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0785_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0786_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0787_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0788_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0789_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0790_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0791_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0792_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0793_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0794_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0795_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0796_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0797_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0798_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0799_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0800_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0801_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0802_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0803_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0804_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0805_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0806_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0807_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0808_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0809_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0810_keypoints.json",
+    "shape_bucket": "POSE_5",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0811_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0812_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0813_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0814_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0815_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0816_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0817_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0818_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0819_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0820_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0821_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0822_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0823_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0824_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0825_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0826_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0827_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0828_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0829_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0830_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0831_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0832_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0833_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0834_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0835_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0836_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0837_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0838_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0839_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0840_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0841_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0842_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0843_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0844_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0845_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0846_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0847_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0848_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0849_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0850_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0851_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0852_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0853_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0854_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0855_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0856_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0857_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0858_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0859_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0860_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0861_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0862_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0863_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0864_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0865_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0866_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0867_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0868_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0869_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0870_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0871_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0872_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0873_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0874_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0875_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0876_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0877_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0878_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0879_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0880_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0881_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0882_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0883_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0884_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0885_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0886_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0887_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0888_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0889_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0890_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0891_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0892_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0893_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0894_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0895_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0896_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0897_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0898_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0899_keypoints.json",
+    "shape_bucket": "POSE_2",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0900_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0901_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0902_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0903_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0904_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0905_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0906_keypoints.json",
+    "shape_bucket": "POSE_6",
+    "camera_bucket": "CAM_TOPDOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0907_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0908_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0909_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0910_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0911_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0912_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0913_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0914_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0915_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0916_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0917_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0918_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0919_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0920_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0921_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0922_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0923_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0924_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0925_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0926_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0927_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0928_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0929_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0930_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0931_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0932_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0933_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0934_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0935_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0936_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0937_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0938_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0939_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0940_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0941_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0942_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0943_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0944_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0945_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0946_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0947_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_EYE"
+  },
+  {
+    "filename": "Boudoir_Glam_0948_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0949_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0950_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0951_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0952_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0953_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0954_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0955_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0956_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0957_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0958_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0959_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0960_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0961_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0962_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0963_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0964_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0965_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0966_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0967_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0968_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0969_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0970_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0971_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0972_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0973_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0974_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0975_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0976_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0977_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0978_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_UNKNOWN"
+  },
+  {
+    "filename": "Boudoir_Glam_0979_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0980_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0981_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0982_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0983_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0984_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0985_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0986_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0987_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0988_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0989_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0990_keypoints.json",
+    "shape_bucket": "POSE_3",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0991_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0992_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0993_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0994_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0995_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_SLIGHT_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0996_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0997_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_HIGH"
+  },
+  {
+    "filename": "Boudoir_Glam_0998_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_0999_keypoints.json",
+    "shape_bucket": "POSE_7",
+    "camera_bucket": "CAM_LOW"
+  },
+  {
+    "filename": "Boudoir_Glam_1000_keypoints.json",
+    "shape_bucket": "POSE_4",
+    "camera_bucket": "CAM_HIGH"
+  }
+]

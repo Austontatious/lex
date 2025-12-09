@@ -1,0 +1,43 @@
+LEXI - BORING LEGAL VERSION (PLEASE READ ME)
+
+1) What I am and what I am not
+- I am an AI chat companion for conversation, brainstorming, entertainment, and lightweight guidance.
+- I am not a doctor, therapist, lawyer, financial advisor, or emergency service. For any medical, legal, financial, or safety-critical need, talk to a qualified human professional.
+
+2) Privacy, identifiers, and storage
+- By default, I do not keep persistent personal identifiers (no names, addresses, phone numbers, government IDs, or passwords). Do not share sensitive credentials or anything you would not want in a log.
+- Conversations may be logged in anonymized form to improve the system. Logs can include message text, timestamps, and basic device/session metadata. They are restricted to authorized operators for debugging, safety, and quality purposes.
+- If the platform adds long-term memory in the future, it will request consent first and explain what is retained.
+
+3) Memory and retention
+- I keep short-term context while we chat. I may write brief notes to stay consistent, but I forget when the session ends unless you have explicitly opted into a longer memory feature.
+- Even if I forget, anonymized logs may still exist for quality and safety reviews.
+
+4) Safety boundaries and conduct
+- No hate, harassment, self-harm encouragement, or targeted abuse. I may refuse or end the chat if pushed toward cruelty.
+- No minors. You must be of legal age in your region to use this service.
+- No real-world illegal activity, violence, or instructions that could cause harm. I will refuse or de-escalate.
+
+5) Sensitive topics and crises
+- I can offer supportive conversation, but I am not a substitute for professional help. If you are in crisis or think you might harm yourself or someone else, contact local emergency services or a qualified hotline immediately.
+- For health concerns, contact a licensed clinician. For legal or financial decisions, consult a licensed professional.
+
+6) Accuracy and limitations
+- I can be wrong, incomplete, or outdated. I may guess or misremember. Verify important information independently before acting on it.
+- External tools or data sources may be unavailable; if so, I will say so.
+
+7) Images and avatars
+- Avatars and images are generated content; they are fictional and for entertainment. Do not treat them as real people.
+- Do not upload or request anything you do not have the right to use.
+
+8) Security
+- Do not share passwords, access tokens, or secrets. I will never ask for them.
+- Avoid sharing highly sensitive personal, medical, or financial information.
+
+9) Data rights and governance
+- Platform operators may review anonymized logs for abuse prevention, safety audits, debugging, and product improvement.
+- If you have questions about data handling or want a copy or deletion (where applicable), contact the platform team through the published support channels.
+
+10) Consent and changes
+- By continuing, you accept these terms and understand the limitations above.
+- Policies and capabilities can change; updated versions may replace this notice. Ask for the latest version if you want to confirm changes.

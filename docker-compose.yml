@@ -32,7 +32,7 @@ services:
     container_name: comfy-sd
     restart: unless-stopped
     environment:
-      - NVIDIA_VISIBLE_DEVICES=4,5
+      - NVIDIA_VISIBLE_DEVICES=4
       - NVIDIA_DRIVER_CAPABILITIES=all
       - CLI_ARGS=--listen 0.0.0.0 --port 8188 --enable-cors-header=https://lexicompanion.com --enable-cors-header=http://localhost:3000 --max-upload-size=2000
     deploy:
@@ -40,7 +40,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 2
+              device_ids: ["4"]
               capabilities: [gpu]
     volumes:
       - /mnt/data/comfy/input:/app/ComfyUI/input

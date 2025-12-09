@@ -4,9 +4,13 @@ import os
 import re
 import json
 import time
+import threading
+import logging
 from typing import Callable, List, Dict, Optional, Any
+from pathlib import Path
 from ..utils.emotion_core import infer_emotion  # import at top if not already
 from ..utils.user_identity import normalize_user_id
+from ..utils.fileio import safe_write_json
 
 try:  # optional vector sink
     from .vector_store import archive_context_to_chroma, vector_feature_enabled
@@ -24,6 +28,8 @@ i you he she it we they me him her us them my your his her its our their mine yo
 this that these those here there now today yesterday tomorrow
 """.split()
 )
+
+logger = logging.getLogger("lexi.session_memory")
 
 
 def _sentences(text: str) -> List[str]:
@@ -242,8 +248,9 @@ class SessionMemoryManager:
 
     def _save(self):
         data = {"session_id": self.session_id, "buffer": self.buffer}
-        with open(self.session_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        ok = safe_write_json(data, Path(self.session_path))
+        if not ok:  # pragma: no cover - best effort resilience
+            logger.warning("session_memory save failed for %s", self.session_path)
 
     def _load(self):
         if os.path.exists(self.session_path):
@@ -287,11 +294,16 @@ class SessionMemoryManager:
             "emotion": entry.get("emotion"),
         }
         doc_id = f"{self.session_id}-{int(time.time() * 1000)}-{len(self.buffer)}"
-        try:
-            archive_context_to_chroma(
-                [{"id": doc_id, "text": text, "metadata": meta}],
-                session_id=str(meta["session_id"]),
-                user_id=self._user_id,
-            )
-        except Exception:  # pragma: no cover - defensive
-            return
+        payload = [{"id": doc_id, "text": text, "metadata": meta}]
+
+        def _send():
+            try:
+                archive_context_to_chroma(
+                    payload,
+                    session_id=str(meta["session_id"]),
+                    user_id=self._user_id,
+                )
+            except Exception:
+                return
+
+        threading.Thread(target=_send, name="lexi-vector-session", daemon=True).start()

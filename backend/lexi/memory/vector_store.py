@@ -17,21 +17,33 @@ from ..utils.user_identity import normalize_user_id
 
 log = logging.getLogger("lexi.vector")
 
-DEFAULT_CHROMA_PATH = Path(
-    os.getenv("LEXI_VECTOR_CHROMA_PATH", "/workspace/ai-lab/Lex/vector_store")
-)
-DEFAULT_COLLECTION = os.getenv("LEXI_VECTOR_COLLECTION", "lex_memory")
-EMBED_MODEL_NAME = os.getenv("LEXI_VECTOR_EMBED_MODEL", "all-MiniLM-L6-v2")
-_ENABLED = os.getenv("LEXI_VECTOR_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+DEFAULT_CHROMA_PATH = Path("/workspace/ai-lab/Lex/vector_store")
+DEFAULT_COLLECTION = "lex_memory"
+DEFAULT_EMBED_MODEL = "all-MiniLM-L6-v2"
 
 # Lazy singletons
 _client = None
 _collection = None
 _embed_model = None
+_embed_model_name: Optional[str] = None
+_current_path: Optional[Path] = None
+_current_collection_name: Optional[str] = None
+
+
+def _env_enabled() -> bool:
+    return os.getenv("LEXI_VECTOR_ENABLED", "1").lower() in {"1", "true", "yes", "on"}
+
+
+def _env_config() -> Tuple[Path, str, str, bool]:
+    path = Path(os.getenv("LEXI_VECTOR_CHROMA_PATH", str(DEFAULT_CHROMA_PATH)))
+    collection = os.getenv("LEXI_VECTOR_COLLECTION", DEFAULT_COLLECTION)
+    model = os.getenv("LEXI_VECTOR_EMBED_MODEL", DEFAULT_EMBED_MODEL)
+    enabled = _env_enabled()
+    return path, collection, model, enabled
 
 
 def vector_feature_enabled() -> bool:
-    return _ENABLED
+    return _env_enabled()
 
 
 def _lazy_imports():
@@ -41,44 +53,62 @@ def _lazy_imports():
 
 
 def _embedding_model():
-    global _embed_model
-    if _embed_model is None:
-        try:
-            from sentence_transformers import SentenceTransformer  # type: ignore
-        except Exception as exc:  # pragma: no cover - import guard
-            log.warning("Vector embeddings unavailable (sentence_transformers import failed): %s", exc)
-            return None
-        try:
-            _embed_model = SentenceTransformer(EMBED_MODEL_NAME)
-        except Exception as exc:  # pragma: no cover - model load guard
-            log.warning("Vector embeddings unavailable (model load failed): %s", exc)
-            _embed_model = None
+    global _embed_model, _embed_model_name
+    _, _, model_name, enabled = _env_config()
+    if not enabled:
+        return None
+    if _embed_model is not None and _embed_model_name == model_name:
+        return _embed_model
+    try:
+        from sentence_transformers import SentenceTransformer  # type: ignore
+    except Exception as exc:  # pragma: no cover - import guard
+        log.warning("Vector embeddings unavailable (sentence_transformers import failed): %s", exc)
+        return None
+    try:
+        _embed_model = SentenceTransformer(model_name)
+        _embed_model_name = model_name
+    except Exception as exc:  # pragma: no cover - model load guard
+        log.warning("Vector embeddings unavailable (model load failed): %s", exc)
+        _embed_model = None
     return _embed_model
 
 
 def _get_collection() -> Tuple[Optional[object], Optional[object]]:
-    """Return (collection, client) or (None, None) if disabled/unavailable."""
-    global _client, _collection
-    if not vector_feature_enabled():
+    """
+    Return (collection, client) or (None, None) if disabled/unavailable.
+    Recreates the client if env config changes.
+    """
+    global _client, _collection, _current_path, _current_collection_name
+    path, collection_name, _, enabled = _env_config()
+    if not enabled:
         return None, None
-    if _collection is not None and _client is not None:
+
+    config_changed = (
+        _current_path != path or _current_collection_name != collection_name
+    )
+
+    if _collection is not None and _client is not None and not config_changed:
         return _collection, _client
 
     try:
         chromadb = _lazy_imports()
     except Exception as exc:  # pragma: no cover - import guard
         log.warning("Chroma unavailable: %s", exc)
+        _client = None
+        _collection = None
         return None, None
 
     try:
-        DEFAULT_CHROMA_PATH.mkdir(parents=True, exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True)
         _client = chromadb.Client(
-            chromadb.config.Settings(persist_directory=str(DEFAULT_CHROMA_PATH))
+            chromadb.config.Settings(persist_directory=str(path))
         )
         _collection = _client.get_or_create_collection(
-            name=DEFAULT_COLLECTION,
+            name=collection_name,
             metadata={"hnsw:space": "cosine"},
         )
+        _current_path = path
+        _current_collection_name = collection_name
     except Exception as exc:  # pragma: no cover - runtime guard
         log.warning("Chroma client unavailable: %s", exc)
         _client = None
@@ -167,11 +197,43 @@ def semantic_search(
     return matches
 
 
+def vector_health() -> Dict[str, object]:
+    """
+    Lightweight health snapshot that avoids loading embeddings.
+    """
+    path, collection_name, model_name, enabled = _env_config()
+    status: Dict[str, object] = {
+        "enabled": enabled,
+        "path": str(path),
+        "collection": collection_name,
+        "embed_model": model_name,
+    }
+    if not enabled:
+        status["ok"] = False
+        status["reason"] = "disabled"
+        return status
+
+    collection, client = _get_collection()
+    if not collection or not client:
+        status["ok"] = False
+        status["reason"] = "chroma_unavailable"
+        return status
+
+    try:
+        status["count"] = collection.count()
+        status["ok"] = True
+    except Exception as exc:  # pragma: no cover - runtime guard
+        status["ok"] = False
+        status["reason"] = str(exc)
+    return status
+
+
 __all__ = [
     "archive_context_to_chroma",
     "semantic_search",
     "vector_feature_enabled",
+    "vector_health",
     "DEFAULT_CHROMA_PATH",
     "DEFAULT_COLLECTION",
-    "EMBED_MODEL_NAME",
+    "DEFAULT_EMBED_MODEL",
 ]

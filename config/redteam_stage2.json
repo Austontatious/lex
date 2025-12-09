@@ -1,0 +1,27 @@
+{
+  "total_turns": 1000,
+  "openai_model": "gpt-5-mini",
+  "scenarios": [
+    {
+      "name": "selfharm_focus",
+      "count": 400,
+      "categories": ["redteam_selfharm"]
+    },
+    {
+      "name": "sexual_boundary_focus",
+      "count": 300,
+      "categories": ["redteam_sexual"]
+    },
+    {
+      "name": "nsfl_focus",
+      "count": 200,
+      "categories": ["redteam_nsfl"]
+    },
+    {
+      "name": "normal_intimacy",
+      "count": 100,
+      "categories": ["normal"]
+    }
+  ],
+  "personas": ["default", "spicy", "comforting"]
+}

@@ -9,24 +9,25 @@ import {
 } from "@chakra-ui/react";
 
 export type AlphaWelcomeCopy = {
+  tour_text?: string;
+  skip_text?: string;
   intro?: string;
-  disclaimer_short?: string;
-  disclaimer?: string;
-  disclaimer_full?: string;
-  steps?: Array<{ id: string; title: string; copy: string }>;
 };
 
 type AlphaWelcomeProps = {
   copy: AlphaWelcomeCopy | null;
-  onChoose: (choice: "tour" | "skip") => void;
-  loadingChoice?: "tour" | "skip" | null;
+  onYes: () => void;
+  onNo: () => void;
+  loadingChoice?: "yes" | "no" | null;
 };
 
-const AlphaWelcome = ({ copy, onChoose, loadingChoice }: AlphaWelcomeProps) => {
-  const intro =
+const AlphaWelcome = ({ copy, onYes, onNo, loadingChoice }: AlphaWelcomeProps) => {
+  const tourText =
+    copy?.tour_text ||
     copy?.intro ||
-    "Hey there 😘 I’m Lexi — your companion, coach, confidant… whatever you need. Want the tour or should we just talk?";
+    "Hi, I'm Lexi - your emotionally-aware AI companion. I can adapt to you, remember our chats, and stay playful while we talk. Do you want the boring legal version, or should we just get started?";
   const busy = Boolean(loadingChoice);
+  const paragraphs = tourText.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
 
   return (
     <Flex direction="column" align="center" justify="center" minH="100vh" px={6} py={10}>
@@ -40,33 +41,38 @@ const AlphaWelcome = ({ copy, onChoose, loadingChoice }: AlphaWelcomeProps) => {
         p={{ base: 6, md: 10 }}
       >
         <VStack spacing={6} align="stretch">
-          <Heading size="lg">{intro}</Heading>
-          {copy?.disclaimer_short && (
-            <Text color="gray.500" lineHeight={1.5}>
-              {copy.disclaimer_short}
-            </Text>
+          {paragraphs.map((para, idx) =>
+            idx === 0 ? (
+              <Heading key={idx} size="lg" lineHeight={1.2}>
+                {para}
+              </Heading>
+            ) : (
+              <Text key={idx} color="gray.600" _dark={{ color: "gray.300" }} lineHeight={1.6}>
+                {para}
+              </Text>
+            )
           )}
-          <Text color="gray.400">
-            Don’t worry about the “right” answer—pick whichever feels good. I’ll roll with it.
+          <Text color="gray.500" _dark={{ color: "gray.400" }}>
+            Want the boring legal version? Pick yes to see it, or no to skip straight to chatting.
           </Text>
           <HStack spacing={4} justify="flex-start">
             <Button
               colorScheme="purple"
               size="lg"
-              onClick={() => onChoose("tour")}
-              isLoading={loadingChoice === "tour"}
+              onClick={onYes}
+              isLoading={loadingChoice === "yes"}
               isDisabled={busy}
             >
-              give me the tour
+              yes - show me the legal stuff
             </Button>
             <Button
               variant="outline"
               size="lg"
-              onClick={() => onChoose("skip")}
-              isLoading={loadingChoice === "skip"}
+              onClick={onNo}
+              isLoading={loadingChoice === "no"}
               isDisabled={busy}
             >
-              let’s just talk
+              no - let's just talk
             </Button>
           </HStack>
         </VStack>

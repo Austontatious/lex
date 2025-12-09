@@ -53,7 +53,7 @@ from ..utils.avatar_manifest import (
     record_avatar_event,
     latest_avatar_path,
     first_avatar_path,
-    AVATAR_MANIFEST_ENABLED,
+    avatar_manifest_enabled,
 )
 
 logger = logging.getLogger(__name__)
@@ -210,6 +210,7 @@ STATIC_FILES_ROOT = STATIC_ROOT
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 AVATARS_PUBLIC_DIR = avatars_static_dir()
 LEGACY_BASE_NAME = "lexi_base.png"
+_AVATARS_DIR = AVATAR_DIR  # used for saving generated avatars/base64 fallbacks
 
 
 def _fs_to_web(fp: Path) -> str:
@@ -309,6 +310,18 @@ def _get_saved_avatar_web() -> Optional[str]:
 def _get_missing_fields(traits: Dict[str, str]) -> List[str]:
     required_fields = ["hair", "eyes", "outfit", "style", "vibe"]  # minimal core
     return [f for f in required_fields if not traits.get(f)]
+
+
+def _field_prompt(field: str) -> str:
+    """Render a user-facing prompt for a missing persona field, in Lexi-first voice."""
+    prompts = {
+        "hair": "describe my hair (color/length)",
+        "eyes": "what color are my eyes?",
+        "outfit": "what am I wearing?",
+        "style": "what's my style or aesthetic?",
+        "vibe": "what's my vibe or energy?",
+    }
+    return prompts.get(field, f"describe my {field}")
 
 
 def _assemble_prompt(traits: Dict[str, str]) -> str:
@@ -534,7 +547,7 @@ async def add_trait(request: Request, body: TraitIn) -> Dict[str, Any]:
         "Here's your look! If you'd like to tweak anything, tell me what to change."
         if ready
         else (
-            f"Got it. Next: tell me your { _get_missing_fields(traits)[0] }"
+            f"Got it. Next: { _field_prompt(_get_missing_fields(traits)[0]) }"
             if _get_missing_fields(traits)
             else ""
         )
@@ -624,7 +637,7 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
     mask_fs: Optional[str] = None
 
     manifest_src: Optional[str] = None
-    if AVATAR_MANIFEST_ENABLED and user_id:
+    if avatar_manifest_enabled() and user_id:
         manifest_src = latest_avatar_path(user_id) or first_avatar_path(user_id)
         if manifest_src:
             if manifest_src.startswith("/"):
@@ -726,11 +739,15 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
             url=url,
             traits=list(traits.keys()),
         )
-        if AVATAR_MANIFEST_ENABLED and user_id:
+        if avatar_manifest_enabled() and user_id:
             try:
+                fs_ref = None
+                if url:
+                    p = _web_to_fs(url) if url.startswith("/") else None
+                    fs_ref = p.as_posix() if p else None
                 record_avatar_event(
                     user_id,
-                    image_path=url,
+                    image_path=fs_ref or url,
                     prompt=prompt,
                     traits=traits,
                     mode=mode,

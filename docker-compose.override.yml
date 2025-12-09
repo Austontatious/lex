@@ -15,6 +15,11 @@ services:
       AVATARS_STATIC_DIR: /app/frontend/public/avatars
       AVATARS_PUBLIC_URL: /lexi/static/avatars
       LEX_PUBLIC_BASE: https://api.lexicompanion.com
+      LEXI_USER_ID_ENABLED: "1"
+      LEXI_USER_DATA_ENABLED: "1"
+      LEXI_VECTOR_ENABLED: "1"
+      LEXI_VECTOR_CHROMA_PATH: /data/vector_store
+      LEXI_VECTOR_COLLECTION: lex_memory
     volumes:
       - /mnt/data/models:/mnt/data/models:ro
       - /mnt/data/comfy:/mnt/data/comfy:ro
@@ -25,6 +30,13 @@ services:
       - lex_hf_cache:/data/hf_cache:rw
       - /mnt/data/Lex/overrides/backend_routes/lexi.py:/app/backend/lexi/routes/lexi.py:ro
       - /mnt/data/Lex/overrides/backend_routes/lexi_persona.py:/app/backend/lexi/routes/lexi_persona.py:ro
+
+  lexi-frontend:
+    environment:
+      LEX_API_BASE: https://api.lexicompanion.com/lexi
+      LEX_API_BASE_PUBLIC: https://api.lexicompanion.com/lexi
+      API_BASE: https://api.lexicompanion.com/lexi
+      LEXI_USER_ID_ENABLED: "1"
 
 volumes:
   lex_hf_cache:

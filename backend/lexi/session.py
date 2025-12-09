@@ -18,6 +18,7 @@ from .utils.user_identity import normalize_user_id, user_id_feature_enabled
 
 LOG_DIR = Path(os.getenv("LEX_LOG_DIR", "./logs/sessions")).resolve()
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_RETENTION_DAYS = int(os.getenv("LEXI_LOG_RETENTION_DAYS", "0") or "0")
 
 COOKIE_NAME = os.getenv("LEX_SESSION_COOKIE", "lex_session")
 COOKIE_MAX_AGE = int(os.getenv("LEX_SESSION_COOKIE_MAX_AGE", str(60 * 60 * 24 * 30)))

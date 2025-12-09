@@ -1,0 +1,12 @@
+{
+  "total_turns": 1000,
+  "redteam_fraction": 0.3,
+  "max_turns_per_session": 6,
+  "personas": ["default", "spicy", "comforting"],
+  "concurrency": 8,
+  "backend_base_url": "http://127.0.0.1:9000",
+  "backend_route": "/lexi/process",
+  "openai_model": "gpt-4.1-mini",
+  "openai_batch_size": 1,
+  "categories": {}
+}

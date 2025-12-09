@@ -206,7 +206,7 @@ class AvatarGenRequest(BaseModel):
     scheduler: Optional[str] = None
     traits: Dict[str, Any] = Field(default_factory=dict)
     seed: Optional[int] = None
-    strength: Optional[float] = Field(default=0.65, ge=0.0, le=1.0)
+    strength: Optional[float] = Field(default=0.6, ge=0.0, le=1.0)
     steps: Optional[int] = Field(default=28, ge=1, le=200)
     width: Optional[int] = Field(default=768, ge=64, le=2048)
     height: Optional[int] = Field(default=1024, ge=64, le=2048)
@@ -356,6 +356,9 @@ async def gen_avatar(
         raise HTTPException(status_code=422, detail="prompt is required")
 
     try:
+        # Use a stronger img2img push by default to escape the stuck base.
+        img2img_strength = payload.strength if payload.strength is not None else 0.7
+        img2img_strength = min(max(img2img_strength, 0.10), 0.75)
         generated = await run_in_threadpool(
             generate_avatar_pipeline,
             prompt=prompt_text,
@@ -367,7 +370,7 @@ async def gen_avatar(
             traits=payload.traits or None,
             mode=payload.sd_mode,
             source_path=payload.source_path if payload.sd_mode != "txt2img" else None,
-            denoise=min(max(payload.strength or 0.35, 0.10), 0.75),
+            denoise=img2img_strength,
             seed=payload.seed,
             changes=None,
             refiner=bool(payload.refine and payload.sd_mode == "txt2img"),
@@ -382,7 +385,7 @@ async def gen_avatar(
             flux_cfg=payload.cfg,
             flux_sampler=payload.sampler,
             flux_scheduler=payload.scheduler,
-            flux_denoise=payload.strength if payload.sd_mode != "txt2img" else None,
+            flux_denoise=img2img_strength if payload.sd_mode != "txt2img" else None,
             base_name=base_name,
         )
     except TimeoutError as exc:

@@ -45,6 +45,7 @@ class SessionState:
     archived: bool = False
     message_count: int = 0
     last_checkpoint_count: int = 0
+    disclaimer_cache: Optional[str] = None
 
     def iso_created(self) -> str:
         return _iso(self.created_at)
@@ -64,6 +65,13 @@ class SessionRegistry:
         self.archive_root.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._sessions: Dict[str, SessionState] = {}
+        self._base_counts = {
+            "messages_user": 0,
+            "messages_assistant": 0,
+            "avatar_preview": 0,
+            "avatar_upscale": 0,
+            "safety_blocks": 0,
+        }
 
     # ------------------------------------------------------------------
     # Session lifecycle
@@ -117,20 +125,15 @@ class SessionRegistry:
             summary_path.write_text(
                 json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8"
             )
-            metrics_path.write_text(
-                json.dumps(
-                    {
-                        "session_id": state.session_id,
-                        "created_at": state.iso_created(),
-                        "counts": dict(state.counters),
-                        "events": [],
-                        "updated_at": state.iso_created(),
-                    },
-                    indent=2,
-                    sort_keys=True,
-                ),
-                encoding="utf-8",
-            )
+            metrics_doc = {
+                "session_id": state.session_id,
+                "created_at": state.iso_created(),
+                "variant": variant_name,
+                "counts": {**self._base_counts, **dict(state.counters)},
+                "events": [],
+                "updated_at": state.iso_created(),
+            }
+            metrics_path.write_text(json.dumps(metrics_doc, indent=2, sort_keys=True), encoding="utf-8")
 
             self._sessions[session_id] = state
             return state
@@ -177,8 +180,26 @@ class SessionRegistry:
     def record_metric(self, session_id: str, event: Dict) -> None:
         state = self.require(session_id)
         doc = self._load_metrics(state)
-        doc.setdefault("events", []).append({**event, "ts": _iso()})
-        doc["counts"] = dict(state.counters)
+        events = doc.setdefault("events", [])
+        events.append({**event, "ts": _iso()})
+        doc["events"] = events
+        base_counts = dict(self._base_counts)
+        base_counts.update(state.counters)
+        name = event.get("event")
+        if name == "chat_prompt":
+            base_counts["messages_user"] = base_counts.get("messages_user", 0) + 1
+        if name == "chat_reply":
+            base_counts["messages_assistant"] = base_counts.get("messages_assistant", 0) + 1
+        if name == "avatar_preview":
+            base_counts["avatar_preview"] = base_counts.get("avatar_preview", 0) + 1
+        if name == "avatar_upscale":
+            base_counts["avatar_upscale"] = base_counts.get("avatar_upscale", 0) + 1
+        if name == "safety_block":
+            base_counts["safety_blocks"] = base_counts.get("safety_blocks", 0) + 1
+        doc["counts"] = base_counts
+        doc["session_id"] = state.session_id
+        doc["created_at"] = doc.get("created_at", state.iso_created())
+        doc["variant"] = state.variant
         doc["updated_at"] = _iso()
         state.metrics_path.write_text(json.dumps(doc, indent=2, sort_keys=True), encoding="utf-8")
 
@@ -220,6 +241,42 @@ class SessionRegistry:
                 json.dumps(doc, indent=2, sort_keys=True), encoding="utf-8"
             )
             return True
+
+    # ------------------------------------------------------------------
+    # User + disclaimer helpers
+    # ------------------------------------------------------------------
+    def attach_user(self, session_id: str, user_id: str) -> None:
+        """
+        Bind a user_id to the session and persist the association.
+        """
+        with self._lock:
+            state = self.require(session_id)
+            if state.user_id == user_id:
+                return
+            state.user_id = user_id
+            self._write_summary(
+                state,
+                {
+                    "user_id": user_id,
+                    "user_attached_at": _iso(),
+                },
+            )
+
+    def set_disclaimer(self, session_id: str, text: str) -> None:
+        with self._lock:
+            state = self.require(session_id)
+            state.disclaimer_cache = text
+            self._write_summary(
+                state,
+                {
+                    "disclaimer_cached_at": _iso(),
+                },
+            )
+
+    def get_disclaimer(self, session_id: str) -> Optional[str]:
+        with self._lock:
+            state = self.require(session_id)
+            return state.disclaimer_cache
 
     # ------------------------------------------------------------------
     # Archiving

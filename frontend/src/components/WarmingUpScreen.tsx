@@ -7,7 +7,7 @@ const WarmingUpScreen: React.FC = () => {
       direction="column"
       align="center"
       justify="center"
-      height="100vh"
+      minH="100vh"
       bg="gray.800"
       color="white"
     >
@@ -18,4 +18,3 @@ const WarmingUpScreen: React.FC = () => {
 };
 
 export default WarmingUpScreen;
-

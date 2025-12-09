@@ -54,7 +54,7 @@ def generate_avatar(
     # NEW ↓ — allow real edits + continuity
     mode: str = "txt2img",  # "txt2img" | "img2img"
     source_path: Optional[str] = None,  # required for img2img
-    denoise: float = 0.35,  # ~0.25–0.45 to preserve identity
+    denoise: float = 0.7,  # stronger img2img push to vary outfit/pose
     seed: Optional[int] = None,
     changes: Optional[str] = None,  # small delta: "brown hair", "add skirt"
     traits: Optional[Dict[str, Any]] = None,  # persona traits to keep continuity

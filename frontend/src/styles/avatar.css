@@ -12,3 +12,25 @@ img[data-avatar] {
   display: block;
   will-change: opacity;
 }
+
+.avatar-loading-video {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  background: #050510;
+}
+
+.avatar-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 10, 20, 0.1) 0%,
+    rgba(10, 10, 20, 0.25) 35%,
+    rgba(10, 10, 20, 0.55) 100%
+  );
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}

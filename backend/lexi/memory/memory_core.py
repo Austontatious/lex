@@ -3,6 +3,7 @@
 from __future__ import annotations
 import os
 import time
+import threading
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 from .memory_types import MemoryShard
@@ -53,10 +54,10 @@ class MemoryManager:
         if not user_dir:
             return
         per_user_path = user_dir / "ltm.jsonl"
-            self.store = MemoryStoreJSON(filepath=per_user_path)
-            self._cache = self.store.load()
-            self._user_id = normalized
-            return
+        self.store = MemoryStoreJSON(filepath=per_user_path)
+        self._cache = self.store.load()
+        self._user_id = normalized
+        return
         # fall back to shared store if bucket creation failed
         self.store = self._default_store
         self._cache = self._default_store.load()
@@ -97,14 +98,15 @@ class MemoryManager:
         meta.setdefault("created_at", shard.created_at)
         session_id = str(meta.get("session_id") or f"ltm-{self._user_id or 'shared'}")
         doc_id = f"{session_id}-{int(time.time() * 1000)}-{len(self._cache)}"
-        try:
-            archive_context_to_chroma(
-                [{"id": doc_id, "text": text, "metadata": meta}],
-                session_id=session_id,
-                user_id=self._user_id,
-            )
-        except Exception:  # pragma: no cover - defensive
-            return
+        payload = [{"id": doc_id, "text": text, "metadata": meta}]
+
+        def _send():
+            try:
+                archive_context_to_chroma(payload, session_id=session_id, user_id=self._user_id)
+            except Exception:
+                return
+
+        threading.Thread(target=_send, name="lexi-vector-ltm", daemon=True).start()
 
     def _should_store_turn(self, user_msg: str, lex_msg: str) -> bool:
         if not user_msg or not lex_msg:
