@@ -207,7 +207,7 @@ class AvatarGenRequest(BaseModel):
     cfg: Optional[float] = Field(default=None, ge=0.0, le=20.0)
     sampler: Optional[str] = None
     scheduler: Optional[str] = None
-    flux_pipeline: Optional[str] = Field(default="flux_v2", pattern="^(flux_v1|flux_v2)$")
+    flux_pipeline: Optional[str] = Field(default="flux_v1", pattern="^(flux_v1|flux_v2)$")
     lexiverse_style: Optional[str] = Field(default="soft")
     traits: Dict[str, Any] = Field(default_factory=dict)
     seed: Optional[int] = None

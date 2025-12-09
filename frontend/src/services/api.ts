@@ -276,7 +276,7 @@ export async function requestAvatarGeneration(
       body: JSON.stringify({
         ...payload,
         seed: payload.seed ?? null,
-        flux_pipeline: payload.flux_pipeline ?? "flux_v2",
+        flux_pipeline: payload.flux_pipeline ?? "flux_v1",
         ...(payload.sd_mode === "img2img" ? { strength: payload.strength ?? 0.35 } : {}),
       }),
       signal: controller.signal,

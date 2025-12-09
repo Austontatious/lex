@@ -728,7 +728,7 @@ def _post_workflow(workflow: Dict[str, Any]) -> str:
     return _post_graph(workflow)
 
 
-COMFY_TIMEOUT_S = int(os.getenv("LEXI_COMFY_TIMEOUT_S", "45"))
+COMFY_TIMEOUT_S = int(os.getenv("LEXI_COMFY_TIMEOUT_S", "180"))
 
 
 def _wait_for_images(prompt_id: str, timeout_s: int = COMFY_TIMEOUT_S) -> List[Dict[str, Any]]:
@@ -1801,10 +1801,10 @@ def generate_avatar_pipeline(
         pose_strength = kwargs.get("pose_strength") or kwargs.get("pose_control_strength")
         pose_start = kwargs.get("pose_control_start")
         pose_end = kwargs.get("pose_control_end")
-        flux_pipeline = (kwargs.get("flux_pipeline") or "flux_v2").strip().lower()
+        flux_pipeline = (kwargs.get("flux_pipeline") or "flux_v1").strip().lower()
         lexiverse_style = (kwargs.get("lexiverse_style") or "soft").strip().lower()
-        if pose_choice and flux_pipeline == "flux_v2":
-            log.info("[Lexi SD] pose map requested; using classic flux graph with ControlNet.")
+        if flux_pipeline != "flux_v1":
+            log.info("[Lexi SD] forcing flux pipeline to flux_v1 (got %s)", flux_pipeline)
             flux_pipeline = "flux_v1"
 
         try:
