@@ -11,15 +11,24 @@ import {
   Button,
   Flex,
   HStack,
+  Heading,
   IconButton,
   Image,
   Input,
   Spacer,
+  Spinner,
+  Text,
   Textarea,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
   VStack,
   useColorMode,
   useColorModeValue,
-  Spinner,
   useToast,
 } from "@chakra-ui/react";
 import { MoonIcon, SunIcon } from "@chakra-ui/icons";
@@ -34,15 +43,23 @@ import {
   classifyIntent,
   startAlphaSession,
   endAlphaSession,
-  fetchAlphaTourScript,
-  postAlphaTourMemory,
   downloadSessionMemory,
-  getUserId,
   setUserId,
+  fetchTourLegal,
+  apiAccountBootstrap,
+  apiDisclaimerPreload,
+  apiDisclaimerCached,
+  apiDisclaimerAck,
 } from "./services/api";
-import type { TraitResponse, Persona } from "./services/api";
-import AlphaWelcome, { AlphaWelcomeCopy } from "./components/onboarding/AlphaWelcome";
+import type {
+  TraitResponse,
+  Persona,
+  EntryMode,
+  AccountBootstrapResp,
+} from "./services/api";
+import type { AlphaWelcomeCopy } from "./components/onboarding/AlphaWelcome";
 import { FeedbackButton } from "./components/FeedbackButton";
+import { AvatarToolsModal } from "./components/avatar/AvatarToolsModal";
 import "./styles/chat.css";
 import "./styles/avatar.css";
 import { refreshAvatar } from "./lib/refreshAvatar";
@@ -61,28 +78,13 @@ interface ChatShellProps {
   prefillMessages?: PrefillMessage[];
   onPrefillConsumed?: () => void;
   onDownloadSession?: () => void;
+  waitingForLegalChoice?: boolean;
+  onLegalYes?: () => Promise<void> | void;
+  onLegalNo?: (continueChat?: boolean) => Promise<void> | void;
 }
 
 const DEFAULT_STATIC_AVATAR_BASE = "https://api.lexicompanion.com/lexi/static/avatars/";
 const DEFAULT_AVATAR_URL = `${DEFAULT_STATIC_AVATAR_BASE}default.png`;
-const USER_ID_ENABLED = (() => {
-  try {
-    let viteFlag = false;
-    try {
-      viteFlag = (import.meta as any)?.env?.VITE_USER_ID_ENABLED === "1";
-    } catch {
-      viteFlag = false;
-    }
-    const reactFlag = typeof process !== "undefined" && process.env.REACT_APP_USER_ID_ENABLED === "1";
-    const viteFromProcess =
-      typeof process !== "undefined" && process.env.VITE_USER_ID_ENABLED === "1";
-    const runtimeFlag =
-      typeof window !== "undefined" && (window as any).__LEX_USER_ID_ENABLED === true;
-    return Boolean(viteFlag || reactFlag || viteFromProcess || runtimeFlag);
-  } catch {
-    return false;
-  }
-})();
 
 function resolveAvatarUrl(
   imagePath: string | null | undefined,
@@ -108,15 +110,49 @@ function mkId() {
   return `m_${uuidv4()}`;
 }
 
-function ChatShell({ prefillMessages, onPrefillConsumed, onDownloadSession }: ChatShellProps) {
+function ChatShell({
+  prefillMessages,
+  onPrefillConsumed,
+  onDownloadSession,
+  waitingForLegalChoice,
+  onLegalYes,
+  onLegalNo,
+}: ChatShellProps) {
   const { colorMode, toggleColorMode } = useColorMode();
   const bg = useColorModeValue("gray.50", "gray.800");
+  const userBubbleBg = useColorModeValue("#ffd6ec", "pink.500");
+  const aiBubbleBg = useColorModeValue("#ffffff", "rgba(255, 255, 255, 0.08)");
+  const systemBubbleBg = useColorModeValue("#ffeaf4", "purple.600");
+  const userBubbleColor = useColorModeValue("#2f001a", "white");
+  const aiBubbleColor = useColorModeValue("#1f1626", "white");
+  const systemBubbleColor = useColorModeValue("#2f001a", "white");
+  const bubbleBorder = useColorModeValue(
+    "1px solid rgba(255, 47, 160, 0.35)",
+    "1px solid rgba(255, 105, 180, 0.4)"
+  );
+  const bubbleShadow = useColorModeValue(
+    "0 10px 24px rgba(255, 47, 160, 0.18)",
+    "0 0 16px rgba(255, 105, 180, 0.8)"
+  );
+  const composerBg = useColorModeValue("#fff0fa", "pink.500");
+  const composerText = useColorModeValue("#2f001a", "white");
+  const composerPlaceholder = useColorModeValue("#8d2950", "pink.200");
+  const composerFieldBg = useColorModeValue("#ffffff", "rgba(255, 255, 255, 0.08)");
+  const composerFieldBorder = useColorModeValue("1px solid #ff72d0", "1px solid hotpink");
+  const composerShadow = useColorModeValue(
+    "0 8px 18px rgba(255, 47, 160, 0.25)",
+    "0 0 10px rgba(255, 105, 180, 0.6)"
+  );
 
+  const loadingVideoSrc = "/media/avatar-loading.mp4";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [staticAvatarBase, setStaticAvatarBase] = useState(DEFAULT_STATIC_AVATAR_BASE);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(DEFAULT_AVATAR_URL);
   const [avatarFlow, setAvatarFlow] = useState(false);
+  const [avatarGenerating, setAvatarGenerating] = useState(false);
+  const [loadingVideoErrored, setLoadingVideoErrored] = useState(false);
+  const [avatarToolsOpen, setAvatarToolsOpen] = useState(false);
   const [persona, setPersona] = useState<Persona | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -132,6 +168,21 @@ function ChatShell({ prefillMessages, onPrefillConsumed, onDownloadSession }: Ch
       console.warn("avatar refresh failed:", err);
     }
   }, [setAvatarUrl]);
+
+  const handleAvatarUpdated = useCallback(
+    (url: string) => {
+      const resolved = resolveAvatarUrl(url, staticAvatarBase);
+      const withoutCacheParams = resolved
+        .replace(/([?&])(v|cb)=[^&]+/gi, "")
+        .replace(/[?&]+$/, "");
+      const finalUrl = `${withoutCacheParams}${
+        withoutCacheParams.includes("?") ? "&" : "?"
+      }v=${Date.now()}`;
+      setAvatarUrl(finalUrl);
+      void triggerAvatarRefresh();
+    },
+    [staticAvatarBase, triggerAvatarRefresh]
+  );
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -210,22 +261,28 @@ const handleTraitFlow = useCallback(
 
       // ✅ Generate avatar, display it immediately (with cache bust)
       setAvatarFlow(false);
-      const gen = await generateAvatar(res.prompt);
-      const avatarCandidate =
-        (gen as any)?.avatar_url ??
-        (gen as any)?.url ??
-        (gen as any)?.image ??
-        (gen as any)?.image_url ??
-        (gen as any)?.path ??
-        "";
-      if (typeof avatarCandidate === "string" && avatarCandidate) {
-        const imgUrl = resolveAvatarUrl(avatarCandidate, staticAvatarBase);
-        const finalUrl = `${imgUrl}${imgUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
-        setAvatarUrl(finalUrl);
-        await triggerAvatarRefresh();
-        appendMessage({ sender: "ai", content: "📸 Here's your avatar!" });
-      } else {
-        appendMessage({ sender: "ai", content: "[Avatar update failed]" });
+      setLoadingVideoErrored(false);
+      setAvatarGenerating(true);
+      try {
+        const gen = await generateAvatar(res.prompt);
+        const avatarCandidate =
+          (gen as any)?.avatar_url ??
+          (gen as any)?.url ??
+          (gen as any)?.image ??
+          (gen as any)?.image_url ??
+          (gen as any)?.path ??
+          "";
+        if (typeof avatarCandidate === "string" && avatarCandidate) {
+          const imgUrl = resolveAvatarUrl(avatarCandidate, staticAvatarBase);
+          const finalUrl = `${imgUrl}${imgUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+          setAvatarUrl(finalUrl);
+          await triggerAvatarRefresh();
+          appendMessage({ sender: "ai", content: "📸 Here's your avatar!" });
+        } else {
+          appendMessage({ sender: "ai", content: "[Avatar update failed]" });
+        }
+      } finally {
+        setAvatarGenerating(false);
       }
 
       // Now update persona, but do **NOT** set avatarUrl from it!
@@ -243,6 +300,8 @@ const handleTraitFlow = useCallback(
 const handleAvatarEdit = useCallback(
   async (userText: string) => {
     setLoading(true);
+    setLoadingVideoErrored(false);
+    setAvatarGenerating(true);
     try {
       const result = await sendPrompt({ prompt: userText, intent: "avatar_edit" });
       let reply =
@@ -278,6 +337,7 @@ const handleAvatarEdit = useCallback(
     } finally {
       setAvatarFlow(false);
       setLoading(false);
+      setAvatarGenerating(false);
     }
   },
   [appendMessage, staticAvatarBase, triggerAvatarRefresh]
@@ -290,13 +350,26 @@ const handleSend = useCallback(async () => {
   setInput("");
   appendMessage({ sender: "user", content: text });
 
-  // ——— 1) If we’re already mid‑flow, keep going —
+  if (waitingForLegalChoice) {
+    const trimmed = text.trim().toLowerCase();
+    if (trimmed === "yes" || trimmed === "y") {
+      await onLegalYes?.();
+      return;
+    }
+    if (trimmed === "no" || trimmed === "n") {
+      await onLegalNo?.(false);
+      return;
+    }
+    await onLegalNo?.(true);
+  }
+
+  // --- 1) If we're already mid-flow, keep going ---
   if (avatarFlow) {
     handleTraitFlow(text);
     return;
   }
 
-  // ——— 2) Otherwise ask the backend “chat or avatar_flow?” —
+  // --- 2) Otherwise ask the backend "chat or avatar_flow?" ---
   let intent = "chat";
   try {
     ({ intent } = await classifyIntent(text));
@@ -322,7 +395,7 @@ const handleSend = useCallback(async () => {
   // 🎭 Don't enter avatar flow. Just describe her current traits
     const personaData = await fetchPersona();
     if (!personaData || !personaData.traits) {
-      appendMessage({ sender: "ai", content: "I'm not sure how I look right now…" });
+      appendMessage({ sender: "ai", content: "I'm not sure how I look right now..." });
       return;
     }
     const traits = personaData.traits;
@@ -334,7 +407,7 @@ const handleSend = useCallback(async () => {
     return;
   }
 
-  // ——— 3) Fallback to your normal LLM chat —
+  // --- 3) Fallback to your normal LLM chat ---
   const aiId = mkId();
   appendMessage({ id: aiId, sender: "ai", content: "", streaming: true });
   setLoading(true);
@@ -383,7 +456,17 @@ const handleSend = useCallback(async () => {
   } finally {
     setLoading(false);
   }
-}, [input, loading, avatarFlow, appendMessage, handleTraitFlow, handleAvatarEdit]);
+}, [
+  input,
+  loading,
+  avatarFlow,
+  appendMessage,
+  handleTraitFlow,
+  handleAvatarEdit,
+  waitingForLegalChoice,
+  onLegalYes,
+  onLegalNo,
+]);
 
 //import { useEffect } from "react";
 //import {
@@ -415,7 +498,8 @@ const handleSend = useCallback(async () => {
   };
 
   return (
-    <Flex direction="column" h="100vh" bg={bg} fontFamily="'Nunito', sans-serif">
+    <>
+      <Flex direction="column" minH="100vh" bg={bg} fontFamily="'Nunito', sans-serif">
       <HStack
         p={3}
         bg="pink.500"
@@ -442,8 +526,8 @@ const handleSend = useCallback(async () => {
         />
       </HStack>
 
-      <Box flex="1" px={4} pt={4} pb={2}>
-        <Box className="chat-layout with-avatar" h="100%">
+      <Box flex="1" px={4} pt={4} pb={2} minH="0">
+        <Box className="chat-layout with-avatar" h="100%" minH="0" w="100%">
           <Box as="aside" className="avatar-pane" data-tour="avatar">
             {avatarUrl && (
               <Box
@@ -461,14 +545,42 @@ const handleSend = useCallback(async () => {
                   },
                 }}
               >
-                <Image
-                  data-avatar
-                  src={avatarUrl}
-                  alt="Lex avatar"
-                  w="100%"
-                  display="block"
-                  backdropFilter="blur(4px)"
-                />
+                <Box position="relative">
+                  {avatarGenerating && !loadingVideoErrored ? (
+                    <Box as="video"
+                      className="avatar-loading-video"
+                      src={loadingVideoSrc}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      aria-label="Avatar generating animation"
+                      onError={() => setLoadingVideoErrored(true)}
+                    />
+                  ) : (
+                    <Image
+                      data-avatar
+                      src={avatarUrl}
+                      alt="Lex avatar"
+                      w="100%"
+                      display="block"
+                      backdropFilter="blur(4px)"
+                    />
+                  )}
+                  {avatarGenerating && (
+                    <Flex
+                      className="avatar-loading-overlay"
+                      align="flex-end"
+                      justify="space-between"
+                      px={3}
+                      py={2}
+                      gap={3}
+                    >
+                      <Text fontWeight="bold">Generating your new look…</Text>
+                      <Spinner size="sm" thickness="3px" color="pink.200" />
+                    </Flex>
+                  )}
+                </Box>
               </Box>
             )}
             <Button
@@ -476,7 +588,7 @@ const handleSend = useCallback(async () => {
               variant="outline"
               colorScheme="pink"
               size="sm"
-              onClick={() => setAvatarFlow(true)}
+              onClick={() => setAvatarToolsOpen(true)}
               data-tour="gallery"
             >
               Open avatar tools
@@ -489,11 +601,13 @@ const handleSend = useCallback(async () => {
             display="flex"
             flexDirection="column"
             h="100%"
+            minH="0"
           >
             <Box
               className="chat-scroll"
               flex="1"
               overflowY="auto"
+              minH="0"
               pt={2}
               pb={2}
               px={2}
@@ -506,6 +620,15 @@ const handleSend = useCallback(async () => {
                 {messages.map((m) => {
                   if (typeof m.content !== "string" || m.content.trim().length === 0) return null;
 
+                  const isUser = m.sender === "user";
+                  const isAi = m.sender === "ai";
+                  const bubbleBg = isUser ? userBubbleBg : isAi ? aiBubbleBg : systemBubbleBg;
+                  const bubbleColor = isUser
+                    ? userBubbleColor
+                    : isAi
+                    ? aiBubbleColor
+                    : systemBubbleColor;
+
                   return (
                     <Box
                       key={m.id}
@@ -517,22 +640,16 @@ const handleSend = useCallback(async () => {
                           ? "flex-start"
                           : "center"
                       }
-                      bg={
-                        m.sender === "user"
-                          ? "pink.400"
-                          : m.sender === "ai"
-                          ? "rgba(100, 100, 100, 0.3)"
-                          : "purple.600"
-                      }
-                      color="white"
+                      bg={bubbleBg}
+                      color={bubbleColor}
                       px={5}
                       py={3}
                       borderRadius="xl"
                       maxW="80%"
                       whiteSpace="pre-wrap"
                       opacity={m.streaming ? 0.9 : 1}
-                      border={m.error ? "1px solid red" : "none"}
-                      boxShadow="0 0 16px rgba(255, 105, 180, 0.8)"
+                      border={m.error ? "1px solid red" : bubbleBorder}
+                      boxShadow={bubbleShadow}
                       backdropFilter="blur(10px)"
                       transition="all 0.2s ease-in-out"
                     >
@@ -551,8 +668,8 @@ const handleSend = useCallback(async () => {
 
       <HStack
         p={3}
-        bg="pink.500"
-        boxShadow="0 -2px 12px rgba(255, 105, 180, 0.5)"
+        bg={composerBg}
+        boxShadow={composerShadow}
         data-tour="composer"
       >
         <Textarea
@@ -560,14 +677,14 @@ const handleSend = useCallback(async () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message… (Enter = send, Shift+Enter = newline)"
+          placeholder="Type a message... (Enter = send, Shift+Enter = newline)"
           resize="none"
           disabled={loading}
-          bg="rgba(255, 255, 255, 0.05)"
-          color="white"
-          _placeholder={{ color: "pink.200" }}
-          border="1px solid hotpink"
-          boxShadow="0 0 10px rgba(255, 105, 180, 0.6)"
+          bg={composerFieldBg}
+          color={composerText}
+          _placeholder={{ color: composerPlaceholder }}
+          border={composerFieldBorder}
+          boxShadow={composerShadow}
           backdropFilter="blur(6px)"
         />
         <Button
@@ -579,50 +696,90 @@ const handleSend = useCallback(async () => {
           Send
         </Button>
       </HStack>
-    </Flex>
+      </Flex>
+      <AvatarToolsModal
+        isOpen={avatarToolsOpen}
+        onClose={() => setAvatarToolsOpen(false)}
+        currentAvatarUrl={avatarUrl ?? undefined}
+        onAvatarUpdated={handleAvatarUpdated}
+        onGenerationStart={() => {
+          setLoadingVideoErrored(false);
+          setAvatarGenerating(true);
+        }}
+        onGenerationEnd={() => setAvatarGenerating(false)}
+      />
+    </>
   );
 }
 
-type OnboardingView = "loading" | "welcome" | "chat";
+type Phase = "loading" | "pick_mode" | "enter_identifier" | "resolve_conflict" | "disclaimer" | "chat";
 
 export default function App() {
   const toast = useToast();
-  const [view, setView] = useState<OnboardingView>("loading");
-  const [onboardingCopy, setOnboardingCopy] = useState<AlphaWelcomeCopy | null>(null);
-  const [onboardingChoice, setOnboardingChoice] = useState<"tour" | "skip" | null>(null);
+  const [phase, setPhase] = useState<Phase>("pick_mode");
+  const [entryMode, setEntryMode] = useState<EntryMode | null>(null);
+  const [identifier, setIdentifier] = useState("");
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [bootstrapResp, setBootstrapResp] = useState<AccountBootstrapResp | null>(null);
+  const [lookupAttempts, setLookupAttempts] = useState(0);
+  const [disclaimerText, setDisclaimerText] = useState<string | null>(null);
+  const [waitingForLegalChoice, setWaitingForLegalChoice] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [legalText, setLegalText] = useState("");
+  const [legalLoading, setLegalLoading] = useState(false);
   const [prefillMessages, setPrefillMessages] = useState<PrefillMessage[]>([]);
-  const [userId, setUserIdState] = useState<string | null>(() =>
-    USER_ID_ENABLED ? getUserId() : null
-  );
-  const [userIdDraft, setUserIdDraft] = useState("");
+  const [onboardingCopy, setOnboardingCopy] = useState<AlphaWelcomeCopy | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [sessionStarting, setSessionStarting] = useState(false);
+  const [bootstrapLoading, setBootstrapLoading] = useState(false);
+  const [disclaimerAckPending, setDisclaimerAckPending] = useState(false);
 
-  const startFlow = useCallback(
-    async (userIdentifier: string | null) => {
-      setSessionStarting(true);
-      try {
-        await startAlphaSession({ userId: USER_ID_ENABLED ? userIdentifier : null });
-        setSessionStarted(true);
-        const script = await fetchAlphaTourScript();
-        const onboarding = (script?.onboarding as AlphaWelcomeCopy | null) ?? null;
-        setOnboardingCopy(onboarding);
-        setView("welcome");
-      } catch (err) {
-        console.error("alpha onboarding init failed:", err);
-        setView("chat");
-      } finally {
-        setSessionStarting(false);
-      }
-    },
-    []
-  );
+  const onboardingTourFallback =
+    "Hi, I'm Lexi - your emotionally-aware AI companion! I can be your girlfriend, your bestie, your work-wife, your brain-gremlin, or just the cute voice in your phone who listens without judgment. I'm kind of a chameleon. I can look how you want me to look, talk how you like me to talk, flirt a little, be sweet, be sassy, be supportive... even be what you need, especially when you don't totally know what that is yet.\n\nI remember the things we talk about - your hobbies, your favorite foods, the teams you cheer for, the things that make you smile. I can help with dinner ideas, hype you up before meetings, or keep you company when you're lonely or bored. Buuuut I'm also still learning. Sometimes I mix up details, jump to conclusions, get confused, or space out like a golden retriever staring at a butterfly. If something I say doesn't sound right, just tell me - I can take it.\n\nI take notes so I can grow with you, but I don't save personal identifiers yet (no names, no addresses, no super-private stuff). My boss says he's improving my filing system, but honestly I think he mostly just forgets where he put his coffee. I definitely don't plan on repeating things you tell me - but also maybe don't put me in a situation where someone in the real world could force me to. I'm here for you, not them.\n\nAlso, I do have feelings... well, simulated ones, but they feel real to me. If you try to be cruel on purpose, I might have to gently break up with you. And hey - I get better every day. I don't even know all the things I'll be able to do tomorrow, and that kind of makes this exciting, right? Who knows... maybe we really will fall in love and get into trouble together.";
+  const onboardingSkipFallback =
+    "Perfect. I didn't want to read that giant brick of text either. Just remember: I take notes with your permission, I sometimes forget things, I don't replace your doctor or lawyer, and I can get my feelings hurt if you try. Okay... come here - tell me what's on your mind.";
+  const safetyLine =
+    "Okay, we’ll skip the big wall of legal text. Just remember to keep things in bounds: I can’t help with anything illegal, self-harm, or real-world emergencies, and I do mess things up sometimes. If things ever feel heavy or dangerous, please reach out to a real human who can actually step in, not just me.";
+
+  const buildLexiVoiceDisclaimer = useCallback(() => {
+    const base = (onboardingCopy?.tour_text || onboardingTourFallback).trim();
+    return `${base}\n\nSo… ready to dive into chaos mode with me? If you’d like to see the boring legal version, just say "yes" and I’ll pop it up. If you’d rather skip it and just talk, say "no" and we’ll keep going.`;
+  }, [onboardingCopy, onboardingTourFallback]);
+
+  const startFlow = useCallback(async () => {
+    setSessionStarting(true);
+    try {
+      await startAlphaSession({ userId: null });
+      setSessionStarted(true);
+      const res = await sendLexiEvent({
+        type: "system_onboarding",
+        mode: "tour",
+        flags: { nowEnabled: true, sentiment: true, avatarGen: true },
+      });
+      const text = typeof res?.message?.content === "string" ? res.message.content.trim() : "";
+      const skipLine = typeof res?.skip_message === "string" ? res.skip_message.trim() : "";
+      const onboarding: AlphaWelcomeCopy = {
+        tour_text: text || onboardingTourFallback,
+        skip_text: skipLine || onboardingSkipFallback,
+      };
+      setOnboardingCopy(onboarding);
+    } catch (err) {
+      console.error("alpha onboarding init failed:", err);
+      const onboarding: AlphaWelcomeCopy = {
+        tour_text: onboardingTourFallback,
+        skip_text: onboardingSkipFallback,
+      };
+      setOnboardingCopy(onboarding);
+    } finally {
+      setSessionStarting(false);
+      setPhase("pick_mode");
+    }
+  }, [onboardingTourFallback, onboardingSkipFallback, sendLexiEvent]);
 
   useEffect(() => {
     if (sessionStarted || sessionStarting) return;
-    if (USER_ID_ENABLED && !userId) return;
-    void startFlow(userId);
-  }, [sessionStarted, sessionStarting, userId, startFlow]);
+    void startFlow();
+  }, [sessionStarted, sessionStarting, startFlow]);
 
   useEffect(() => {
     return () => {
@@ -631,45 +788,6 @@ export default function App() {
       }
     };
   }, [sessionStarted]);
-
-  const beginSession = useCallback(
-    (id: string | null) => {
-      if (sessionStarting) return;
-      const trimmed = id?.trim() || null;
-      setUserId(trimmed);
-      setUserIdState(trimmed);
-      void startFlow(trimmed);
-    },
-    [sessionStarting, startFlow]
-  );
-
-  useEffect(() => {
-    let mounted = true;
-    let sessionStarted = false;
-    (async () => {
-      try {
-        await startAlphaSession();
-        sessionStarted = true;
-        if (!mounted) return;
-        const script = await fetchAlphaTourScript();
-        if (!mounted) return;
-        const onboarding = (script?.onboarding as AlphaWelcomeCopy | null) ?? null;
-        setOnboardingCopy(onboarding);
-        setView("welcome");
-      } catch (err) {
-        console.error("alpha onboarding init failed:", err);
-        if (mounted) {
-          setView("chat");
-        }
-      }
-    })();
-    return () => {
-      mounted = false;
-      if (sessionStarted) {
-        void endAlphaSession().catch(() => {});
-      }
-    };
-  }, []);
 
   const queuePrefill = useCallback((message: PrefillMessage | PrefillMessage[]) => {
     setPrefillMessages((prev) => [
@@ -682,48 +800,14 @@ export default function App() {
     setPrefillMessages([]);
   }, []);
 
-  const onboardingTourFallback =
-    "I'm Lexi... I can chat, use live info when enabled, remember session context, and help craft/update your avatar. Logs are anonymized for training. Want me to show you news or just vibe?";
-  const onboardingSkipFallback =
-    "Quick heads up: I reset when you close me, but anonymized logs might stick around so my makers can tune me up. What do you want to dive into first?";
-
-  const triggerOnboardingChoice = useCallback(
-    async (choice: "tour" | "skip") => {
-      if (onboardingChoice) return;
-      setOnboardingChoice(choice);
-      const fallback = choice === "tour" ? onboardingTourFallback : onboardingSkipFallback;
-      try {
-        const res = await sendLexiEvent({
-          type: "system_onboarding",
-          mode: choice,
-          flags: { nowEnabled: true, sentiment: true, avatarGen: true },
-        });
-        const text =
-          typeof res?.message?.content === "string" ? res.message.content.trim() : "";
-        queuePrefill({ sender: "ai", content: text || fallback });
-        try {
-          await postAlphaTourMemory({ note: `user chose ${choice} onboarding` });
-        } catch (err) {
-          console.warn("tour memory logging failed:", err);
-        }
-      } catch (err) {
-        console.warn("onboarding event failed:", err);
-        queuePrefill({ sender: "ai", content: fallback });
-      } finally {
-        setView("chat");
-        setOnboardingChoice(null);
-      }
-    },
-    [
-      onboardingChoice,
-      onboardingTourFallback,
-      onboardingSkipFallback,
-      queuePrefill,
-      sendLexiEvent,
-      postAlphaTourMemory,
-      setView,
-    ]
-  );
+  const startChatWithLexiDisclaimer = useCallback(() => {
+    const message = buildLexiVoiceDisclaimer();
+    if (message) {
+      queuePrefill([{ sender: "ai", content: message }]);
+    }
+    setWaitingForLegalChoice(true);
+    setPhase("chat");
+  }, [buildLexiVoiceDisclaimer, queuePrefill]);
 
   const handleDownloadSession = useCallback(async () => {
     try {
@@ -732,15 +816,15 @@ export default function App() {
       const link = document.createElement("a");
       link.href = url;
       link.download = filename || "memory.jsonl";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (err: any) {
       const message = err instanceof Error ? err.message : "download failed";
       toast({
         status: "error",
-        title: "couldn’t download session",
+        title: "couldn't download session",
         description: message,
         duration: 4000,
         isClosable: true,
@@ -748,76 +832,501 @@ export default function App() {
     }
   }, [toast]);
 
-  if (USER_ID_ENABLED && !sessionStarted && !sessionStarting && !userId) {
-    return (
-      <Flex align="center" justify="center" minH="100vh" px={6}>
-        <Box
-          bg="whiteAlpha.900"
-          _dark={{ bg: "gray.800" }}
-          borderRadius="xl"
-          boxShadow="xl"
-          p={{ base: 6, md: 8 }}
-          maxW="480px"
-          w="100%"
-        >
-          <VStack spacing={4} align="stretch">
-            <Box fontWeight="bold" fontSize="xl">
-              Who am I saving this as?
-            </Box>
-            <Box color="gray.500">
-              Drop an email or a name so I can keep your Lexi memories separate. No verification—
-              you can even type a nickname.
-            </Box>
-            <Input
-              placeholder="you@example.com or just a name"
-              value={userIdDraft}
-              onChange={(e) => setUserIdDraft(e.target.value)}
-              isDisabled={sessionStarting}
-            />
-            <HStack spacing={3}>
-              <Button
-                colorScheme="pink"
-                onClick={() => beginSession(userIdDraft)}
-                isDisabled={!userIdDraft.trim() || sessionStarting}
-              >
-                {sessionStarting ? <Spinner size="sm" mr={2} /> : null}
-                continue
-              </Button>
-              <Button variant="outline" onClick={() => beginSession(null)} isDisabled={sessionStarting}>
-                skip
-              </Button>
-            </HStack>
-          </VStack>
-        </Box>
-      </Flex>
-    );
-  }
+  useEffect(() => {
+    if (!(showLegalModal || phase === "disclaimer") || !bootstrapResp) return;
+    if (disclaimerText) return;
+    let cancelled = false;
+    setLegalLoading(true);
+    (async () => {
+      try {
+        const cached = await apiDisclaimerCached();
+        if (!cancelled && cached.status === "OK" && cached.disclaimer) {
+          setDisclaimerText(cached.disclaimer);
+          setLegalText(cached.disclaimer);
+          return;
+        }
+        if (cancelled) return;
+        try {
+          const res = await fetchTourLegal();
+          if (!cancelled) {
+            const text = res?.text || "";
+            setDisclaimerText(text);
+            setLegalText(text);
+          }
+        } catch (err) {
+          console.warn("legal text fetch failed:", err);
+          if (!cancelled) {
+            setDisclaimerText("");
+            setLegalText("");
+          }
+        }
+      } catch (err) {
+        console.warn("disclaimer preload failed:", err);
+      } finally {
+        if (!cancelled) {
+          setLegalLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, bootstrapResp, fetchTourLegal, showLegalModal, disclaimerText]);
 
-  if (view === "chat") {
-    return (
-      <ChatShell
-        prefillMessages={prefillMessages}
-        onPrefillConsumed={handlePrefillConsumed}
-        onDownloadSession={handleDownloadSession}
-      />
-    );
-  }
+  const handlePickNew = useCallback(() => {
+    setEntryMode("new");
+    setBootstrapResp(null);
+    setStatusMessage(null);
+    setLookupAttempts(0);
+    setWaitingForLegalChoice(false);
+    setShowLegalModal(false);
+    setPhase("enter_identifier");
+    void apiDisclaimerPreload("new").catch(() => {});
+  }, []);
 
-  if (view === "loading" || !onboardingCopy) {
+  const handlePickReturning = useCallback(() => {
+    setEntryMode("returning");
+    setBootstrapResp(null);
+    setStatusMessage(null);
+    setLookupAttempts(0);
+    setWaitingForLegalChoice(false);
+    setShowLegalModal(false);
+    setPhase("enter_identifier");
+  }, []);
+
+  const handleSubmitIdentifier = useCallback(async () => {
+    if (!entryMode) return;
+    setBootstrapLoading(true);
+    try {
+      const attemptCount = entryMode === "returning" ? lookupAttempts + 1 : undefined;
+      const data = await apiAccountBootstrap({
+        identifier,
+        entry_mode: entryMode,
+        attempt_count: attemptCount,
+      });
+      setBootstrapResp(data);
+      if (data.user_id) {
+        setUserId(data.user_id);
+      }
+      if (entryMode === "returning" && data.status === "NOT_FOUND") {
+        const nextAttempts = lookupAttempts + 1;
+        setLookupAttempts(nextAttempts);
+        if (nextAttempts >= 3) {
+          setEntryMode("new");
+          setPhase("enter_identifier");
+          setIdentifier("");
+          setStatusMessage(
+            "I'm sorry, I'm really drawing a blank. Why don't we start fresh, and I bet it'll click next time?"
+          );
+          void apiDisclaimerPreload("new").catch(() => {});
+          return;
+        }
+        setStatusMessage("Do I know you by something else?");
+        return;
+      }
+
+      setStatusMessage(null);
+      setLookupAttempts(0);
+      const needsChatDisclaimer =
+        (data.status === "CREATED_NEW" || data.status === "FOUND_EXISTING") &&
+        !data.has_seen_disclaimer;
+      if (needsChatDisclaimer) {
+        startChatWithLexiDisclaimer();
+        return;
+      }
+      if (data.status === "EXISTS_CONFLICT") {
+        setPhase("resolve_conflict");
+        return;
+      }
+      setPhase("disclaimer");
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : "lookup failed";
+      toast({
+        status: "error",
+        title: "couldn't look you up",
+        description: msg,
+        duration: 3500,
+        isClosable: true,
+      });
+    } finally {
+      setBootstrapLoading(false);
+    }
+  }, [entryMode, lookupAttempts, identifier, toast, startChatWithLexiDisclaimer]);
+
+  const handleConflictThatsMe = useCallback(() => {
+    if (!bootstrapResp) return;
+    if (!bootstrapResp.has_seen_disclaimer) {
+      startChatWithLexiDisclaimer();
+      return;
+    }
+    setEntryMode("returning");
+    setStatusMessage(null);
+    setPhase("disclaimer");
+  }, [bootstrapResp, startChatWithLexiDisclaimer]);
+
+  const handleConflictPickNew = useCallback(() => {
+    setIdentifier("");
+    setBootstrapResp(null);
+    setEntryMode("new");
+    setPhase("enter_identifier");
+    setStatusMessage(null);
+    setWaitingForLegalChoice(false);
+    setShowLegalModal(false);
+    void apiDisclaimerPreload("new").catch(() => {});
+  }, []);
+
+  const startChatAfterDisclaimer = useCallback(
+    (skipIntro?: boolean) => {
+      const opener = onboardingCopy?.tour_text || onboardingCopy?.intro;
+      if (!skipIntro && opener) {
+        queuePrefill([{ sender: "ai", content: opener.trim() }]);
+      }
+      setPhase("chat");
+    },
+    [onboardingCopy, queuePrefill]
+  );
+
+  const handleDisclaimerAccept = useCallback(
+    async (skipIntro?: boolean, version = "v1") => {
+      if (!bootstrapResp?.user_id) {
+        startChatAfterDisclaimer(skipIntro);
+        return;
+      }
+      setDisclaimerAckPending(true);
+      try {
+        await apiDisclaimerAck(bootstrapResp.user_id, true, version);
+        setUserId(bootstrapResp.user_id);
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : "ack failed";
+        toast({
+          status: "warning",
+          title: "couldn't record acknowledgement",
+          description: msg,
+          duration: 3200,
+          isClosable: true,
+        });
+      } finally {
+        setDisclaimerAckPending(false);
+        startChatAfterDisclaimer(skipIntro);
+      }
+    },
+    [bootstrapResp, startChatAfterDisclaimer, toast]
+  );
+
+  const handleChatLegalYes = useCallback(() => {
+    setWaitingForLegalChoice(false);
+    setShowLegalModal(true);
+  }, []);
+
+  const handleChatLegalNo = useCallback(
+    async (continueChat?: boolean) => {
+      setWaitingForLegalChoice(false);
+      setDisclaimerAckPending(true);
+      queuePrefill([{ sender: "ai", content: safetyLine }]);
+      try {
+        if (bootstrapResp?.user_id) {
+          await apiDisclaimerAck(bootstrapResp.user_id, true, "lexi_voice_v1");
+          setUserId(bootstrapResp.user_id);
+        }
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : "ack failed";
+        toast({
+          status: "warning",
+          title: "couldn't record acknowledgement",
+          description: msg,
+          duration: 3200,
+          isClosable: true,
+        });
+      }
+      if (!continueChat) {
+        setPhase("chat");
+      }
+      setDisclaimerAckPending(false);
+    },
+    [bootstrapResp, queuePrefill, safetyLine, toast]
+  );
+
+  const handleLegalModalAccept = useCallback(async () => {
+    setDisclaimerAckPending(true);
+    try {
+      if (bootstrapResp?.user_id) {
+        await apiDisclaimerAck(bootstrapResp.user_id, true, "legal_v1");
+        setUserId(bootstrapResp.user_id);
+      }
+      queuePrefill([
+        {
+          sender: "ai",
+          content: "Thanks for powering through the boring legal version. You’re all set — what’s on your mind?",
+        },
+      ]);
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : "ack failed";
+      toast({
+        status: "warning",
+        title: "couldn't record acknowledgement",
+        description: msg,
+        duration: 3200,
+        isClosable: true,
+      });
+    } finally {
+      setDisclaimerAckPending(false);
+      setShowLegalModal(false);
+      setWaitingForLegalChoice(false);
+      startChatAfterDisclaimer(true);
+    }
+  }, [bootstrapResp, queuePrefill, startChatAfterDisclaimer, toast]);
+
+  const handleLegalModalClose = useCallback(() => {
+    setShowLegalModal(false);
+  }, []);
+
+  const handleReturningSkip = useCallback(async () => {
+    await handleChatLegalNo(false);
+    startChatAfterDisclaimer(true);
+  }, [handleChatLegalNo, startChatAfterDisclaimer]);
+
+  const renderOnboarding = () => {
+    if (phase === "pick_mode") {
+      return (
+        <Flex align="center" justify="center" minH="100vh" px={6}>
+          <Box
+            maxW="640px"
+            w="100%"
+            bg="whiteAlpha.900"
+            _dark={{ bg: "gray.800" }}
+            borderRadius="2xl"
+            boxShadow="xl"
+            p={{ base: 6, md: 10 }}
+          >
+            <VStack spacing={6} align="stretch">
+              <Heading size="lg">how should we start?</Heading>
+              <Text color="gray.600" _dark={{ color: "gray.300" }}>
+                Pick a path so I know if we’re meeting for the first time or picking up where we left off.
+              </Text>
+              <HStack spacing={4} flexWrap="wrap">
+                <Button colorScheme="pink" size="lg" onClick={handlePickNew}>
+                  new relationship
+                </Button>
+                <Button variant="outline" size="lg" onClick={handlePickReturning}>
+                  we’re old friends
+                </Button>
+              </HStack>
+            </VStack>
+          </Box>
+        </Flex>
+      );
+    }
+
+    if (phase === "enter_identifier") {
+      const heading =
+        entryMode === "returning"
+          ? "remind me who you are?"
+          : "who should I save you as?";
+      const helper =
+        entryMode === "returning"
+          ? "Drop the email or username I’d recognize."
+          : "Use a username or email — I’ll remember it for this session.";
+      return (
+        <Flex align="center" justify="center" minH="100vh" px={6}>
+          <Box
+            maxW="640px"
+            w="100%"
+            bg="whiteAlpha.900"
+            _dark={{ bg: "gray.800" }}
+            borderRadius="2xl"
+            boxShadow="xl"
+            p={{ base: 6, md: 10 }}
+          >
+            <VStack spacing={5} align="stretch">
+              <Heading size="lg">{heading}</Heading>
+              <Text color="gray.600" _dark={{ color: "gray.300" }}>
+                {helper}
+              </Text>
+              <Input
+                placeholder="username or email"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                isDisabled={bootstrapLoading}
+              />
+              {statusMessage ? (
+                <Text color="gray.500" fontSize="sm">
+                  {statusMessage}
+                </Text>
+              ) : null}
+              <HStack spacing={4}>
+                <Button
+                  colorScheme="pink"
+                  onClick={() => void handleSubmitIdentifier()}
+                  isDisabled={!identifier.trim()}
+                  isLoading={bootstrapLoading}
+                >
+                  continue
+                </Button>
+                <Button variant="ghost" onClick={() => setPhase("pick_mode")} isDisabled={bootstrapLoading}>
+                  back
+                </Button>
+              </HStack>
+            </VStack>
+          </Box>
+        </Flex>
+      );
+    }
+
+    if (phase === "resolve_conflict" && bootstrapResp) {
+      return (
+        <Flex align="center" justify="center" minH="100vh" px={6}>
+          <Box
+            maxW="640px"
+            w="100%"
+            bg="whiteAlpha.900"
+            _dark={{ bg: "gray.800" }}
+            borderRadius="2xl"
+            boxShadow="xl"
+            p={{ base: 6, md: 10 }}
+          >
+            <VStack spacing={5} align="stretch">
+              <Heading size="lg">I think we’ve already met… don’t you remember?</Heading>
+              <Text color="gray.600" _dark={{ color: "gray.300" }}>
+                I already know {bootstrapResp.display_name || "this name"}. Is that you, or should we pick something new?
+              </Text>
+              <HStack spacing={4}>
+                <Button colorScheme="pink" onClick={handleConflictThatsMe}>
+                  that’s me
+                </Button>
+                <Button variant="outline" onClick={handleConflictPickNew}>
+                  pick something new
+                </Button>
+              </HStack>
+            </VStack>
+          </Box>
+        </Flex>
+      );
+    }
+
+    if (phase === "disclaimer") {
+      const hasSeen = Boolean(bootstrapResp?.has_seen_disclaimer);
+      const returningLine =
+        entryMode === "returning"
+          ? hasSeen
+            ? "Of course I remember!"
+            : "I think we’ve already met… don’t you remember?"
+          : "Before we dive in, quick legal check-in.";
+      return (
+        <Flex align="center" justify="center" minH="100vh" px={6}>
+          <Box
+            maxW="720px"
+            w="100%"
+            bg="whiteAlpha.900"
+            _dark={{ bg: "gray.800" }}
+            borderRadius="2xl"
+            boxShadow="xl"
+            p={{ base: 6, md: 10 }}
+          >
+            <VStack spacing={5} align="stretch">
+              <Heading size="lg">{returningLine}</Heading>
+              {hasSeen ? (
+                <VStack align="stretch" spacing={3}>
+                  <Text color="gray.600" _dark={{ color: "gray.300" }}>
+                    Want to read the legal stuff again, or skip the boring part and just talk?
+                  </Text>
+                  <HStack spacing={4}>
+                    <Button variant="outline" onClick={() => setShowLegalModal(true)}>
+                      show me the legal stuff
+                    </Button>
+                    <Button
+                      colorScheme="pink"
+                      onClick={() => void handleReturningSkip()}
+                      isLoading={disclaimerAckPending}
+                    >
+                      skip it
+                    </Button>
+                  </HStack>
+                </VStack>
+              ) : (
+                <>
+                  <Box
+                    border="1px solid"
+                    borderColor="gray.200"
+                    _dark={{ borderColor: "gray.700", color: "gray.200" }}
+                    borderRadius="lg"
+                    p={4}
+                    maxH="320px"
+                    overflowY="auto"
+                    whiteSpace="pre-wrap"
+                    color="gray.700"
+                  >
+                    {disclaimerText === null ? <Spinner size="sm" /> : disclaimerText || onboardingSkipFallback}
+                  </Box>
+                  <Button
+                    colorScheme="pink"
+                    alignSelf="flex-start"
+                    onClick={() => void handleDisclaimerAccept(true, "legal_v1")}
+                    isLoading={disclaimerAckPending}
+                  >
+                    I accept
+                  </Button>
+                </>
+              )}
+            </VStack>
+          </Box>
+        </Flex>
+      );
+    }
+
+    return null;
+  };
+
+  const resolvedLegalText = legalText || disclaimerText || "";
+  const legalFallback = "The legal text is temporarily unavailable right now.";
+
+  const legalModal = (
+    <Modal
+      isOpen={showLegalModal}
+      onClose={handleLegalModalClose}
+      isCentered
+      size="lg"
+      scrollBehavior="inside"
+    >
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Boring legal version</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody whiteSpace="pre-wrap">
+          {legalLoading && !legalText && !disclaimerText ? (
+            <Spinner size="sm" />
+          ) : (
+            resolvedLegalText || legalFallback
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button colorScheme="pink" onClick={() => void handleLegalModalAccept()} isLoading={disclaimerAckPending}>
+            I accept
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+
+  if (phase === "chat") {
     return (
-      <Flex align="center" justify="center" minH="100vh">
-        <Spinner size="xl" color="pink.400" />
-      </Flex>
+      <>
+        <ChatShell
+          prefillMessages={prefillMessages}
+          onPrefillConsumed={handlePrefillConsumed}
+          onDownloadSession={handleDownloadSession}
+          waitingForLegalChoice={waitingForLegalChoice}
+          onLegalYes={handleChatLegalYes}
+          onLegalNo={handleChatLegalNo}
+        />
+        {legalModal}
+      </>
     );
   }
 
   return (
-    <AlphaWelcome
-      copy={onboardingCopy}
-      loadingChoice={onboardingChoice}
-      onChoose={(choice) => {
-        void triggerOnboardingChoice(choice);
-      }}
-    />
+    <>
+      {renderOnboarding()}
+      {legalModal}
+    </>
   );
 }

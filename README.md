@@ -71,7 +71,7 @@ make dev
 make backcurl     # curl $COMFY_URL/api/version from inside the backend container
 ```
 
-- `docker-compose.yml` builds the `comfy-sd` image (Flux-ready ComfyUI) and pins GPUs `4,5` by default; adjust `NVIDIA_VISIBLE_DEVICES` as needed.
+- `docker-compose.yml` builds the `comfy-sd` image (Flux-ready ComfyUI) and pins GPU `4` by default; adjust `NVIDIA_VISIBLE_DEVICES` as needed.
 - Containers still map `host.docker.internal` → the host gateway so the backend reaches vLLM (`http://host.docker.internal:8008`) and other host-only services.
 - `BASE_MODELS_DIR` defaults to `/mnt/data/models`; override it per machine in `.env.development`.
 - `make logs`, `make ps`, and `make sh` are handy while iterating (`make help` lists everything).
@@ -169,6 +169,7 @@ docker compose exec lexi-backend sh -lc 'curl -sS http://127.0.0.1:9000/lexi/rea
 - Poll `/lexi/persona/avatar/status/<job_id>` until it returns `{"status":"done","avatar_url":...}` (or `{"status":"error","error":...}`) and then use that URL directly in the UI.
 - Completed jobs stick around in-memory for `LEXI_AVATAR_JOB_TTL` seconds (default 600). Override this env var if you need a different retention window.
 - `frontend/src/lib/refreshAvatar.ts` implements the polling + swap logic so browsers always render the freshest PNG (note the built-in cache buster).
+- While avatar generation runs, the avatar pane shows a muted looping video from `frontend/public/media/avatar-loading.mp4`; swap in your own clip there (keep it short, muted, ~720p and reasonably small—e.g., <10 MB) to avoid perceived freezes during long diffusion runs.
 
 ---
 
@@ -215,6 +216,7 @@ wget https://example.com/flux1-kontext-dev.safetensors -O /mnt/data/comfy/models
 - On import we call `/object_info`, validate the schema, and warm up Comfy once. Set `LEXI_SKIP_FLUX_WARMUP=1` if you need to disable the warmup hit.
 - The base avatar (`lexi_base.png`) is written under a file lock so simultaneous prompts do not corrupt the baseline image.
 - The frontend no longer waits on long-running HTTP responses: avatar renders happen in the background, and the `/lexi/persona/avatar` + `/status/<job_id>` pair carries progress to the UI. If you need longer retention for completed jobs, tweak `LEXI_AVATAR_JOB_TTL`.
+- Action item: img2img edits are temporarily disabled; all avatar updates are routed through txt2img. Revisit when we want controlled edit-mode back.
 
 ---
 

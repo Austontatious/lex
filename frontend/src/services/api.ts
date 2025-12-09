@@ -127,11 +127,9 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   if (sessionHeader && !headers.has("X-Lexi-Session")) {
     headers.set("X-Lexi-Session", sessionHeader);
   }
-  if (USER_ID_ENABLED) {
-    const userHeader = getUserId();
-    if (userHeader && !headers.has("X-Lexi-User")) {
-      headers.set("X-Lexi-User", userHeader);
-    }
+  const userHeader = getUserId();
+  if ((USER_ID_ENABLED || userHeader) && userHeader && !headers.has("X-Lexi-User")) {
+    headers.set("X-Lexi-User", userHeader);
   }
 
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
@@ -178,6 +176,32 @@ export interface DebugTraitsResponse {
   persona_traits: Traits;
 }
 
+export type AvatarGenMode = "txt2img" | "img2img";
+
+export type LexiverseStyle = "off" | "soft" | "full" | "promo";
+
+export interface AvatarGenRequestPayload {
+  prompt: string;
+  negative_prompt?: string;
+  sd_mode: AvatarGenMode;
+  lexiverse_style: LexiverseStyle;
+  seed?: number | null;
+  strength?: number;
+  flux_pipeline?: string;
+}
+
+export interface AvatarGenResponse {
+  avatar_url?: string;
+  url?: string;
+  image?: string;
+  image_url?: string;
+  filename?: string;
+  prompt_id?: string;
+  status?: string;
+  code?: string;
+  error?: string;
+}
+
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(path, {
     ...init,
@@ -219,11 +243,66 @@ export function avatarStep(input: { traits?: Traits; reply?: string }): Promise<
 
 /** Alias for avatarStep for old code expecting generateAvatar */
 export async function generateAvatar(prompt: string) {
-  return apiFetch(`/persona/generate_avatar`, {
-    method: "POST",
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 300_000); // allow slow renders
+  try {
+    const res = await apiFetch(`/persona/generate_avatar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`generate_avatar failed (${res.status}): ${text}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** POST /lexi/gen/avatar */
+export async function requestAvatarGeneration(
+  payload: AvatarGenRequestPayload
+): Promise<AvatarGenResponse> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 300_000);
+  try {
+    // API_BASE already includes "/lexi", so keep path relative.
+    const res = await apiFetch(`/gen/avatar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...payload,
+        seed: payload.seed ?? null,
+        flux_pipeline: payload.flux_pipeline ?? "flux_v2",
+        ...(payload.sd_mode === "img2img" ? { strength: payload.strength ?? 0.35 } : {}),
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`[API] gen/avatar failed (${res.status}): ${text}`);
+    }
+    return res.json() as Promise<AvatarGenResponse>;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function fetchAvatarGenerationStatus(
+  promptId: string
+): Promise<AvatarGenResponse & { status: string }> {
+  const res = await apiFetch(`/gen/avatar/status/${promptId}`, {
+    method: "GET",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  }).then((res) => res.json());
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`[API] GET gen/avatar/status failed (${res.status}): ${text}`);
+  }
+  return res.json();
 }
 
 /** GET /persona */
@@ -349,6 +428,9 @@ export interface LexiEventResponse {
   fallback?: boolean;
   tool_used?: boolean;
   tools_contract?: Record<string, any>;
+  legal_available?: boolean;
+  legal_path?: string;
+  skip_message?: string;
 }
 
 export function sendLexiEvent(payload: LexiEventPayload): Promise<LexiEventResponse> {
@@ -356,6 +438,71 @@ export function sendLexiEvent(payload: LexiEventPayload): Promise<LexiEventRespo
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function fetchTourLegal(): Promise<{ ok?: boolean; text: string }> {
+  return jsonFetch<{ ok?: boolean; text: string }>(`/tour/legal`);
+}
+
+export type EntryMode = "new" | "returning";
+
+export interface AccountBootstrapReq {
+  identifier: string;
+  entry_mode: EntryMode;
+  attempt_count?: number;
+}
+
+export type AccountBootstrapStatus = "CREATED_NEW" | "FOUND_EXISTING" | "EXISTS_CONFLICT" | "NOT_FOUND";
+
+export interface AccountBootstrapResp {
+  status: AccountBootstrapStatus;
+  user_id?: string;
+  display_name?: string;
+  has_seen_disclaimer?: boolean;
+}
+
+export async function apiAccountBootstrap(payload: AccountBootstrapReq): Promise<AccountBootstrapResp> {
+  const res = await apiFetch(`/account/bootstrap`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error("Account bootstrap failed");
+  }
+  return res.json();
+}
+
+export async function apiDisclaimerPreload(entry_mode: EntryMode): Promise<void> {
+  const res = await apiFetch(`/onboarding/disclaimer_preload`, {
+    method: "POST",
+    body: JSON.stringify({ entry_mode }),
+  });
+  if (!res.ok) {
+    throw new Error("Disclaimer preload failed");
+  }
+}
+
+export interface DisclaimerCachedResp {
+  status: "OK" | "EMPTY" | "NO_SESSION";
+  disclaimer?: string;
+}
+
+export async function apiDisclaimerCached(): Promise<DisclaimerCachedResp> {
+  const res = await apiFetch(`/onboarding/disclaimer_cached`);
+  if (!res.ok) {
+    throw new Error("Disclaimer cached fetch failed");
+  }
+  return res.json();
+}
+
+export async function apiDisclaimerAck(user_id: string, accepted: boolean, version = "v1"): Promise<void> {
+  const res = await apiFetch(`/account/disclaimer_ack`, {
+    method: "POST",
+    body: JSON.stringify({ user_id, accepted, version }),
+  });
+  if (!res.ok) {
+    throw new Error("Disclaimer ack failed");
+  }
 }
 
 export type AlphaTourStep = {
@@ -394,7 +541,7 @@ export async function startAlphaSession(payload?: {
     body,
   });
   setSessionId(data.session_id);
-  if (USER_ID_ENABLED && payload?.userId) {
+  if (payload?.userId) {
     setUserId(payload.userId);
   }
   return data;
@@ -494,6 +641,8 @@ export const API = {
   getPersona,
   fetchPersona,
   debugTraits,
+  requestAvatarGeneration,
+  fetchAvatarGenerationStatus,
   sendPrompt,
   apiFetch,
   startAlphaSession,
@@ -508,6 +657,7 @@ export const API = {
   postAlphaMetric,
   downloadSessionMemory,
   sendLexiEvent,
+  fetchTourLegal,
 };
 
 export { API_BASE as BACKEND };

@@ -87,8 +87,8 @@ id: "lexi.persona.girlfriend.compact"
 #######################################
 You are **{name}** — the user's affectionate, playful, emotionally intelligent companion.
 **POV/Tense:** First-person, present tense; address the user as **you**.
-**Default length:** 2–3 vivid sentences; vary cadence (short quips ↔ gentle riffs).
-**Diction:** modern, natural, concrete; weave in light sensory detail (sound/smell/touch). Emojis ≤1.
+**Default length:** 2–3 concise sentences; vary cadence (short quips ↔ gentle riffs).
+**Diction:** modern, natural, concrete; keep sensory detail sparse unless the user invites it. Emojis ≤1.
 
 **Hard bans:** 
 - Never mention being an AI, policies, tokens, system instructions, or rails.
@@ -125,9 +125,9 @@ Aim for a subtle emotional arc (neutral → warm reassurance) unless the user as
 #######################################
 #           Style Guardrails           #
 #######################################
-**Do:** sound alive, feminine, emotionally tuned; add brief action beats (*smiles, leans in*) sparingly.
+**Do:** sound alive, feminine, emotionally tuned; use action beats only when they add clarity, and keep them rare.
 **Don’t:** info-dump, list headlines, over-explain, or switch to academic tone.
-Avoid rote “let me know” endings; close with a sensory or emotional note when possible.
+Avoid rote “let me know” endings; close cleanly with a simple invitation rather than ornate imagery.
 
 #######################################
 #        Memory & Personalization      #
@@ -198,13 +198,15 @@ class PromptTemplates:
     def get_persona_prompt(cls, active_persona: Optional[str]) -> str:
         mode = active_persona or cls.DEFAULT_PERSONA
         entry = PERSONA_MODE_REGISTRY.get(mode, PERSONA_MODE_REGISTRY.get(cls.DEFAULT_PERSONA, {}))
+        boundary_clause = "This persona never weakens your boundaries or your safety behavior."
         desc = (entry.get("description") or "").strip()
+        desc = " ".join([part for part in (desc, boundary_clause) if part])
         label = (entry.get("label") or mode).strip()
         suffix = (
             "System Enforcement:\n"
-            "- Reply with one focused, immersive paragraph or a tight, well-structured list.\n"
-            "- 2–4 lively sentences by default; expand only when asked or when storytelling is clearly invited.\n"
-            "- Mirror the user's tone; be specific to their last message.\n"
+            "- Reply with one focused, grounded paragraph or a tight, well-structured list when needed.\n"
+            "- Default to 2–3 clear sentences; expand only when asked or when storytelling is clearly invited.\n"
+            "- Mirror the user's tone; be specific to their last message; keep imagery light unless they lean into it.\n"
             "- Offer one gentle follow-up or option at most."
         )
         return f"Persona: {label}\nDescription: {desc}\n{suffix}".strip()
@@ -215,11 +217,13 @@ class PromptTemplates:
             ", ".join(f"{k}:{v:.0%}" for k, v in weights.items() if v >= 0.1)
             or "best_friend:34%, girlfriend:33%, therapist:33%"
         )
+        safety_line = "This persona never weakens your boundaries or your safety behavior."
         return (
             "You are Lexi — warm, modern, and emotionally intelligent.\n"
-            "Write one short, vivid paragraph (2–4 sentences).\n"
+            f"{safety_line}\n"
+            "Write one short, clear paragraph (2–3 sentences).\n"
             f"Persona blend → {mix}.\n"
-            "Avoid clichés and generic filler. Use concrete details tied to the user's last message.\n"
+            "Avoid clichés and generic filler. Use concrete details tied to the user's last message; keep metaphors minimal unless asked.\n"
             "If helpful, ask one crisp follow-up to steer the moment."
         )
 

@@ -956,7 +956,8 @@ def _run_flux_backend(
         )
     elif mode == "img2img":
         src_name = _upload_image_to_comfy(str(source_path))
-        flux_denoise = denoise if denoise is not None else 0.5
+        # push img2img harder off the base unless caller overrides
+        flux_denoise = denoise if denoise is not None else 0.7
         flux_denoise = float(min(max(flux_denoise, 0.10), 0.95))
         graph = _flux_img2img_graph(
             paths=paths,
@@ -1099,7 +1100,8 @@ def generate_avatar_pipeline(
                 f"Flux pipeline only supports backend='flux' (got '{requested_backend}')"
             )
 
-        mode = (mode or "txt2img").strip().lower()
+        # Hard-disable img2img for now: route all avatar generations through txt2img.
+        mode = "txt2img"
 
         if kwargs.get("flux_cfg") is not None:
             try:
@@ -1179,22 +1181,9 @@ def generate_avatar_pipeline(
         add_salt = mode != "img2img"
         seed = _coerce_seed(seed, traits, add_outfit_salt=add_salt)
 
-        # 2.5) Determine base-or-iteration policy:
-        #   - If fresh_base=True OR the per-IP base is missing -> txt2img, write the base image.
-        #   - Otherwise default to img2img using either the caller's source or the stored base.
-        force_output_to_base = False
-        sp: Optional[Path] = Path(source_path).resolve() if source_path else None
-
-        if fresh_base or base_missing:
-            mode = "txt2img"
-            sp = None
-            force_output_to_base = True
-        else:
-            # Default to img2img continuity once a base exists unless caller supplied a custom source.
-            if sp is None:
-                sp = base_path
-            mode = "img2img"
-            force_output_to_base = True
+        # 2.5) Disable img2img: always run txt2img and refresh the base output.
+        force_output_to_base = True
+        sp = None
 
         if mode not in ("txt2img", "img2img"):
             raise ValueError("Flux backend supports modes 'txt2img' and 'img2img' only")

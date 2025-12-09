@@ -36,7 +36,15 @@ from ..persona.persona_config import PERSONA_MODE_REGISTRY
 from ..memory.memory_core import memory
 from ..memory.memory_types import MemoryShard
 from ..alpha.session_manager import SessionRegistry
-from ..session_logging import log_event
+from ..session_logging import (
+    log_event,
+    log_turn,
+    log_error_event,
+    sanitize_for_log,
+    log_safety_event,
+)
+from ..utils.safety import classify_safety, ensure_crisis_safety_style
+from ..utils.error_responses import SOFT_ERROR_MESSAGE, soft_error_payload
 from ..utils.ip_seed import (
     avatars_public_url_base,
     avatars_static_dir,
@@ -56,6 +64,25 @@ AVATAR_DIR: Path = CONFIG_AVATAR_DIR
 AVATARS_PUBLIC_DIR = avatars_static_dir()
 LEGACY_BASE_NAME = "lexi_base.png"
 AV_PUBLIC_URL = avatars_public_url_base()
+
+
+def _registry(request: Request) -> Optional[SessionRegistry]:
+    registry = getattr(request.app.state, "alpha_sessions", None)
+    return registry if isinstance(registry, SessionRegistry) else None
+
+
+def _record_metric(request: Request, event: str, detail: Optional[Dict[str, Any]] = None) -> None:
+    registry = _registry(request)
+    session_id = getattr(request.state, "session_id", None)
+    if not registry or not session_id:
+        return
+    payload = {"event": event}
+    if detail:
+        payload.update(detail)
+    try:
+        registry.record_metric(session_id, payload)
+    except Exception:
+        return
 
 def _client_ip(request: Request) -> str:
     return request_ip(request)
@@ -265,7 +292,7 @@ _DESCRIBE = re.compile(
 )
 
 _AVATAR_TOPIC = re.compile(
-    r"\b(avatar|appearance|outfit|clothes?|dress|costume|style|wear|lingerie|look|look like)\b",
+    r"\b(avatar|appearance|outfit|clothes?|dress|costume|style|wear|lingerie|look\\s+like)\b",
     re.IGNORECASE,
 )
 
@@ -341,11 +368,27 @@ def _append_session_memory(request: Request, event: Dict[str, Any]) -> None:
 
 @router.post("/process")
 async def process(req: ChatRequest, request: Request):
-    logger.info("🗨️ /process prompt=%r", req.prompt)
+    logger.info("🗨️ /process turn")
     log_event(request, "user", req.prompt or "", event="chat_prompt")
     _append_session_memory(
         request,
         {"role": "user", "event": "chat_prompt", "text": req.prompt},
+    )
+    _record_metric(request, "first_message_sent")
+    turn_id = getattr(request.state, "turn_id_counter", 0) or 0
+    turn_id += 1
+    request.state.turn_id_counter = turn_id
+    start_ts = time.time()
+    log_turn(
+        request,
+        "user",
+        req.prompt or "",
+        turn_id=turn_id,
+        mode=lexi_persona.get_mode(),
+        persona=getattr(lexi_persona, "name", "Lexi"),
+        tool_calls=[],
+        safety={},
+        latency_ms=0,
     )
 
     # Guard against assistant loops
@@ -373,6 +416,41 @@ async def process(req: ChatRequest, request: Request):
     client_ip = _client_ip(request)
     base_name = basename_for_ip(client_ip)
     seed_default = ip_to_seed(client_ip)
+    safety_decision = classify_safety(req.prompt or "")
+    log_safety_event(
+        request,
+        turn_id=turn_id,
+        safety_event=safety_decision["action"],
+        categories=safety_decision.get("categories", []),
+    )
+    if safety_decision.get("blocked"):
+        refusal = "I can't help with that."
+        latency_ms = int((time.time() - start_ts) * 1000)
+        _record_metric(request, "safety_block", {"categories": safety_decision.get("categories", [])})
+        log_turn(
+            request,
+            "assistant",
+            refusal,
+            turn_id=turn_id,
+            mode=lexi_persona.get_mode(),
+            persona=getattr(lexi_persona, "name", "Lexi"),
+            tool_calls=[],
+            safety={"decision": safety_decision},
+            latency_ms=latency_ms,
+            model_meta=None,
+        )
+        return JSONResponse(
+            {
+                "cleaned": refusal,
+                "raw": refusal,
+                "choices": [{"text": refusal}],
+                "mode": lexi_persona.get_mode(),
+                "session_id": getattr(request.state, "session_id", None),
+                "safety": safety_decision,
+            },
+            status_code=403,
+        )
+
     if (
         incoming_intent == "avatar_edit"
         or "let's change your look" in prompt_lower
@@ -555,6 +633,7 @@ async def process(req: ChatRequest, request: Request):
         if not getattr(reply_text, "strip", None) or not reply_text.strip():
             logger.warning("❌ Empty reply for prompt: %r", req.prompt)
             reply_text = "[no response]"
+        reply_text = ensure_crisis_safety_style(prompt_text, reply_text)
 
         gen_meta = getattr(lexi_persona, "_last_gen_meta", {}) or {}
         finish_reason = gen_meta.get("finish_reason")
@@ -588,6 +667,39 @@ async def process(req: ChatRequest, request: Request):
             finish_reason=finish_reason,
             usage=usage,
         )
+        latency_ms = int((time.time() - start_ts) * 1000)
+        params = gen_meta.get("params") if isinstance(gen_meta, dict) else {}
+        model_meta = {
+            "model_name": getattr(lexi_persona.loader, "primary_type", None),
+            "tokens_in": (usage or {}).get("prompt_tokens") if isinstance(usage, dict) else None,
+            "tokens_out": (usage or {}).get("completion_tokens") if isinstance(usage, dict) else None,
+            "temperature": params.get("temperature"),
+            "top_p": params.get("top_p"),
+            "top_k": params.get("top_k"),
+            "repeat_penalty": params.get("repeat_penalty") or params.get("repetition_penalty"),
+            "logprobs_enabled": params.get("logprobs") is True,
+            "grounding_used": params.get("tool_call"),
+        }
+        assistant_safety = classify_safety(reply_text)
+        log_safety_event(
+            request,
+            turn_id=turn_id,
+            safety_event=assistant_safety.get("action", "observe"),
+            categories=assistant_safety.get("categories", []),
+        )
+        log_turn(
+            request,
+            "assistant",
+            reply_text,
+            turn_id=turn_id,
+            mode=lexi_persona.get_mode(),
+            persona=getattr(lexi_persona, "name", "Lexi"),
+            tool_calls=gen_meta.get("tool_calls") if isinstance(gen_meta, dict) else [],
+            safety={"model": gen_meta.get("safety") if isinstance(gen_meta, dict) else {}, "assistant_check": assistant_safety},
+            latency_ms=latency_ms,
+            model_meta=model_meta,
+        )
+        _record_metric(request, "first_reply_rendered")
 
         return {
             "cleaned": reply_text,
@@ -684,7 +796,9 @@ async def process(req: ChatRequest, request: Request):
                 final_payload.update(finalize_reply(reply_value))
             except Exception as exc:
                 logger.error("❌ LexiPersona.chat failed: %s", exc)
-                error_holder["message"] = str(exc)
+                trace = log_error_event(request, exc, context={"route": "/process", "turn_id": turn_id})
+                error_holder["message"] = SOFT_ERROR_MESSAGE
+                error_holder["trace_id"] = trace
                 _append_session_memory(
                     request,
                     {"role": "assistant", "event": "chat_error", "error": str(exc)},
@@ -702,7 +816,9 @@ async def process(req: ChatRequest, request: Request):
                 yield json.dumps({"delta": chunk}) + "\n"
 
             if error_holder:
-                yield json.dumps({"error": error_holder["message"]}) + "\n"
+                payload = soft_error_payload(trace_id=error_holder.get("trace_id"))
+                payload["done"] = True
+                yield json.dumps(payload) + "\n"
             else:
                 if not final_payload:
                     final_payload.update(finalize_reply(""))
@@ -714,13 +830,14 @@ async def process(req: ChatRequest, request: Request):
         reply = await asyncio.to_thread(lexi_persona.chat, req.prompt)
     except Exception as exc:
         logger.error("❌ LexiPersona.chat failed: %s", exc)
+        trace = log_error_event(request, exc, context={"route": "/process", "turn_id": turn_id})
         _append_session_memory(
             request,
             {"role": "assistant", "event": "chat_error", "error": str(exc)},
         )
-        return JSONResponse(
-            {"cleaned": f"[error] {exc}", "raw": "", "choices": [], "mode": lexi_persona.get_mode()}
-        )
+        payload = soft_error_payload(error_detail=str(exc), trace_id=trace)
+        payload["mode"] = lexi_persona.get_mode()
+        return JSONResponse(payload)
 
     payload = finalize_reply(reply)
     return JSONResponse(payload)

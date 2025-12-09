@@ -1,12 +1,15 @@
 # Lexi/lexi/routes/gen.py
 from __future__ import annotations
 from typing import Dict, Optional, Any, List
+import uuid
 import base64
 import logging
 import os
 import time
 import shutil
+import secrets
 from pathlib import Path
+import requests
 from fastapi import APIRouter, Body, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -18,7 +21,11 @@ from ..config.config import (
     STATIC_ROOT,
     STATIC_URL_PREFIX,
 )
-from ..sd.sd_pipeline import generate_avatar_pipeline
+from ..sd.sd_pipeline import generate_avatar_pipeline, probe_prompt_images
+from ..sd.flux_prompt_builder import (
+    BASE_AVATAR_AESTHETIC,
+    build_avatar_prompt,
+)
 from ..utils.ip_seed import basename_for_ip, ip_to_seed
 from ..utils.request_ip import request_ip
 from .lexi_persona import _load_traits as load_traits, _save_traits as save_traits
@@ -42,6 +49,14 @@ AVATARS_PUBLIC_URL = AV_PUBLIC_URL
 DEFAULT_SEED = Path(__file__).resolve().parents[3] / "assets" / "default.png"
 LEGACY_BASENAME = "lexi_base.png"
 LEGACY_BASE_PATH = AV_PUBLIC_DIR / LEGACY_BASENAME
+DEFAULT_AVATAR_BASE_PROMPT = (
+    "cinematic full-body portrait of Lexi, studio background, soft flattering light, "
+    "realistic skin texture, natural pose, shallow depth of field, high detail, "
+    "instagram editorial aesthetic"
+)
+DEFAULT_NEGATIVE_PROMPT = (
+    "low quality, blurry, distorted face, extra limbs, deformed hands, watermark, logo, text, duplicate body parts"
+)
 
 
 def _ensure_default_symlink() -> None:
@@ -74,6 +89,52 @@ def _ensure_default_symlink() -> None:
 
 
 _ensure_default_symlink()
+
+
+def _finalize_prompt_image(prompt_id: str, base_path: Path) -> Optional[str]:
+    """One-shot check for a finished Comfy prompt and return a public URL if ready."""
+    images = probe_prompt_images(prompt_id)
+    if not images:
+        return None
+
+    first = images[0]
+    filename = first.get("filename", "")
+    subfolder = first.get("subfolder", "")
+    ftype = first.get("type", "output")
+
+    params = {"filename": filename, "subfolder": subfolder, "type": ftype}
+    vr = requests.get(
+        f"{os.getenv('COMFY_URL', 'http://comfy-sd:8188')}/view",
+        params=params,
+        stream=True,
+        timeout=180,
+    )
+    vr.raise_for_status()
+    safe_name = Path(filename).name or f"lexi_{uuid.uuid4().hex[:8]}.png"
+    tmp = AVATAR_DIR / safe_name
+    with tmp.open("wb") as f:
+        for chunk in vr.iter_content(chunk_size=1 << 20):
+            if chunk:
+                f.write(chunk)
+
+    # Normalize/relocate: mimic sd_pipeline finalize behavior
+    try:
+        from ..sd.sd_pipeline import normalize_portrait_image, _finalize_generated_image
+    except Exception:
+        normalize_portrait_image = None  # type: ignore
+        _finalize_generated_image = None  # type: ignore
+    if normalize_portrait_image:
+        normalize_portrait_image(tmp)
+    if _finalize_generated_image:
+        final_out = _finalize_generated_image(tmp, base_path, force_output_to_base=True)
+    else:
+        final_out = tmp
+
+    rel = final_out.relative_to(STATIC_FILES_ROOT).as_posix()
+    public = f"{STATIC_URL_PREFIX}/{rel}"
+    sep = "&" if "?" in public else "?"
+    return f"{public}{sep}v={int(time.time())}"
+
 
 def _to_static_url(fp: Path) -> str:
     # compute URL like /static/avatars/filename.png
@@ -146,17 +207,27 @@ class AvatarGenRequest(BaseModel):
     cfg: Optional[float] = Field(default=None, ge=0.0, le=20.0)
     sampler: Optional[str] = None
     scheduler: Optional[str] = None
+    flux_pipeline: Optional[str] = Field(default="flux_v2", pattern="^(flux_v1|flux_v2)$")
+    lexiverse_style: Optional[str] = Field(default="soft")
     traits: Dict[str, Any] = Field(default_factory=dict)
     seed: Optional[int] = None
     strength: Optional[float] = Field(default=0.65, ge=0.0, le=1.0)
     steps: Optional[int] = Field(default=28, ge=1, le=200)
-    width: Optional[int] = Field(default=768, ge=64, le=2048)
-    height: Optional[int] = Field(default=1024, ge=64, le=2048)
+    width: Optional[int] = Field(default=1080, ge=64, le=2048)
+    height: Optional[int] = Field(default=1352, ge=64, le=2048)
     upscale: Optional[bool] = False
     refine: Optional[bool] = True
     negative_prompt: Optional[str] = None
     loras: Optional[List[str]] = None
     source_path: Optional[str] = None  # for img2img/inpaint (explicit only)
+    change_intensity: Optional[str] = None  # soft | medium | bold
+    pose_bucket: Optional[str] = None
+    camera_bucket: Optional[str] = None
+    pose_feel: Optional[str] = None
+    pose_id: Optional[str] = None
+    pose_strength: Optional[float] = Field(default=None, ge=0.0, le=2.0)
+    pose_control_start: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    pose_control_end: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 
 @router.post("/lexi/gen/avatar")
@@ -166,6 +237,16 @@ async def gen_avatar(
     payload: AvatarGenRequest = Body(...),
     session_id: Optional[str] = Header(default=None, alias="X-Lexi-Session"),
 ):
+    logger.info(
+        "[Lexi Avatar] request prompt=%r sd_mode=%s model=%s flux_pipeline=%s lexiverse_style=%s seed=%s source=%s",
+        (payload.prompt or "")[:80],
+        payload.sd_mode,
+        payload.model,
+        payload.flux_pipeline,
+        payload.lexiverse_style,
+        payload.seed,
+        payload.source_path,
+    )
     registry = getattr(request.app.state, "alpha_sessions", None)
     header_session = session_id
     cookie_session = request.cookies.get("lex_session")
@@ -292,25 +373,58 @@ async def gen_avatar(
         )
 
     ip = _client_ip(request)
+    sd_mode = (payload.sd_mode or "txt2img").strip().lower()
     base_name = _avatar_basename_for_ip(ip)
     seed_default = ip_to_seed(ip)
-    prompt_text = (payload.prompt or "").strip()
-    if not prompt_text:
-        raise HTTPException(status_code=422, detail="prompt is required")
+    if sd_mode == "txt2img" and payload.seed is None:
+        seed_default = secrets.randbits(31)
+
+    raw_prompt = (payload.prompt or "").strip()
+    trait_payload = payload.traits or {}
+    # Build composed prompt: base aesthetic + traits (single CLIP node downstream)
+    if raw_prompt and not trait_payload:
+        prompt_text = f"{BASE_AVATAR_AESTHETIC}, {raw_prompt}"
+    else:
+        prompt_traits = {
+            "hair": trait_payload.get("hair"),
+            "skin": trait_payload.get("skin"),
+            "outfit": trait_payload.get("outfit"),
+            "vibe": trait_payload.get("vibe"),
+            "extras": trait_payload.get("extras"),
+            "user_text": raw_prompt,
+        }
+        prompt_text = build_avatar_prompt(prompt_traits)
+
+    negative_text = (payload.negative_prompt or DEFAULT_NEGATIVE_PROMPT).strip()
+
+    # change intensity -> denoise for img2img
+    change_map = {"soft": 0.35, "medium": 0.5, "bold": 0.65}
+    denoise_val = min(max(payload.strength if payload.strength is not None else change_map.get(payload.change_intensity or "medium", 0.5), 0.10), 0.75)
+
+    # default size for avatars
+    width = payload.width or 832
+    height = payload.height or 1024
+
+    # Unique base name for txt2img so we don't overwrite IP base
+    if sd_mode == "txt2img":
+        base_name = f"lexi_{uuid.uuid4().hex[:8]}"
+
+    # If we already composed a prompt from traits above, avoid re-applying traits downstream.
+    pipeline_traits = {} if prompt_text else trait_payload
 
     try:
         generated = await run_in_threadpool(
             generate_avatar_pipeline,
             prompt=prompt_text,
-            negative=payload.negative_prompt or "low quality, blurry, deformed",
-            width=payload.width,
-            height=payload.height,
+            negative=negative_text,
+            width=width,
+            height=height,
             steps=payload.steps,
             cfg_scale=4.5,
-            traits=payload.traits or None,
-            mode=payload.sd_mode,
-            source_path=payload.source_path if payload.sd_mode != "txt2img" else None,
-            denoise=min(max(payload.strength or 0.35, 0.10), 0.75),
+            traits=pipeline_traits or None,
+            mode=sd_mode,
+            source_path=payload.source_path if sd_mode != "txt2img" else None,
+            denoise=denoise_val,
             seed=payload.seed if payload.seed is not None else seed_default,
             changes=None,
             refiner=bool(payload.refine and payload.sd_mode == "txt2img"),
@@ -327,6 +441,24 @@ async def gen_avatar(
             flux_scheduler=payload.scheduler,
             flux_denoise=payload.strength if payload.sd_mode != "txt2img" else None,
             base_name=base_name,
+            flux_pipeline=payload.flux_pipeline,
+            lexiverse_style=payload.lexiverse_style,
+            pose_bucket=payload.pose_bucket,
+            camera_bucket=payload.camera_bucket,
+            pose_feel=payload.pose_feel,
+            pose_id=payload.pose_id,
+            pose_strength=payload.pose_strength,
+            pose_control_start=payload.pose_control_start,
+            pose_control_end=payload.pose_control_end,
+        )
+        logger.info(
+            "[Lexi Avatar] pipeline result ok=%s code=%s file=%s url=%s prompt_id=%s error=%s",
+            isinstance(generated, dict) and generated.get("ok"),
+            isinstance(generated, dict) and generated.get("code"),
+            isinstance(generated, dict) and generated.get("file"),
+            isinstance(generated, dict) and generated.get("url"),
+            isinstance(generated, dict) and generated.get("prompt_id"),
+            isinstance(generated, dict) and generated.get("error"),
         )
     except TimeoutError as exc:
         logger.warning("Avatar generation timed out: %s", exc)
@@ -348,6 +480,8 @@ async def gen_avatar(
         return {"image": url, "url": url, "filename": "default.png"}
 
     publish_payload = None
+    if isinstance(generated, dict) and generated.get("code") == "COMFY_TIMEOUT" and generated.get("prompt_id"):
+        return _respond({"status": "running", "prompt_id": generated.get("prompt_id")})
     if isinstance(generated, dict) and generated.get("ok"):
         avatar_url = generated.get("avatar_url") or generated.get("url")
         if avatar_url:
@@ -596,3 +730,19 @@ async def generate_avatar(
 
     logger.error("[Avatar Gen Error] No usable image returned. Raw result=%r", result)
     raise HTTPException(status_code=500, detail={"error": "no_image_from_pipeline", "raw": result})
+
+
+@router.get("/lexi/gen/avatar/status/{prompt_id}")
+async def gen_avatar_status(prompt_id: str, request: Request):
+    """Lightweight status check for long-running Comfy prompts."""
+    ip = _client_ip(request)
+    base_name = _avatar_basename_for_ip(ip)
+    base_path = AV_PUBLIC_DIR / (base_name if base_name.endswith(".png") else f"{base_name}.png")
+    try:
+        url = _finalize_prompt_image(prompt_id, base_path)
+        if url:
+            return {"status": "done", "avatar_url": url, "url": url, "prompt_id": prompt_id}
+        return {"status": "running", "prompt_id": prompt_id}
+    except Exception as exc:
+        logger.warning("[Lexi Avatar] status probe failed for %s: %s", prompt_id, exc)
+        return {"status": "error", "error": str(exc), "prompt_id": prompt_id}

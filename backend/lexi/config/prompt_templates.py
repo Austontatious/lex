@@ -12,6 +12,12 @@ DEFAULT_SYSTEM_PROMPT_PATH = (
     / "prompt_templates"
     / "lexi_system_qwen3_moe.txt"
 )
+SAFETY_ADDENDUM_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "persona"
+    / "prompt_templates"
+    / "safety_addendum.txt"
+)
 
 _env_path = os.getenv("LEXI_SYSTEM_PROMPT_PATH")
 if _env_path:
@@ -32,8 +38,19 @@ def load_system_prompt_template() -> str:
         return ""
 
 
+@lru_cache(maxsize=1)
+def load_safety_addendum() -> str:
+    try:
+        return SAFETY_ADDENDUM_PATH.read_text(encoding="utf-8")
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        logging.getLogger(__name__).warning("Failed to load safety addendum: %s", exc)
+        return ""
+
+
 __all__ = [
     "SYSTEM_PROMPT_PATH",
     "DEFAULT_SYSTEM_PROMPT_PATH",
+    "SAFETY_ADDENDUM_PATH",
     "load_system_prompt_template",
+    "load_safety_addendum",
 ]

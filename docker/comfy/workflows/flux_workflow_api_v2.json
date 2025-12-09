@@ -1,0 +1,247 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "flux1-kontext-dev.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    },
+    "_meta": {
+      "title": "Load UNet"
+    }
+  },
+  "4": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "clip_l.safetensors",
+      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "2": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "lora_name": "lexiverse_hybrid_v1.safetensors",
+      "strength_model": 0.35,
+      "strength_clip": 0.0,
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Lexiverse LoRA (main)"
+    }
+  },
+  "3": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "lora_name": "lexiverse-skirt-hybrid.safetensors",
+      "strength_model": 0.0,
+      "strength_clip": 0.0,
+      "model": [
+        "2",
+        0
+      ],
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Lexiverse LoRA (skirt)"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "4",
+        0
+      ],
+      "text": "cinematic full-body portrait of a professional instagram influencer, neutral studio backdrop, ultra flattering editorial lighting, soft volumetric rim light, golden hour glow effect, dewy realistic skin texture, confident subtle expression, tasteful suggestive pose, shallow depth of field, high detail, cinematic color grading, hyperrealistic, instagram editorial aesthetic"
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "6": {
+    "class_type": "FluxGuidance",
+    "inputs": {
+      "conditioning": [
+        "5",
+        0
+      ],
+      "guidance": 3.2
+    },
+    "_meta": {
+      "title": "Flux Guidance"
+    }
+  },
+  "7": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "conditioning": [
+        "6",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Guider"
+    }
+  },
+  "8": {
+    "class_type": "ModelSamplingFlux",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "max_shift": 1.15,
+      "base_shift": 0.5,
+      "width": 832,
+      "height": 1024
+    },
+    "_meta": {
+      "title": "Flux Sampling"
+    },
+    "widgets_values": [
+      1.15,
+      0.5,
+      832,
+      1024
+    ]
+  },
+  "9": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "scheduler": "sgm_uniform",
+      "steps": 24,
+      "denoise": 1.0
+    },
+    "_meta": {
+      "title": "Scheduler"
+    },
+    "widgets_values": [
+      "sgm_uniform",
+      24,
+      1.0
+    ]
+  },
+  "10": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 42
+    },
+    "_meta": {
+      "title": "Noise"
+    },
+    "widgets_values": [
+      0
+    ]
+  },
+  "11": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "dpmpp_2m"
+    },
+    "_meta": {
+      "title": "Sampler"
+    },
+    "widgets_values": [
+      "dpmpp_2m"
+    ]
+  },
+  "12": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 832,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Latent"
+    }
+  },
+  "13": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "10",
+        0
+      ],
+      "guider": [
+        "7",
+        0
+      ],
+      "sampler": [
+        "11",
+        0
+      ],
+      "sigmas": [
+        "9",
+        0
+      ],
+      "latent_image": [
+        "12",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "14": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "13",
+        0
+      ],
+      "vae": [
+        "14",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "15",
+        0
+      ],
+      "filename_prefix": "ComfyUI"
+    },
+    "_meta": {
+      "title": "Save"
+    }
+  }
+}

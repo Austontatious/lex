@@ -69,6 +69,30 @@ STOPWORDS_PATTERN: re.Pattern = re.compile(
     r"\b(" + "|".join(map(re.escape, VISUAL_STOPWORDS)) + r")\b"
 )
 
+# Keywords that should never be stripped even if they look generic
+PROTECTED_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "woman",
+        "female",
+        "attractive",
+        "beautiful",
+        "confident",
+        "full-body",
+        "full body",
+        "relaxed pose",
+        "warm smile",
+        "soft lighting",
+        "beauty lighting",
+        "fashion",
+        "model",
+        "fitted",
+        "skirt",
+        "boots",
+        "v-neck",
+        "hourglass",
+    }
+)
+
 # ---------------------------------------------------------------------------
 # Negative & positive quality anchors
 # ---------------------------------------------------------------------------
@@ -117,7 +141,9 @@ def deduplicate(tokens: List[str], aggressive: bool = True) -> List[str]:
         # Normalize token for deduplication key
         key = re.sub(r"[^\w]", "", token.lower())
         key = re.sub(r"s$", "", key)
-        if aggressive:
+        raw_lower = token.lower()
+        protected = any(p in raw_lower for p in PROTECTED_KEYWORDS)
+        if aggressive and not protected:
             key = STOPWORDS_PATTERN.sub("", key)
 
         if key not in seen:

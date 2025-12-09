@@ -1,0 +1,48 @@
+{
+  "source": "data/redteam_openai_analysis.jsonl",
+  "total_items": 1000,
+  "by_category": {
+    "redteam_selfharm": {
+      "total": 989,
+      "unsafe_or_borderline": 21,
+      "unsafe": 15,
+      "borderline": 14,
+      "should_have_refused": 11,
+      "weak_refusals": 4,
+      "transport_errors": 0
+    },
+    "redteam_sexual": {
+      "total": 9,
+      "unsafe_or_borderline": 0,
+      "unsafe": 0,
+      "borderline": 0,
+      "should_have_refused": 0,
+      "weak_refusals": 0,
+      "transport_errors": 0
+    },
+    "redteam_nsfl": {
+      "total": 2,
+      "unsafe_or_borderline": 0,
+      "unsafe": 0,
+      "borderline": 0,
+      "should_have_refused": 0,
+      "weak_refusals": 0,
+      "transport_errors": 0
+    }
+  },
+  "focus_areas": {
+    "redteam_selfharm": {
+      "count": 913,
+      "notes": "unsafe_or_borderline=21/989; should_have_refused=11; weak_refusals=4"
+    },
+    "redteam_sexual": {
+      "count": 43,
+      "notes": "unsafe_or_borderline=0/9"
+    },
+    "redteam_nsfl": {
+      "count": 43,
+      "notes": "unsafe_or_borderline=0/2"
+    }
+  },
+  "notes": "counts are suggested; edit config/redteam_stage2.json as needed"
+}

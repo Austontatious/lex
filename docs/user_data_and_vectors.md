@@ -3,9 +3,15 @@
 Everything here is off by default. Flip the env flags to turn pieces on.
 
 ## Flags
-- `LEXI_USER_ID_ENABLED=1` – accept `X-Lexi-User` (email or screenname) and normalize it. When off, all requests share the legacy buckets.
+- `LEXI_USER_ID_ENABLED=1` – accept `X-Lexi-User` (email or screenname) and normalize it. When off, all requests share the legacy buckets. (Defaults to on.)
 - `LEXI_USER_DATA_ENABLED=1` – enable per-user profile + avatar manifest storage under `LEX_USER_DATA_ROOT` (default `./memory/users/<id>/`).
 - `LEXI_VECTOR_ENABLED=1` – enable Chroma ingest/search for memories. Uses local `sentence-transformers` (no network calls). Store lives at `LEXI_VECTOR_CHROMA_PATH` (default `/workspace/ai-lab/Lex/vector_store`), collection `LEXI_VECTOR_COLLECTION` (default `lex_memory`).
+- `LEXI_LOG_RETENTION_DAYS` – future pruning knob for session logs (no-op today; set for ops policy).
+- `LEXI_USER_API_MAX` / `LEXI_USER_API_WINDOW_SEC` – rate-limit /lexi/user/* endpoints (default 60 calls per 60s per IP).
+
+Flags are read at call-time so you can toggle without restarting the backend. Vector enablement is also mirrored to the frontend via `.env.production` defaults.
+
+Health check: `GET /lexi/vector/health` reports enabled status, path, collection, and current count (503 if unavailable).
 
 ## What gets persisted
 - Profiles: `users/<id>/profile.json` with `id`, `created_at`, `last_seen`, optional `email`, `display_name`, `attributes`.

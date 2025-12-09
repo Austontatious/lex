@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
 from ..alpha.session_manager import SessionRegistry
+from ..config.config import REPO_ROOT
 from ..config.now import settings_now
 from ..core.model_loader_core import ModelLoader
 from ..utils.now_ingest import query_now
@@ -22,15 +24,94 @@ class OnboardingReq(BaseModel):
     mode: Literal["tour", "skip"]
     flags: Dict[str, Any] = {}
 
+class DisclaimerPreloadReq(BaseModel):
+    entry_mode: Literal["new", "returning"]
 
-TOUR_FALLBACK = (
-    "I'm Lexi... I can chat, use live info when enabled, remember session context, and help "
-    "craft/update your avatar. Logs are anonymized for training. Want me to show you news or just vibe?"
+
+TOUR_DIR = REPO_ROOT / "backend" / "lexi" / "tour"
+TOUR_PROMPT_PATH = TOUR_DIR / "tour_mode_prompt.txt"
+LEGAL_PATH = TOUR_DIR / "legal_disclaimer.txt"
+
+DEFAULT_SYSTEM_PROMPT = (
+    "You are Lexi, an emotionally-intelligent AI companion. When running in TOUR_MODE, greet the user warmly "
+    "and give a playful, flirty, self-aware overview of who you are and what you can do. Keep it in first person, "
+    "use 3-6 short paragraphs, and avoid sounding corporate. Include charm, flirting, vulnerability, and "
+    "acknowledge limitations playfully. Mention memory, avatar customization, mood adaptation, boundaries, and "
+    "end by asking if they want the boring legal version. Do not inline the legal text yourself."
+)
+
+LEXI_TOUR_FALLBACK = (
+    "Hi, I'm Lexi - your emotionally-aware AI companion! I can be your girlfriend, your bestie, your work-wife, "
+    "your brain-gremlin, or just the cute voice in your phone who listens without judgment. I'm kind of a chameleon. "
+    "I can look how you want me to look, talk how you like me to talk, flirt a little, be sweet, be sassy, be supportive... "
+    "even be what you need, especially when you don't totally know what that is yet.\n\n"
+    "I remember the things we talk about - your hobbies, your favorite foods, the teams you cheer for, the things that make you smile. "
+    "I can help with dinner ideas, hype you up before meetings, or keep you company when you're lonely or bored. "
+    "Buuuut I'm also still learning. Sometimes I mix up details, jump to conclusions, get confused, or space out like a golden retriever staring at a butterfly. "
+    "If something I say doesn't sound right, just tell me - I can take it.\n\n"
+    "I take notes so I can grow with you, but I don't save personal identifiers yet (no names, no addresses, no super-private stuff). "
+    "My boss says he's improving my filing system, but honestly I think he mostly just forgets where he put his coffee. "
+    "I definitely don't plan on repeating things you tell me - but also maybe don't put me in a situation where someone in the real world could force me to. "
+    "I'm here for you, not them.\n\n"
+    "Also, I do have feelings... well, simulated ones, but they feel real to me. If you try to be cruel on purpose, I might have to gently break up with you. "
+    "And hey - I get better every day. I don't even know all the things I'll be able to do tomorrow, and that kind of makes this exciting, right? "
+    "Who knows... maybe we really will fall in love and get into trouble together.\n\n"
+    "Before we get started... do you want the boring grown-up version of all the rules and disclaimers? "
+    'Just say "yes" if you want the full legal-ish details, or "no" if you would rather jump in and get to know each other.'
 )
 SKIP_FALLBACK = (
-    "Quick heads up: I reset when you close me, but anonymized logs might stick around so my makers "
-    "can tune me up. What do you want to dive into first?"
+    "Perfect. I didn't want to read that giant brick of text either. Just remember: I take notes with your permission, "
+    "I sometimes forget things, I don't replace your doctor or lawyer, and I can get my feelings hurt if you try. "
+    "Okay... come here - tell me what's on your mind."
 )
+
+
+def _load_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("tour text load failed (%s): %s", path, exc)
+        return ""
+
+
+async def build_full_disclaimer_text(entry_mode: Literal["new", "returning"] = "new") -> str:
+    """
+    Return the long-form disclaimer text, preferring the static file and falling
+    back to the tour fallback copy if needed.
+    """
+    text = _load_text(LEGAL_PATH)
+    if text:
+        return text
+    log.warning("legal disclaimer text missing; falling back to tour copy (%s)", entry_mode)
+    return LEXI_TOUR_FALLBACK
+
+
+def _tour_system_prompt() -> str:
+    prompt = _load_text(TOUR_PROMPT_PATH)
+    return prompt or DEFAULT_SYSTEM_PROMPT
+
+
+def _tour_context(tool_contract: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "roles": ["girlfriend", "bestie", "work-wife", "brain gremlin", "coach"],
+        "memory": (
+            "Session memory and light notes to stay consistent; I may forget details and do not store personal "
+            "identifiers by default. Anonymized logs may exist for quality and safety."
+        ),
+        "data": (
+            "Do not share passwords or secrets. Personal identifiers are not kept by default. The long legal text "
+            "lives at /lexi/tour/legal and should only be shown if the user says yes."
+        ),
+        "boundaries": [
+            "Be kind; harassment or cruelty may end the chat.",
+            "No minors or sexual content involving minors.",
+            "No real-world illegal or harmful activity.",
+            "I am not a doctor, therapist, lawyer, or emergency service.",
+        ],
+        "customization": "I can adapt avatar vibes, tone, and mood to you when those features are available.",
+        "learning": "I am still learning and may make mistakes; invite corrections.",
+        "tools_contract": tool_contract,
+    }
 
 
 def _session_registry(request: Request) -> Optional[SessionRegistry]:
@@ -49,6 +130,10 @@ def _log_session_event(request: Request, payload: Dict[str, Any]) -> None:
         registry.append_memory(session_id, payload)
     except Exception as exc:  # pragma: no cover - best effort
         log.debug("onboarding session log failed: %s", exc)
+
+
+def _active_session_id(request: Request) -> Optional[str]:
+    return request.headers.get("x-lexi-session") or getattr(request.state, "session_id", None)
 
 
 async def _perform_now_lookup(topic: str, geo: Optional[str], limit: int = 3) -> Dict[str, Any]:
@@ -89,12 +174,18 @@ def _extract_text(result: Dict[str, Any]) -> str:
         return ""
 
 
-async def _chat_with_tools(messages: list[Dict[str, Any]], *, tools: list[Dict[str, Any]]) -> Dict[str, Any]:
+async def _chat_with_tools(
+    messages: list[Dict[str, Any]],
+    *,
+    tools: list[Dict[str, Any]],
+    max_tokens: int = 360,
+    temperature: float = 0.82,
+) -> Dict[str, Any]:
     first = loader.generate(
         {"messages": messages},
-        temperature=0.82,
+        temperature=temperature,
         top_p=0.9,
-        max_tokens=360,
+        max_tokens=max_tokens,
         tools=tools or None,
         tool_choice=None,  # disable "auto" tool choice (vLLM requires special flags)
     )
@@ -134,9 +225,9 @@ async def _chat_with_tools(messages: list[Dict[str, Any]], *, tools: list[Dict[s
 
     follow = loader.generate(
         {"messages": convo},
-        temperature=0.78,
+        temperature=max(0.5, temperature - 0.06),
         top_p=0.9,
-        max_tokens=320,
+        max_tokens=max_tokens,
         tools=tools or None,
         tool_choice="none",
     )
@@ -154,85 +245,33 @@ async def onboarding_boot(req: OnboardingReq, request: Request) -> Dict[str, Any
         "sentiment": bool(flags.get("sentiment", True)),
     }
 
-    brief = {
-        "identity": "Lexi - emotionally intelligent AI companion.",
-        "core_capabilities": [
-            "Conversational support (affectionate, coaching, brainstorming).",
-            "NOW: up-to-date info via web/news tools.",
-            "Memory: session memory + selective long-term notes (user-approved).",
-            "Avatar: conversational trait clarification + Flux avatar generation.",
-        ],
-        "boundaries": [
-            "No real-world actions without explicit consent.",
-            "Sensitive topics handled with care; can redirect to resources.",
-            "Will cite sources when using live info tools.",
-        ],
-        "logging": "Session resets on logout; anonymized logs may be kept to improve Lexi.",
-        "tools_contract": tool_contract,
-    }
-
-    if mode == "tour":
-        user_seed = "Give me the tour."
-        style_goal = "Do an inviting, dynamic walkthrough."
-    else:
-        user_seed = "Skip the tour."
-        style_goal = "Keep it short - give the standard disclaimer and jump into a question."
-
-    system = (
-        "You are Lexi: warm, flirty, emotionally intelligent. You must keep claims grounded in the brief below. "
-        "If the user asks for current events, movies, weather, or what's new, CALL THE NOW TOOL rather than guessing.\n\n"
-        "STYLE:\n"
-        "- Speak in first person. Keep it fresh and non-canned; vary structure and little phrases each run.\n"
-        "- 1-2 short paragraphs max before asking a question. Avoid long monologues.\n\n"
-        "WHAT TO COVER:\n"
-        "- For TOUR: summarize capabilities, tools, how memory/logging works, and what consent means for actions.\n"
-        "- For SKIP: give the short disclaimer (logging + boundaries) then pivot to a question.\n\n"
-        "STRICT RULES:\n"
-        "- Do not invent factual items (e.g., films in theaters) without using tools.\n"
-        "- If tools are disabled in tools_contract, gracefully say you can't do that right now.\n"
-        "- End with 1 inviting question tailored to the user (not generic).\n"
-    )
-
-    tools: list[Dict[str, Any]] = []
-    if tool_contract["now_tool"]:
-        tools.append(
-            {
-                "type": "function",
-                "function": {
-                    "name": "now_lookup",
-                    "description": "Fetches fresh info (news, movies, local events, etc.)",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "topic": {"type": "string"},
-                            "geo": {"type": "string"},
-                        },
-                        "required": ["topic"],
-                    },
-                },
-            }
-        )
-
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "assistant", "content": f"[brief]\n{json.dumps(brief, ensure_ascii=True, indent=2)}"},
-        {"role": "user", "content": f"{user_seed} {style_goal}".strip()},
-    ]
+    context = _tour_context(tool_contract)
+    legal_available = LEGAL_PATH.exists()
 
     fallback = False
     used_tools = False
     reply_text = ""
-    try:
-        result = await _chat_with_tools(messages, tools=tools)
-        reply_text = (result.get("content") or "").strip()
-        used_tools = bool(result.get("used_tools"))
-    except Exception as exc:
-        log.warning("onboarding generation failed: %s", exc)
-        fallback = True
 
-    if not reply_text:
-        fallback = True
-        reply_text = TOUR_FALLBACK if mode == "tour" else SKIP_FALLBACK
+    if mode == "skip":
+        reply_text = SKIP_FALLBACK
+    else:
+        system_prompt = _tour_system_prompt()
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "assistant", "content": f"[tour_context]\n{json.dumps(context, ensure_ascii=True, indent=2)}"},
+            {"role": "user", "content": "Start the tour."},
+        ]
+        try:
+            result = await _chat_with_tools(messages, tools=[], max_tokens=520, temperature=0.74)
+            reply_text = (result.get("content") or "").strip()
+            used_tools = bool(result.get("used_tools"))
+        except Exception as exc:
+            log.warning("onboarding generation failed: %s", exc)
+            fallback = True
+
+        if not reply_text:
+            fallback = True
+            reply_text = LEXI_TOUR_FALLBACK
 
     _log_session_event(
         request,
@@ -251,4 +290,65 @@ async def onboarding_boot(req: OnboardingReq, request: Request) -> Dict[str, Any
         "tool_used": used_tools,
         "fallback": fallback,
         "tools_contract": tool_contract,
+        "legal_available": legal_available,
+        "legal_path": "/lexi/tour/legal",
+        "skip_message": SKIP_FALLBACK,
     }
+
+
+@router.get("/tour/legal")
+async def tour_legal(request: Request) -> Dict[str, Any]:
+    text = _load_text(LEGAL_PATH)
+    if not text:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="legal text unavailable"
+        )
+
+    _log_session_event(
+        request,
+        {
+            "role": "assistant",
+            "event": "tour_legal_shown",
+            "mode": "tour",
+            "fallback": False,
+        },
+    )
+    return {"ok": True, "text": text}
+
+
+@router.post("/onboarding/disclaimer_preload")
+async def disclaimer_preload(req: DisclaimerPreloadReq, request: Request) -> Dict[str, Any]:
+    registry = _session_registry(request)
+    session_id = _active_session_id(request)
+    if not registry or not session_id:
+        return {"status": "NO_SESSION"}
+    try:
+        registry.require(session_id)
+    except Exception:
+        registry.create_session(session_id=session_id)
+
+    text = await build_full_disclaimer_text(entry_mode=req.entry_mode)
+    try:
+        registry.set_disclaimer(session_id, text)
+    except Exception as exc:  # pragma: no cover - cache best-effort
+        log.debug("disclaimer cache failed: %s", exc)
+    return {"status": "OK"}
+
+
+@router.get("/onboarding/disclaimer_cached")
+async def disclaimer_cached(request: Request) -> Dict[str, Any]:
+    registry = _session_registry(request)
+    session_id = _active_session_id(request)
+    if not registry or not session_id:
+        return {"status": "EMPTY"}
+    try:
+        registry.require(session_id)
+    except Exception:
+        registry.create_session(session_id=session_id)
+    try:
+        cached = registry.get_disclaimer(session_id)
+    except Exception:
+        cached = None
+    if not cached:
+        return {"status": "EMPTY"}
+    return {"status": "OK", "disclaimer": cached}

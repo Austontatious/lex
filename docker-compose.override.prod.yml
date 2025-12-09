@@ -13,6 +13,9 @@ services:
   lexi-frontend:
     env_file:
       - .env.production
+    environment:
+      LEX_API_BASE: https://api.lexicompanion.com/lexi
+      LEX_API_BASE_PUBLIC: https://api.lexicompanion.com/lexi
 
   cloudflared:
     environment:
