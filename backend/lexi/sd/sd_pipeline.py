@@ -15,6 +15,11 @@ Env:
   LEX_IMAGE_DIR     (default: <repo>/frontend/public/avatars)
   FLUX_* overrides for checkpoint/text encoder/VAE paths (see configuration section below)
 """
+# DEPRECATED FOR AVATAR RUNTIME (Dec 2025):
+# The live avatar route currently uses Fusion workflow templates via comfy_client.py
+# rather than these programmatic graph builders. Keep this module for reference/future
+# reactivation; changes here will not affect the active avatar pipeline until routing
+# is switched back to use these graphs.
 
 from __future__ import annotations
 import random
@@ -29,6 +34,7 @@ import threading
 import re
 
 log = logging.getLogger("lexi.sd")
+log.setLevel(logging.INFO)
 
 BASE_IMAGE_LOCK = threading.Lock()
 _SCHEMA_LOCK = threading.Lock()
@@ -38,7 +44,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import requests
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageDraw
 from ..config.config import AVATAR_DIR, AVATAR_URL_PREFIX
 from ..config.runtime_env import (
     BASE_MODELS_DIR,
@@ -57,11 +63,12 @@ from .pose_selector import PoseChoice, choose_pose
 from ..utils.pose_camera_intent import classify_pose_camera
 from .flux_defaults import FLUX_DEFAULTS
 from .flux_prompt_builder import (
-    BASE_AVATAR_AESTHETIC,
-    FLUX_LEXI_HOT_BASE_PROMPT,
-    FLUX_PORTRAIT_NEGATIVE,
-    build_avatar_prompt,
-    build_flux_avatar_prompt,
+    DEFAULT_NEGATIVE_PROMPT,
+    BASE_LEXIVERSE_STYLE,
+    AvatarTraits,
+    StyleFlags,
+    PoseMeta,
+    build_flux_avatar_prompt_bundle,
 )
 
 # ------------------------- Config/Paths -------------------------
@@ -84,15 +91,16 @@ def _sanitize_filename_token(value: str) -> str:
     token = re.sub(r"[^0-9A-Za-z_-]+", "_", (value or "").strip())
     return token or "lexi"
 
-FLUX_LORA_NAME = (os.getenv("LEX_FLUX_LORA_NAME") or "lexiverse_hybrid_v1.safetensors").strip()
-_DEFAULT_LORA_PATH = (
-    Path(os.getenv("LEX_FLUX_LORA_PATH"))
-    if os.getenv("LEX_FLUX_LORA_PATH")
-    else (Path("/mnt/data/comfy/models/loras") / FLUX_LORA_NAME)
-)
-FLUX_LORA_MODEL_STRENGTH = float(os.getenv("LEX_FLUX_LORA_UNET", "0.85"))
-FLUX_LORA_CLIP_STRENGTH = float(os.getenv("LEX_FLUX_LORA_CLIP", "0.45"))
-_FLUX_LORA_ENABLED = bool(FLUX_LORA_NAME and _DEFAULT_LORA_PATH and _DEFAULT_LORA_PATH.exists())
+# Small helper for logging prompt snippets without newlines.
+def _truncate(text: Optional[str], limit: int = 300) -> str:
+    return (text or "").replace("\n", " ").strip()[:limit]
+
+# Disable LoRA by default while debugging styling drift.
+FLUX_LORA_NAME = os.getenv("FLUX_LORA_NAME", "lexiverse_hybrid_v1.safetensors").strip()
+_DEFAULT_LORA_PATH = None
+FLUX_LORA_MODEL_STRENGTH = float(os.getenv("FLUX_LORA_MODEL_STRENGTH", "1.0"))
+FLUX_LORA_CLIP_STRENGTH = float(os.getenv("FLUX_LORA_CLIP_STRENGTH", "1.0"))
+_FLUX_LORA_ENABLED = bool(FLUX_LORA_NAME)
 
 
 def _base_image_path(base_name: str) -> Path:
@@ -155,9 +163,10 @@ DEFAULT_FLUX_VARIANT = os.getenv("FLUX_MODEL_VARIANT", "kontext-dev").strip().lo
 # Flux model paths
 FLUX_MODELS_DIR = _path_from_env("FLUX_MODELS_DIR", COMFY_ROOT / "models")
 FLUX_DIFFUSION_DIR = _path_from_env("FLUX_DIFFUSION_DIR", FLUX_MODELS_DIR / "diffusion_models")
-FLUX_TEXT_ENCODER_DIR = _path_from_env("FLUX_TEXT_ENCODER_DIR", FLUX_MODELS_DIR / "clip")
+# Use the whole models tree as a search root so both clip/ and text_encoders/ are discovered.
+FLUX_TEXT_ENCODER_DIR = _path_from_env("FLUX_TEXT_ENCODER_DIR", FLUX_MODELS_DIR)
 FLUX_VAE_PATH = _path_from_env("FLUX_VAE_PATH", FLUX_MODELS_DIR / "vae" / "ae.safetensors")
-FLUX_CLIP_L = _path_from_env("FLUX_CLIP_L", FLUX_TEXT_ENCODER_DIR / "clip_l.safetensors")
+FLUX_CLIP_L = _path_from_env("FLUX_CLIP_L", FLUX_MODELS_DIR / "clip" / "clip_l.safetensors")
 FLUX_T5XXL = _path_from_env(
     "FLUX_T5XXL", FLUX_MODELS_DIR / "text_encoders" / "t5xxl_fp8_e4m3fn.safetensors"
 )
@@ -185,14 +194,35 @@ POSE_CONTROLNET_NAME = os.getenv(
 POSE_CONTROLNET_PATH = _path_from_env(
     "LEX_POSE_CONTROLNET_PATH", FLUX_MODELS_DIR / "controlnet" / POSE_CONTROLNET_NAME
 )
+# Fallback: if the primary path is missing, try the commonly mounted /mnt/data/comfy location.
+if not POSE_CONTROLNET_PATH.exists():
+    alt_controlnet = Path("/mnt/data/comfy/models/controlnet") / POSE_CONTROLNET_NAME
+    if alt_controlnet.exists():
+        POSE_CONTROLNET_PATH = alt_controlnet
+        log.info("[Lexi SD] Using fallback pose ControlNet at %s", POSE_CONTROLNET_PATH)
 POSE_CONTROLNET_AVAILABLE = POSE_CONTROLNET_PATH.exists()
-POSE_CONTROL_STRENGTH = float(os.getenv("LEX_POSE_CONTROL_STRENGTH", "0.78"))
+POSE_CONTROL_STRENGTH = float(os.getenv("LEX_POSE_CONTROL_STRENGTH", "0.1"))
 POSE_CONTROL_START = float(os.getenv("LEX_POSE_CONTROL_START", "0.0"))
-POSE_CONTROL_END = float(os.getenv("LEX_POSE_CONTROL_END", "0.85"))
+POSE_CONTROL_END = float(os.getenv("LEX_POSE_CONTROL_END", "0.95"))
+DISABLE_POSE_CONTROL = str(os.getenv("LEX_DISABLE_POSE_CONTROL", "0")).lower() in (
+    "1",
+    "true",
+    "yes",
+)
+_cn_enabled_env = os.getenv("LEXI_CONTROLNET_ENABLED")
+if _cn_enabled_env is None:
+    _cn_enabled_env = os.getenv("FLUX_CONTROLNET_ENABLED", "1")
+FLUX_CONTROLNET_ENABLED = str(_cn_enabled_env).lower() in ("1", "true", "yes")
+_cn_strength_env = os.getenv("LEXI_CONTROLNET_STRENGTH")
+if _cn_strength_env is None:
+    _cn_strength_env = os.getenv("FLUX_CONTROLNET_STRENGTH", "0.55")
+FLUX_CONTROLNET_STRENGTH = float(_cn_strength_env)
+FLUX_CONTROLNET_START_PERCENT = float(os.getenv("FLUX_CONTROLNET_START_PERCENT", "0.0"))
+FLUX_CONTROLNET_END_PERCENT = float(os.getenv("FLUX_CONTROLNET_END_PERCENT", "0.8"))
 
 FLUX_DEFAULT_GUIDANCE = float(os.getenv("FLUX_GUIDANCE_DEFAULT", "3.5"))
 FLUX_DEFAULT_CFG = float(os.getenv("FLUX_CFG_DEFAULT", "1.8"))
-FLUX_DEFAULT_STEPS = int(os.getenv("FLUX_STEPS_DEFAULT", "22"))
+FLUX_DEFAULT_STEPS = int(os.getenv("FLUX_STEPS_DEFAULT", "16"))
 FLUX_DEFAULT_SAMPLER = os.getenv("FLUX_SAMPLER_DEFAULT", "euler")
 FLUX_DEFAULT_SCHEDULER = os.getenv("FLUX_SCHEDULER_DEFAULT", "simple")
 
@@ -216,7 +246,7 @@ FLUX_PRESETS = {
 
 _SCHEMA_EXPECTATIONS = {
     "DualCLIPLoader": {"type"},
-    "CheckpointLoaderSimple": {"ckpt_name"},
+    "UNETLoader": {"unet_name"},
     "VAELoader": {"vae_name"},
 }
 
@@ -490,6 +520,116 @@ HAIR_KEYWORDS = {"ponytail", "bun", "bangs", "pigtails", "braid"}
 
 
 
+# ------------------------- Pose map generation -------------------------
+
+# Body-25 style skeleton pairs (OpenPose ordering: 0–24)
+_POSE_BONES = [
+    (0, 1), (1, 2), (2, 3), (3, 4),
+    (1, 5), (5, 6), (6, 7),
+    (1, 8), (8, 9), (9, 10),
+    (8, 12), (12, 13), (13, 14),
+    (0, 15), (15, 17),
+    (0, 16), (16, 18),
+]
+
+
+def _pose_map_from_keypoints(json_path: Path, canvas: tuple[int, int] = (1024, 1344)) -> Optional[Path]:
+    """
+    Convert OpenPose keypoints JSON into a simple stick-figure PNG for ControlNet.
+    Returns the cached PNG path, or None on failure.
+    """
+    try:
+        if not json_path.exists():
+            return None
+        out = json_path.with_name(json_path.stem.replace("_keypoints", "") + "_pose.png")
+        if out.exists() and out.stat().st_mtime >= json_path.stat().st_mtime:
+            return out
+
+        data = json.loads(json_path.read_text())
+        people = data.get("people") or []
+        if not people or not isinstance(people[0], dict):
+            return None
+        raw = people[0].get("pose_keypoints_2d") or []
+        if not raw:
+            return None
+
+        pts = []
+        for i in range(0, len(raw), 3):
+            x, y, c = raw[i : i + 3]
+            pts.append((float(x), float(y), float(c)))
+
+        # Accept points even if confidence is low; only drop points that are literally empty
+        valid = [(x, y) for x, y, c in pts if c > 0.05 or (x != 0 or y != 0)]
+        if not valid:
+            return None
+
+        xs, ys = zip(*valid)
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        span_x = max(max_x - min_x, 1.0)
+        span_y = max(max_y - min_y, 1.0)
+        width, height = canvas
+        margin = 80
+        scale = min((width - 2 * margin) / span_x, (height - 2 * margin) / span_y)
+        if not (scale > 0):
+            scale = 1.0
+
+        def project(pt):
+            x, y, c = pt
+            if c <= 0.0 and (x == 0 and y == 0):
+                return None
+            px = (x - min_x) * scale + (width - scale * span_x) / 2
+            py = (y - min_y) * scale + (height - scale * span_y) / 2
+            return (px, py)
+
+        projected: list[Optional[tuple[float, float]]] = [project(p) for p in pts]
+        img = Image.new("RGB", (width, height), (0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        bone_color = (0, 255, 200)
+        joint_color = (255, 120, 80)
+
+        for a, b in _POSE_BONES:
+            pa = projected[a] if a < len(projected) else None
+            pb = projected[b] if b < len(projected) else None
+            if pa and pb:
+                draw.line([pa, pb], fill=bone_color, width=10)
+        for pt in projected:
+            if pt:
+                r = 8
+                draw.ellipse((pt[0] - r, pt[1] - r, pt[0] + r, pt[1] + r), fill=joint_color, outline=joint_color)
+
+        out.parent.mkdir(parents=True, exist_ok=True)
+        img.save(out, format="PNG")
+        return out
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("[Lexi SD] failed to build pose map from %s: %s", json_path, exc)
+        return None
+
+
+def _pose_aspect(json_path: Path) -> Optional[float]:
+    """Return aspect ratio (height/width) of pose keypoints, or None on failure."""
+    try:
+        data = json.loads(Path(json_path).read_text())
+        people = data.get("people") or []
+        if not people or not isinstance(people[0], dict):
+            return None
+        raw = people[0].get("pose_keypoints_2d") or []
+        pts = []
+        for i in range(0, len(raw), 3):
+            x, y, c = raw[i : i + 3]
+            pts.append((float(x), float(y), float(c)))
+        valid = [(x, y) for x, y, c in pts if c > 0.05 or (x != 0 or y != 0)]
+        if not valid:
+            return None
+        xs, ys = zip(*valid)
+        span_x = max(xs) - min(xs)
+        span_y = max(ys) - min(ys)
+        if span_x <= 0:
+            return None
+        return span_y / span_x
+    except Exception:
+        return None
+
 
 
 # ------------------------- Pose helpers -------------------------
@@ -529,7 +669,7 @@ def _maybe_pick_pose_map(
         return None
 
     classification = classify_pose_camera(intent_text)
-
+    intent_lower = (intent_text or "").lower()
     pose_id = (
         kwargs.get("pose_id")
         or (traits or {}).get("pose_id")
@@ -539,7 +679,19 @@ def _maybe_pick_pose_map(
     shape_bucket = kwargs.get("pose_bucket") or (traits or {}).get("pose_bucket") or classification.pose_bucket
     camera_bucket = kwargs.get("camera_bucket") or (traits or {}).get("camera_bucket") or classification.camera_bucket
     feel = kwargs.get("pose_feel") or (traits or {}).get("pose_feel") or classification.pose_feel
-    feel = (feel or _infer_pose_feel(traits, intent_text)) if not pose_id else feel
+    # Keyword overrides: "sitting"/"couch" → seated bucket; "seductive"/"sultry" → low-ish camera
+    sitting_intent = any(k in intent_lower for k in ("sit", "sitting", "couch", "sofa", "loung"))
+    aspect_cutoff = 1.2 if sitting_intent else None
+    if sitting_intent:
+        shape_bucket = "POSE_3"
+    if not camera_bucket and any(k in intent_lower for k in ("seductive", "seduct", "sultry", "sensual")):
+        camera_bucket = "CAM_SLIGHT_LOW"
+    inferred_feel = _infer_pose_feel(traits, intent_text)
+    if not pose_id:
+        if inferred_feel and inferred_feel != feel:
+            feel = inferred_feel
+        if not feel and classification.camera_feel:
+            feel = classification.camera_feel
 
     try:
         return choose_pose(
@@ -550,6 +702,7 @@ def _maybe_pick_pose_map(
             camera_bucket=camera_bucket,
             pose_id=pose_id,
             rng_seed=seed,
+            predicate=(lambda r: (_pose_aspect(r.keypoints_path) or 999) <= aspect_cutoff) if aspect_cutoff else None,
         )
     except Exception as exc:  # pragma: no cover - defensive
         log.warning("[Lexi SD] pose selection failed: %s", exc)
@@ -728,7 +881,7 @@ def _post_workflow(workflow: Dict[str, Any]) -> str:
     return _post_graph(workflow)
 
 
-COMFY_TIMEOUT_S = int(os.getenv("LEXI_COMFY_TIMEOUT_S", "180"))
+COMFY_TIMEOUT_S = int(os.getenv("LEXI_COMFY_TIMEOUT_S", "95"))
 
 
 def _wait_for_images(prompt_id: str, timeout_s: int = COMFY_TIMEOUT_S) -> List[Dict[str, Any]]:
@@ -885,9 +1038,12 @@ def _flux_txt2img_graph(
     """Build a Flux txt2img workflow graph for Comfy."""
     graph: Dict[str, Any] = {}
 
-    graph["ckpt"] = {
-        "class_type": "CheckpointLoaderSimple",
-        "inputs": {"ckpt_name": _flux_ckpt_name(paths.ckpt)},
+    graph["unet"] = {
+        "class_type": "UNETLoader",
+        "inputs": {
+            "unet_name": _flux_ckpt_name(paths.ckpt),
+            "weight_dtype": "default",
+        },
     }
     graph["vae"] = {
         "class_type": "VAELoader",
@@ -906,7 +1062,7 @@ def _flux_txt2img_graph(
             "flux",
         ],
     }
-    model_ref = ["ckpt", 0]
+    model_ref = ["unet", 0]
     clip_ref = ["dual_clip", 0]
     model_ref, clip_ref = _apply_flux_lora(graph, model_ref, clip_ref, prefix="txt2img")
 
@@ -1021,9 +1177,12 @@ def _flux_img2img_graph(
     """Flux img2img preserving composition via VAEEncode."""
     graph: Dict[str, Any] = {}
 
-    graph["ckpt"] = {
-        "class_type": "CheckpointLoaderSimple",
-        "inputs": {"ckpt_name": _flux_ckpt_name(paths.ckpt)},
+    graph["unet"] = {
+        "class_type": "UNETLoader",
+        "inputs": {
+            "unet_name": _flux_ckpt_name(paths.ckpt),
+            "weight_dtype": "default",
+        },
     }
     graph["vae"] = {
         "class_type": "VAELoader",
@@ -1042,7 +1201,7 @@ def _flux_img2img_graph(
             "flux",
         ],
     }
-    model_ref = ["ckpt", 0]
+    model_ref = ["unet", 0]
     clip_ref = ["dual_clip", 0]
     model_ref, clip_ref = _apply_flux_lora(graph, model_ref, clip_ref, prefix="img2img")
     graph["encode_positive"] = {
@@ -1129,6 +1288,12 @@ def _run_flux_backend(
     pose_control_strength: Optional[float] = None,
     pose_control_start: Optional[float] = None,
     pose_control_end: Optional[float] = None,
+    return_on_submit: bool = False,
+    traits: Optional[Dict[str, str]] = None,
+    controlnet_enabled: bool = False,
+    user_text_combined: Optional[str] = None,
+    pose_info: Optional[Dict[str, Any]] = None,
+    controlnet_strength: Optional[float] = None,
 ) -> Dict[str, Any]:
     # Canvas selection (override if preset provided)
     size_key = (size or "").strip().lower()
@@ -1179,33 +1344,78 @@ def _run_flux_backend(
     elif preset_style_hint:
         style_prompt = ", ".join([p for p in (style_prompt, preset_style_hint) if p])
 
-    if negative_clip and negative_t5:
-        negative_flux_clip = negative_clip
-        negative_flux_t5 = negative_t5
+    if negative_clip is not None or negative_t5 is not None:
+        negative_flux_clip = negative_clip or ""
+        negative_flux_t5 = negative_t5 if negative_t5 is not None else negative_flux_clip
     else:
-        negative_flux = FluxPromptAdapter.negatives(negative)
+        negative_flux = negative or ""
         negative_flux_clip = negative_flux
         negative_flux_t5 = negative_flux
 
     pose_filename = None
     controlnet_name = None
-    pose_strength = pose_control_strength or POSE_CONTROL_STRENGTH
-    pose_start = POSE_CONTROL_START if pose_control_start is None else float(pose_control_start)
-    pose_end = POSE_CONTROL_END if pose_control_end is None else float(pose_control_end)
+    pose_strength = (
+        (FLUX_CONTROLNET_STRENGTH if controlnet_strength is None else float(controlnet_strength))
+        if controlnet_enabled
+        else 0.0
+    )
+    pose_strength = max(0.0, min(1.0, pose_strength))
+    pose_start = (
+        FLUX_CONTROLNET_START_PERCENT
+        if pose_control_start is None
+        else float(pose_control_start)
+    )
+    pose_end = (
+        FLUX_CONTROLNET_END_PERCENT
+        if pose_control_end is None
+        else float(pose_control_end)
+    )
+    if DISABLE_POSE_CONTROL or not FLUX_CONTROLNET_ENABLED or not controlnet_enabled:
+        pose_map_path = None
+
+    log.info(
+        "[lexi][flux prompt bundle] pos=%s neg=%s traits=%s controlnet_enabled=%s controlnet_strength=%.2f pose_id=%s pose_shape=%s pose_camera=%s steps=%s sampler=%s cfg=%.2f extra=%s lora=%s m=%.2f c=%.2f aux_required=%s",
+        _truncate(positive_clip),
+        _truncate(negative_clip),
+        traits,
+        controlnet_enabled,
+        pose_strength if controlnet_enabled else 0.0,
+        (pose_info or {}).get("pose_id"),
+        (pose_info or {}).get("shape_bucket"),
+        (pose_info or {}).get("camera_bucket"),
+        steps,
+        sampler or (k_sampler if "k_sampler" in locals() else None),
+        cfg_scale,
+        (user_text_combined or "").strip(),
+        FLUX_LORA_NAME if _FLUX_LORA_ENABLED else "none",
+        FLUX_LORA_MODEL_STRENGTH,
+        FLUX_LORA_CLIP_STRENGTH,
+        bool(controlnet_enabled and pose_map_path),
+    )
+
     if pose_map_path:
-        if not POSE_CONTROLNET_AVAILABLE:
-            log.warning(
-                "[Lexi SD][flux] pose map provided but controlnet missing at %s",
-                POSE_CONTROLNET_PATH,
-            )
+        pose_strength = max(0.0, min(float(pose_strength), 1.0))
+        if pose_strength <= 0:
+            log.info("[Lexi SD][flux] pose control disabled (strength<=0); skipping ControlNet")
+            pose_map_path = None
         else:
-            try:
-                pose_filename = _upload_image_to_comfy(str(pose_map_path))
-                controlnet_name = _flux_controlnet_name(POSE_CONTROLNET_PATH)
-            except Exception as exc:  # pragma: no cover - network safety
-                pose_filename = None
-                controlnet_name = None
-                log.warning("[Lexi SD][flux] failed to upload pose map %s: %s", pose_map_path, exc)
+            log.info(
+                "[Lexi SD][flux] pose map enabled: %s strength=%.3f start=%.2f end=%.2f",
+                pose_map_path.name if hasattr(pose_map_path, "name") else pose_map_path,
+                pose_strength,
+                pose_start,
+                pose_end,
+            )
+    else:
+        log.info("[Lexi SD][flux] pose control disabled or no map available")
+    if pose_map_path:
+        try:
+            pose_filename = _upload_image_to_comfy(str(pose_map_path))
+            controlnet_name = _flux_controlnet_name(POSE_CONTROLNET_PATH)
+        except Exception as exc:  # pragma: no cover - network safety
+            pose_filename = None
+            controlnet_name = None
+            log.warning("[Lexi SD][flux] failed to upload pose map %s: %s", pose_map_path, exc)
 
     paths = _flux_variant_paths(variant)
     if mode == "img2img":
@@ -1275,8 +1485,12 @@ def _run_flux_backend(
             "dpmpp_2m",
             "sgm_uniform",
         )
+        if return_on_submit:
+            return {"ok": True, "status": "running", "prompt_id": pid}
     except Exception as exc:  # pragma: no cover - network safety
+        import traceback
         log.error("[Lexi SD][flux] prompt submission failed: %s", exc)
+        log.error("[Lexi SD][flux] submission traceback: %s", traceback.format_exc())
         return {"ok": False, "error": str(exc), "code": "COMFY_PROMPT_ERROR"}
 
     try:
@@ -1346,12 +1560,8 @@ def _lexiverse_strengths(preset: str) -> tuple[float, float]:
     preset = (preset or "soft").strip().lower()
     if preset == "off":
         return 0.0, 0.0
-    if preset == "full":
-        return 1.0, 0.1
-    if preset == "promo":
-        return 0.75, 0.15
-    # default: soft
-    return 0.35, 0.0
+    # Lexiverse hybrid only; skirt LoRA disabled
+    return 1.0, 0.0
 
 
 def _run_flux_backend_v2(
@@ -1397,7 +1607,7 @@ def _run_flux_backend_v2(
             base_shift=0.5,
             guidance=3.0,
             lora_main=lora_main,
-            lora_main_clip=0.0,
+            lora_main_clip=lora_main * 0.5,
             lora_skirt=lora_skirt,
             lora_skirt_clip=lora_skirt * 0.5,
             filename_prefix=filename_prefix,
@@ -1618,6 +1828,10 @@ def generate_avatar_pipeline(
     task: str = "general",  # <<< NEW: registry task key
     fresh_base: bool = False,  # force a new base via txt2img (ignore existing base)
     base_name: Optional[str] = None,
+    return_on_submit: bool = False,  # if True, return prompt_id immediately and let status poll
+    disable_controlnet: bool = False,
+    controlnet_enabled: Optional[bool] = None,
+    controlnet_strength: Optional[float] = None,
     **kwargs: Any,
 ) -> Dict[str, Any]:
     """
@@ -1625,12 +1839,13 @@ def generate_avatar_pipeline(
     Returns: { ok, file, url, prompt_id, meta? } on success; { ok: False, error } on failure.
     """
     try:
-        # Optional: fail fast if Comfy is unreachable
+        # Optional: soft health check — log but do not fail if it errors.
         try:
-            r = requests.get(f"{COMFY_URL}/object_info", timeout=5)
+            r = requests.get(f"{COMFY_URL}/object_info", timeout=3)
             r.raise_for_status()
         except Exception as e:
-            raise RuntimeError(f"Comfy unreachable at {COMFY_URL}: {e}")
+            log.warning("[Lexi SD] Comfy warmup/health check failed at %s: %s", COMFY_URL, e)
+
         _ensure_default_avatar_files()
         _validate_comfy_schema()
         _warmup_once()
@@ -1674,9 +1889,8 @@ def generate_avatar_pipeline(
             except Exception:
                 pass
 
-        # 1) Detect intent FIRST (use prompt if provided, otherwise traits)
         intent_text = (
-            prompt
+            (prompt or "")
             or " ".join(
                 [
                     str((traits or {}).get(k, ""))
@@ -1687,79 +1901,25 @@ def generate_avatar_pipeline(
         wants_outfit = any(k in intent_text for k in OUTFIT_KEYWORDS) or bool(
             traits and traits.get("outfit")
         )
-        if traits and not prompt:
-            composition = "three_quarter" if wants_outfit else "portrait"
-            prompt = _prompt_from_traits(traits, composition=composition)
-        # If still missing, fall back to base aesthetic so warmup calls don't fail.
-        if not prompt:
-            prompt = BASE_AVATAR_AESTHETIC
 
-        prompt = _augment_prompt_with_traits(prompt, traits)
-        if changes and mode == "img2img":
-            prompt = f"{prompt}, {changes}"
-
-        # Build concise prompt from baseline + traits + user prompt (single CLIPTextEncode)
-        built_prompt = build_avatar_prompt({
-            "hair": (traits or {}).get("hair"),
-            "skin": (traits or {}).get("skin"),
-            "outfit": (traits or {}).get("outfit"),
-            "vibe": (traits or {}).get("vibe"),
-            "extras": (traits or {}).get("extras"),
-            "user_text": prompt,
-        })
-
-        # Single consolidated negative prompt for both encoders
-        if mode == "img2img":
-            neg_parts = [str(negative or "").strip()]
-        else:
-            neg_parts = [FLUX_PORTRAIT_NEGATIVE]
-            if negative:
-                neg_parts.append(str(negative))
-        neg_full = ", ".join([p.strip().rstrip(",") for p in neg_parts if p])
-
-        # Loosen negatives for outfit edits so clothing isn't suppressed
-        if wants_outfit:
-            unblock = {"jeans", "shorts", "denim", "t-shirt", "tee", "crop top", "skirt", "dress"}
-            toks = [
-                t.strip()
-                for t in neg_full.replace(";", ",").split(",")
-                if t.strip().lower() not in unblock
-            ]
-            neg_full = ", ".join(toks)
-
-        # Lingerie/leather often cause melted clothing artifacts – counter them
-        p_low = (prompt or "").lower()
-        if kwargs.get("nsfw") or any(
-            x in p_low for x in ("lingerie", "thigh-high", "stockings", "nsfw")
-        ):
-            unblock = {
-                "latex",
-                "shiny clothing",
-                "stockings",
-                "thigh-highs",
-                "sheer",
-                "see-through",
-            }
-            toks = [
-                t.strip()
-                for t in neg_full.replace(";", ",").split(",")
-                if t.strip().lower() not in unblock
-            ]
-            neg_full = ", ".join(toks)
-
-        if any(x in p_low for x in ("leather", "latex", "corset")):
-            neg_full = ", ".join(
-                [
-                    neg_full,
-                    "melted clothing, warped leather, lumpy clothing, asymmetric chest, garment merging, broken seams",
-                ]
-            )
-
-        subject_prompt, style_prompt = FluxPromptAdapter.split(built_prompt, None)
-        positive_clip = subject_prompt
-        positive_t5 = style_prompt
+        # 1) Build canonical prompts from traits/user text (Lexiverse always on)
+        user_text_combined = ", ".join([p for p in (prompt, changes) if p])
+        bundle = build_flux_avatar_prompt_bundle(
+            traits=traits or {},
+            style_flags={"lexiverse_style": "promo", "lexiverse_enabled": True},
+            pose_meta=None,
+            user_text=user_text_combined,
+        )
+        built_prompt = bundle["positive"]
+        neg_full = (bundle.get("negative") or "").strip()
+        # Ensure both CLIP and T5 receive the full semantic prompt for adherence.
+        positive_clip = built_prompt
+        positive_t5 = built_prompt
         negative_clip = neg_full
         negative_t5 = neg_full
+
+        def _truncate(txt: Optional[str], limit: int = 300) -> str:
+            return (txt or "").replace("\n", " ").strip()[:limit]
 
         # 3) Seed (continuity) — always coerce to a 32-bit int
         # For img2img edits keep composition by default (no outfit salt);
@@ -1767,21 +1927,79 @@ def generate_avatar_pipeline(
         add_salt = mode != "img2img"
         seed = _coerce_seed(seed, traits, add_outfit_salt=add_salt)
 
+        # ControlNet enablement (global + request override)
+        controlnet_enabled = (
+            FLUX_CONTROLNET_ENABLED
+            if controlnet_enabled is None
+            else bool(controlnet_enabled)
+        )
+        controlnet_enabled = (
+            controlnet_enabled
+            and POSE_CONTROLNET_AVAILABLE
+            and not DISABLE_POSE_CONTROL
+            and not disable_controlnet
+        )
+        if not POSE_CONTROLNET_AVAILABLE and controlnet_enabled:
+            log.warning("[Lexi SD][flux] controlnet asset missing; disabling CN for this run.")
+            controlnet_enabled = False
+
+        cn_strength = (
+            FLUX_CONTROLNET_STRENGTH if controlnet_strength is None else float(controlnet_strength)
+        )
+        cn_strength = max(0.0, min(1.0, cn_strength))
+        if not controlnet_enabled:
+            cn_strength = 0.0
+
         pose_choice: Optional[PoseChoice] = None
+        pose_map_path: Optional[Path] = None
         try:
             pose_choice = _maybe_pick_pose_map(
                 traits=traits, kwargs=kwargs, intent_text=intent_text, seed=seed
             )
         except Exception as exc:  # pragma: no cover - defensive
             log.warning("[Lexi SD] pose selection failed: %s", exc)
-        pose_map_path: Optional[Path] = pose_choice.render_path if pose_choice else None
-        if pose_choice:
-            log.info(
-                "[Lexi SD] pose map=%s shape=%s camera=%s",
-                pose_choice.pose_id,
-                pose_choice.shape_bucket,
-                pose_choice.camera_bucket,
-            )
+        if pose_choice and controlnet_enabled:
+            target_canvas = (int(width or FLUX_DEFAULTS["width"]), int(height or FLUX_DEFAULTS["height"]))
+            pose_map_path = _pose_map_from_keypoints(pose_choice.keypoints_path, target_canvas)
+            if pose_map_path:
+                log.info(
+                    "[Lexi SD] pose map=%s shape=%s camera=%s",
+                    pose_choice.pose_id,
+                    pose_choice.shape_bucket,
+                    pose_choice.camera_bucket,
+                )
+            else:
+                log.info(
+                    "[Lexi SD] pose keypoints missing for %s; skipping ControlNet",
+                    pose_choice.pose_id,
+                )
+        else:
+            log.info("[Lexi SD] no pose choice selected; skipping ControlNet")
+        # Fallback: if no pose map was built, try a best-effort random pose so ControlNet is still attached.
+        if (
+            controlnet_enabled
+            and pose_map_path is None
+            and POSE_BUCKETS_CSV.exists()
+            and POSE_RENDER_DIR.exists()
+        ):
+            try:
+                fallback_choice = choose_pose(
+                    csv_path=POSE_BUCKETS_CSV,
+                    render_dir=POSE_RENDER_DIR,
+                    rng_seed=seed,
+                )
+                if fallback_choice:
+                    target_canvas = (int(width or FLUX_DEFAULTS["width"]), int(height or FLUX_DEFAULTS["height"]))
+                    pose_map_path = _pose_map_from_keypoints(fallback_choice.keypoints_path, target_canvas)
+                    if pose_map_path:
+                        log.info(
+                            "[Lexi SD] fallback pose map=%s shape=%s camera=%s",
+                            fallback_choice.pose_id,
+                            fallback_choice.shape_bucket,
+                            fallback_choice.camera_bucket,
+                        )
+            except Exception as exc:  # pragma: no cover
+                log.warning("[Lexi SD] fallback pose selection failed: %s", exc)
 
         # 2.5) Disable img2img: always run txt2img and refresh the base output.
         force_output_to_base = True
@@ -1798,7 +2016,15 @@ def generate_avatar_pipeline(
             if kwargs.get("flux_denoise") is not None
             else kwargs.get("denoise")
         )
-        pose_strength = kwargs.get("pose_strength") or kwargs.get("pose_control_strength")
+        # txt2img should always run a full denoise pass; keep strength only for img2img edits
+        if mode == "txt2img":
+            flux_denoise = float(FLUX_DEFAULTS["denoise"])
+        if kwargs.get("pose_strength") is not None:
+            pose_strength = float(kwargs.get("pose_strength"))
+        elif kwargs.get("pose_control_strength") is not None:
+            pose_strength = float(kwargs.get("pose_control_strength"))
+        else:
+            pose_strength = cn_strength if controlnet_enabled else None
         pose_start = kwargs.get("pose_control_start")
         pose_end = kwargs.get("pose_control_end")
         flux_pipeline = (kwargs.get("flux_pipeline") or "flux_v1").strip().lower()
@@ -1820,6 +2046,8 @@ def generate_avatar_pipeline(
         k_scheduler = (flux_scheduler or FLUX_DEFAULTS["scheduler"]) or FLUX_DEFAULTS["scheduler"]
         if flux_denoise is None:
             flux_denoise = float(FLUX_DEFAULTS["denoise"])
+        # CN can over-constrain; keep denoise gentler when CN is active.
+        # Full denoise for txt2img even when ControlNet is on; do not clamp.
 
         log.info(
             "[Lexi SD] pipeline=%s mode=%s width=%d height=%d seed=%s source=%s base_missing=%s",
@@ -1830,6 +2058,48 @@ def generate_avatar_pipeline(
             seed,
             (sp if sp else None),
             base_missing,
+        )
+        log.info("[lexi][flux] POSITIVE_CLIP=%s", positive_clip or prompt or "")
+        log.info("[lexi][flux] POSITIVE_T5=%s", positive_t5 or prompt or "")
+        log.info("[lexi][flux] NEGATIVE_CLIP=%s", negative_clip or negative or "")
+        log.info("[lexi][flux] NEGATIVE_T5=%s", negative_t5 or negative_clip or negative or "")
+        log.info(
+            "[lexi][flux cn] enabled=%s strength=%.2f seed=%s pos=%s neg=%s",
+            controlnet_enabled,
+            cn_strength,
+            seed,
+            _truncate(positive_clip)[:120],
+            _truncate(negative_clip)[:120],
+        )
+        log.info(
+            "[Lexi SD] final clip_prompt=%r t5_prompt=%r negative=%r",
+            (positive_clip or prompt or "")[:200],
+            (positive_t5 or "")[:200],
+            (negative_clip or negative or "")[:200],
+        )
+        log.info(
+            "[Lexi SD PROMPT] clip=%r | t5=%r | neg=%r | pose=%r s=%r start=%r end=%r traits=%r",
+            positive_clip or prompt,
+            positive_t5,
+            negative_clip or negative,
+            pose_map_path.name if pose_map_path else None,
+            pose_strength,
+            pose_start,
+            pose_end,
+            traits,
+        )
+        log.info(
+            "[Lexi SD] prompt_clip=%s ... prompt_t5=%s ... negative=%s ...",
+            (positive_clip or prompt)[:180],
+            (positive_t5 or "")[:180],
+            (negative_clip or negative)[:180],
+        )
+        log.info(
+            "[Lexi SD][flux full prompt] positive_clip=%s | positive_t5=%s | negative_clip=%s | negative_t5=%s",
+            positive_clip or built_prompt,
+            positive_t5 or built_prompt,
+            negative_clip or negative or neg_full,
+            negative_t5 or negative_clip or negative or neg_full,
         )
 
         # Prefer the Fusion-style v2 pipeline for txt2img
@@ -1956,7 +2226,7 @@ def generate_avatar_pipeline(
             guidance=flux_guidance,
             sampler=flux_sampler,
             scheduler=flux_scheduler,
-            denoise=flux_denoise,
+            denoise=min(float(flux_denoise or FLUX_DEFAULTS["denoise"]), 0.9),
             allow_feedback_loop=bool(kwargs.get("allow_feedback_loop", False)),
             public_base_url=PUBLIC_BASE_URL,
             positive_clip=positive_clip,
@@ -1967,6 +2237,20 @@ def generate_avatar_pipeline(
             pose_control_strength=pose_strength,
             pose_control_start=pose_start,
             pose_control_end=pose_end,
+            return_on_submit=return_on_submit,
+            traits=traits,
+            controlnet_enabled=controlnet_enabled,
+            user_text_combined=user_text_combined,
+            pose_info=(
+                {
+                    "pose_id": getattr(pose_choice, "pose_id", None),
+                    "shape_bucket": getattr(pose_choice, "shape_bucket", None),
+                    "camera_bucket": getattr(pose_choice, "camera_bucket", None),
+                }
+                if pose_choice
+                else None
+            ),
+            controlnet_strength=cn_strength,
         )
         if isinstance(result, dict) and result.get("url") and not result.get("avatar_url"):
             result["avatar_url"] = result["url"]
