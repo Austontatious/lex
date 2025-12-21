@@ -35,6 +35,13 @@ lex/memory/chromadb/**
 lex/memory/session_memory.json
 !lex/memory/__init__.py
 !lex/memory/*.py
+# User data / identity DBs
+data/memory/
+data/identity/
+backend/memory/identity/
+**/identity.db
+**/identity.db-shm
+**/identity.db-wal
 # General workspace
 .DS_Store
 *.log
