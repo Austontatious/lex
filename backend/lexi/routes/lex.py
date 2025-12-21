@@ -36,8 +36,7 @@ load_traits = _load_traits
 save_traits = _save_traits
 from ..persona.persona_core import lex_persona
 from ..persona.persona_config import PERSONA_MODE_REGISTRY
-from ..memory.memory_core import memory
-from ..memory.memory_types import MemoryShard
+from ..user_identity import identity_payload, request_user_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Lex Core"])
@@ -87,9 +86,30 @@ async def process(req: ChatRequest, request: Request) -> JSONResponse:
     Handle chat input: infer appearance traits to regenerate avatar or pass through normal chat.
     """
     logger.info("🗨️ /process prompt=%r", req.prompt)
-    user_id = getattr(request.state, "user_id", None)
+    if getattr(request.state, "needs_disambiguation", False):
+        handle_raw = request.headers.get("x-lexi-handle") or getattr(request.state, "handle_norm", None)
+        handle_label = handle_raw or "that name"
+        if handle_label:
+            prompt = (
+                f"I already know an {handle_label} — is that you or should I call you something else?"
+            )
+        else:
+            prompt = "I already know that name — is that you or should I call you something else?"
+        return JSONResponse(
+            {
+                "cleaned": prompt,
+                "raw": "",
+                "choices": [],
+                "mode": lex_persona.get_mode(),
+                "needs_disambiguation": True,
+                "candidates": getattr(request.state, "identity_candidates", []),
+                "identity": identity_payload(request),
+            }
+        )
+    user_id = request_user_id(request)
     try:
         lexi_persona.set_user(user_id)
+        lexi_persona.bind_session(getattr(request.state, "session_id", None))
     except Exception as exc:
         logger.debug("set_user failed (non-fatal): %s", exc)
 
@@ -144,12 +164,7 @@ async def process(req: ChatRequest, request: Request) -> JSONResponse:
 
     # 3) Memory write
     try:
-        memory.set_user(user_id)
-        memory.remember(
-            MemoryShard(
-                role="assistant", content=reply, meta={"tags": ["chat"], "compressed": True}
-            )
-        )
+        lex_persona.memory.store_context(req.prompt, reply)
     except Exception as mem_err:
         logger.warning("⚠️ Memory store skipped: %s", mem_err)
 

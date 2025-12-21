@@ -1,4 +1,5 @@
-const SAME_ORIGIN_BASE = "/lexi";
+// Default to the public API host so even same-origin loads hit the backend, not the frontend.
+const SAME_ORIGIN_BASE = "https://api.lexicompanion.com/lexi";
 const API_OVERRIDE_PARAM = "apiBase";
 const SESSION_STORAGE_KEY = "LEXI_ALPHA_SESSION";
 const USER_ID_STORAGE_KEY = "LEXI_USER_ID";
@@ -24,6 +25,17 @@ const USER_ID_ENABLED = (() => {
 function resolveApiBase(): string {
   if (typeof window === "undefined") {
     return SAME_ORIGIN_BASE;
+  }
+  try {
+    const runtime =
+      (window as any).__LEX_API_BASE ||
+      (window as any).__LEX_API_BASE_PUBLIC ||
+      (window as any).__LEX_API_BASE_URL;
+    if (runtime && typeof runtime === "string") {
+      return runtime.replace(/\/+$/, "");
+    }
+  } catch {
+    // ignore runtime globals
   }
   try {
     const current = new URL(window.location.href);
@@ -178,16 +190,34 @@ export interface DebugTraitsResponse {
 
 export type AvatarGenMode = "txt2img" | "img2img";
 
-export type LexiverseStyle = "off" | "soft" | "full" | "promo";
+export type LexiverseStyle = "promo";
+
+export type Hair = "brunette" | "blonde" | "redhead" | "black";
+export type HairStyle = "straight" | "wavy" | "curly" | "updo";
+export type SkinTone = "fair" | "light_medium" | "olive" | "tan" | "deep";
+export type EyeColor = "brown" | "hazel" | "green" | "blue";
+export type Outfit = "lbd" | "lounge" | "casual" | "business" | "sporty";
+export type Vibe = "soft" | "playful" | "elegant" | "confident" | "sultry";
+
+export type AvatarTraits = {
+  hair?: Hair;
+  hair_style?: HairStyle;
+  skin_tone?: SkinTone;
+  eyes?: EyeColor;
+  outfit?: Outfit;
+  vibe?: Vibe;
+};
 
 export interface AvatarGenRequestPayload {
-  prompt: string;
+  prompt?: string;
   negative_prompt?: string;
-  sd_mode: AvatarGenMode;
-  lexiverse_style: LexiverseStyle;
+  sd_mode?: AvatarGenMode;
+  lexiverse_style?: LexiverseStyle;
   seed?: number | null;
   strength?: number;
   flux_pipeline?: string;
+  traits?: AvatarTraits;
+  extra_details?: string;
 }
 
 export interface AvatarGenResponse {
@@ -431,6 +461,7 @@ export interface LexiEventResponse {
   legal_available?: boolean;
   legal_path?: string;
   skip_message?: string;
+  cached?: boolean;
 }
 
 export function sendLexiEvent(payload: LexiEventPayload): Promise<LexiEventResponse> {

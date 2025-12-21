@@ -23,16 +23,32 @@ def _user_data_enabled() -> bool:
     return os.getenv("LEXI_USER_DATA_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
 
 
-USER_DATA_ROOT = Path(
-    os.getenv("LEX_USER_DATA_ROOT", Path(__file__).resolve().parents[2] / "memory")
-).resolve()
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_LEGACY_ROOT = Path(__file__).resolve().parents[2]
 
-ACCOUNT_DB_PATH = Path(
-    os.getenv(
-        "LEXI_ACCOUNT_DB",
-        Path(__file__).resolve().parents[2] / "logs" / "accounts" / "accounts.sqlite3",
-    )
-).resolve()
+
+def _resolve_path(env_key: str, default_path: Path, legacy_path: Path) -> Path:
+    override = os.getenv(env_key)
+    if override:
+        return Path(override).expanduser().resolve()
+    if legacy_path.exists() and not default_path.exists():
+        return legacy_path.resolve()
+    return default_path.resolve()
+
+
+USER_DATA_ROOT = _resolve_path(
+    "LEX_USER_DATA_ROOT", _REPO_ROOT / "memory", _LEGACY_ROOT / "memory"
+)
+if not os.getenv("LEX_USER_DATA_ROOT"):
+    memory_root = os.getenv("LEXI_MEMORY_ROOT")
+    if memory_root:
+        USER_DATA_ROOT = Path(memory_root).expanduser().resolve()
+
+ACCOUNT_DB_PATH = _resolve_path(
+    "LEXI_ACCOUNT_DB",
+    _REPO_ROOT / "logs" / "accounts" / "accounts.sqlite3",
+    _LEGACY_ROOT / "logs" / "accounts" / "accounts.sqlite3",
+)
 
 
 def user_profile_feature_enabled() -> bool:

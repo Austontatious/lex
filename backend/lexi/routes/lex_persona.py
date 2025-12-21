@@ -21,7 +21,8 @@ from ..config.config import (
     TRAIT_STATE_PATH,
 )
 from ..persona.persona_core import lex_persona
-from ..utils.user_identity import normalize_user_id, user_bucket, user_id_feature_enabled
+from ..user_identity import request_user_id
+from ..utils.user_identity import user_bucket
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["persona"])
@@ -60,15 +61,15 @@ DESCRIBE_PATTERN = re.compile(
 
 
 def _request_user_id(request: Request) -> Optional[str]:
-    if not user_id_feature_enabled():
-        return None
-    return normalize_user_id(getattr(request.state, "user_id", None))
+    if getattr(request.state, "needs_disambiguation", False):
+        raise HTTPException(status_code=409, detail="identity collision")
+    return request_user_id(request)
 
 
 # --- Helper functions ---
 def _state_path(user_id: Optional[str]) -> Path:
     """Resolve persona state file, optionally per-user when enabled."""
-    if user_id_feature_enabled():
+    if user_id:
         bucket = user_bucket(TRAIT_STATE_PATH.parent, user_id)
         if bucket:
             return bucket / TRAIT_STATE_PATH.name

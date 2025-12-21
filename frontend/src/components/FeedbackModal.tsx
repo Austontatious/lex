@@ -71,6 +71,7 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
 
   return (
     <Box
+      className="fixedBar"
       position="fixed"
       inset={0}
       bg="blackAlpha.700"
@@ -99,7 +100,9 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
           <IconButton
             aria-label="Close feedback"
             icon={<CloseIcon boxSize={3} />}
-            size="sm"
+            size="lg"
+            minW={11}
+            minH={11}
             variant="ghost"
             onClick={onClose}
           />
@@ -122,6 +125,7 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder="Bug reports, ideas, what you liked or didn’t like..."
+                size="lg"
                 minH="10rem"
                 maxH="20rem"
                 resize="none"
@@ -146,6 +150,7 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="Only if you want us to follow up"
+                size="lg"
                 borderRadius="xl"
                 borderWidth={1}
                 borderColor="whiteAlpha.400"
@@ -161,11 +166,12 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
             )}
 
             <HStack justify="flex-end">
-              <Button variant="ghost" onClick={onClose} isDisabled={submitting}>
+              <Button variant="ghost" size="lg" onClick={onClose} isDisabled={submitting}>
                 Cancel
               </Button>
               <Button
                 colorScheme="pink"
+                size="lg"
                 onClick={handleSubmit}
                 isDisabled={!trimmedMessage || submitting}
               >
@@ -178,4 +184,3 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
     </Box>
   );
 }
-

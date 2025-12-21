@@ -136,6 +136,11 @@ class SessionMemoryManager:
         """Record user_id for downstream vector tagging."""
         self._user_id = normalize_user_id(user_id)
 
+    def set_session_id(self, session_id: Optional[str]) -> None:
+        """Override session id when the API session is known."""
+        if session_id:
+            self.session_id = str(session_id)
+
     def _new_session_id(self) -> str:
         # Use timestamp for now; could use uuid.uuid4() if you prefer
         return str(int(time.time()))

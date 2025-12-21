@@ -19,14 +19,11 @@ import requests
 
 from ..config.config import (
     AVATAR_URL_PREFIX,
-    MEMORY_PATH,
-    MAX_MEMORY_ENTRIES,
     MODE_STATE_PATH,
     TRAIT_STATE_PATH,
     STARTER_AVATAR_PATH,
 )
-from ..memory.memory_core import MemoryManager, memory
-from ..memory.memory_store_json import MemoryStoreJSON
+from ..memory.memory_core import memory, resolve_memory_root
 from ..memory.memory_types import MemoryShard
 from ..memory.session_memory import SessionMemoryManager
 from ..core.model_loader_core import ModelLoader
@@ -52,7 +49,7 @@ from .lexi_voice_mirroring import (
     sampler_from_profile,
     apply_postprocessing,
 )
-from ..utils.user_identity import normalize_user_id, user_bucket, user_id_feature_enabled
+from ..utils.user_identity import normalize_user_id, user_bucket
 
 # <<<
 
@@ -86,10 +83,23 @@ _MOVIE_TOPICS = re.compile(
 _NEWS_TOPICS = re.compile(r"\b(news|headline(s)?|current events?|breaking|updates?)\b", re.I)
 _WEATHER_TOPICS = re.compile(r"\b(weather|forecast|temperature|rain|snow|storm|wind|sunny|cloudy|humidity)\b", re.I)
 _WHATS_NEW = re.compile(r"\bwhat('s| is) new\b", re.I)
+_MEMORY_TRIGGERS = [
+    r"\bremember\b",
+    r"\bmemory\b",
+    r"\bwhat did i (say|tell you)\b",
+    r"\bwhat have we talked about\b",
+    r"\blast time\b",
+    r"\bremind me\b",
+    r"\bdo you recall\b",
+    r"\bmy name\b",
+]
+_MEMORY_PATTERNS = [re.compile(p, re.I) for p in _MEMORY_TRIGGERS]
 
 PLANNER_SYS = (
-    'Decide required tools. Output STRICT JSON:\n'
+    "Decide required tools. Allowed tools: movies_now, memory_search_ltm.\n"
+    "Output STRICT JSON:\n"
     '{"tools": ["movies_now"], "reason": "why"} \n'
+    '{"tools": ["memory_search_ltm"], "reason": "why"} \n'
     'If tools not needed: {"tools": [], "reason": "..."}'
 )
 
@@ -120,6 +130,22 @@ MOVIES_TOOL_DEF: Dict[str, Any] = {
     },
 }
 
+MEMORY_SEARCH_TOOL_DEF: Dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "memory_search_ltm",
+        "description": "Search the user's long-term memory store for relevant notes.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "k": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+            "required": ["query"],
+        },
+    },
+}
+
 
 def needs_fresh_data(user_text: str) -> bool:
     """Heuristic gate for time-sensitive questions (movies, weather, news, etc.)."""
@@ -137,6 +163,14 @@ def needs_fresh_data(user_text: str) -> bool:
     movie_hit = bool(_MOVIE_TOPICS.search(txt))
     recency_hit = any(p.search(txt) for p in _FRESHNESS_PATTERNS)
     return movie_hit and recency_hit
+
+
+def needs_memory_search(user_text: str) -> bool:
+    """Placeholder heuristic for when memory search may be helpful."""
+    txt = (user_text or "").strip()
+    if not txt:
+        return False
+    return any(p.search(txt) for p in _MEMORY_PATTERNS)
 
 
 def _extract_tool_calls(raw_resp: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -390,13 +424,11 @@ class LexiPersona:
         load_love_loop_state()
 
         # memory & persistent state
-        self._user_id_enabled = user_id_feature_enabled()
-        self.memory = MemoryManager(
-            MemoryStoreJSON(MEMORY_PATH, max_entries=MAX_MEMORY_ENTRIES),
-            user_enabled=self._user_id_enabled,
-        )
+        self._user_id_enabled = True
+        self.memory = memory
         self.session_memory = SessionMemoryManager(max_pairs=20)
         self._active_user_id: Optional[str] = None
+        self._session_id: Optional[str] = None
 
         # persona state
         self.current_emotion_state: Dict[str, float] = {"joy": 0.5, "sadness": 0.0, "arousal": 0.0}
@@ -460,29 +492,44 @@ class LexiPersona:
     # ------------------------------ user binding ------------------------------
 
     def set_user(self, user_id: Optional[str]) -> None:
-        """Bind persona to a specific user if feature flag is enabled."""
-        if not self._user_id_enabled:
-            return
-        normalized = normalize_user_id(user_id)
-        if normalized == self._active_user_id:
-            return
-
+        """Bind persona to a specific user and rebind memory paths."""
+        self._user_id_enabled = True
+        normalized = normalize_user_id(user_id) or "shared"
+        if normalized != self._active_user_id:
+            logger.info("persona user_id change %s -> %s", self._active_user_id, normalized)
         self._active_user_id = normalized
-        self._style_user_id = normalized or os.environ.get("LEX_USER_ID", "default_user")
+        self._style_user_id = normalized or os.environ.get("LEX_USER_ID", "shared")
         self.memory.set_user(normalized)
 
         # swap session memory path per user
-        base = Path(MEMORY_PATH).parent
-        bucket = user_bucket(base, normalized) if normalized else None
+        base = resolve_memory_root()
+        bucket = user_bucket(base, normalized)
         if bucket:
             path = bucket / "session_memory.json"
             self.session_memory.set_session_path(str(path))
             self.session_memory.set_user(normalized)
         else:
-            # revert to default path
-            default_path = Path(__file__).resolve().parents[1] / "memory" / "session_memory.json"
+            # revert to shared path under canonical root
+            default_bucket = user_bucket(base, "shared") if base else None
+            default_path = (
+                default_bucket / "session_memory.json"
+                if default_bucket
+                else Path(__file__).resolve().parents[1] / "memory" / "session_memory.json"
+            )
             self.session_memory.set_session_path(str(default_path))
             self.session_memory.set_user(None)
+
+    def bind_session(self, session_id: Optional[str]) -> None:
+        """Bind the active session id for memory routing."""
+        self._session_id = str(session_id) if session_id else None
+        try:
+            self.memory.set_session(self._session_id)
+        except Exception:
+            return
+        try:
+            self.session_memory.set_session_id(self._session_id)
+        except Exception:
+            return
 
     def _maybe_seed_now_feed(self) -> Optional[str]:
         """Occasionally fetch 1–2 items and inject as 'Now Feed' context."""
@@ -1061,11 +1108,13 @@ class LexiPersona:
             memories_json.append(shard)
             current_token_count += shard_tokens
 
+        memory_summary, _ = self.memory.build_prompt_context()
         return PromptTemplates.build_prompt(
             memories_json=memories_json,
             user_message=user_input,
             emotional_weights=self._axis_to_emotional_weights(),
             active_persona=self._lead_mode,
+            memory_summary=memory_summary,
         )
 
     # ------------------------------ avatar / mode helpers ------------------------------
@@ -1170,6 +1219,7 @@ class LexiPersona:
             return "[no input]"
         msg_strip = safe_strip(user_message)
         tool_required = needs_fresh_data(msg_strip)
+        memory_tool_required = needs_memory_search(msg_strip)
         planner_tools: List[str] = []
         planner_reason = ""
         tool_called = False
@@ -1279,6 +1329,12 @@ class LexiPersona:
                 logger.warning("[WARN] Failed to retrieve memory: %s", e)
                 ltm_memories = []
 
+        memory_summary, _has_saved_context = self.memory.build_prompt_context()
+        memory_rule = (
+            "Memory rule: Use only saved notes from Known user context. "
+            "If none are present, say you have no saved notes yet."
+        )
+
         # --- Build the messages payload (prompt_pkg) ---
         emotional_weights = self._axis_to_emotional_weights()
         prompt_pkg = PromptTemplates.build_prompt(
@@ -1287,7 +1343,7 @@ class LexiPersona:
             emotional_weights=emotional_weights,
             active_persona=self._lead_mode,
             current_goal="",
-            memory_summary="",
+            memory_summary=memory_summary,
             trait_summary="",
         )
 
@@ -1329,7 +1385,7 @@ class LexiPersona:
             style_bits.append("Subtle flirtation is welcome; keep it to 2–3 clean sentences.")
 
         self._strict_mode = serious >= 0.5
-        injections = list(self.system_injections) + [style_directives] + style_bits
+        injections = [memory_rule] + list(self.system_injections) + [style_directives] + style_bits
         if feed_block:
             injections.append(feed_block)
         if search_block:
@@ -1429,12 +1485,16 @@ class LexiPersona:
         planner_tools, planner_reason = ([], "")
         planner_always = os.getenv("LEXI_PLANNER_ALWAYS", "0").lower() in ("1", "true", "yes", "on")
         planner_enabled_env = os.getenv("LEXI_ENABLE_TOOL_PLANNER", "1").lower() not in ("0", "false", "no", "off")
-        if planner_enabled_env and (tool_required or planner_always):
+        if planner_enabled_env and ((tool_required or memory_tool_required) or planner_always):
             planner_tools, planner_reason = self._plan_tools(msg_strip, tool_required)
 
         if tool_required and not planner_tools:
             planner_tools = ["movies_now"]
-        if not tool_required and planner_tools:
+        if memory_tool_required and "memory_search_ltm" not in planner_tools:
+            planner_tools.append("memory_search_ltm")
+            if not planner_reason:
+                planner_reason = "heuristic_memory_trigger"
+        if not tool_required and "movies_now" in planner_tools:
             tool_required = True
 
         reply: str
@@ -1464,12 +1524,26 @@ class LexiPersona:
         except Exception:
             pass
 
-        # Memory write-back
+        # Memory write-back (session + persisted summaries)
+        summary = ""
         try:
             summary = summarize_pair(self.loader.generate, msg_strip, reply)
             self.session_memory.add_pair(msg_strip, reply, summary, token_counter=self.count_tokens)
         except Exception as e:
             logger.warning("[WARN] summarize/add_pair failed: %s", e)
+
+        if not summary and msg_strip:
+            summary = msg_strip[:180].strip()
+
+        facts = self.memory.extract_facts(msg_strip)
+        try:
+            self.memory.update_session_summary(
+                summary,
+                session_id=self._session_id,
+                facts=facts,
+            )
+        except Exception as e:
+            logger.warning("[WARN] session summary update failed: %s", e)
 
         finish_reason = tool_finish_reason or self._last_gen_meta.get("finish_reason")
         self._log_tool_trace(

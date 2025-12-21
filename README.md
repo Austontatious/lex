@@ -148,8 +148,9 @@ docker compose exec lexi-backend sh -lc 'curl -sS http://127.0.0.1:9000/lexi/rea
 
 ### Optional: per-user IDs (email-or-name) — disabled by default
 
-- Enable with `LEXI_USER_ID_ENABLED=1` on the backend. The dev launcher (`start_lexi.py`) mirrors it to the frontend as `VITE_USER_ID_ENABLED` so the prompt appears.
+- Enable with `LEXI_USER_ID_ENABLED=1` on the backend. In Docker, the frontend entrypoint mirrors it into `runtime-config.js` so the prompt appears. (`start_lexi.py` is deprecated.)
 - When enabled, the frontend asks for "email or name", stores it in `localStorage` (`LEXI_USER_ID`), and sends it on every request as `X-Lexi-User`. There is intentionally no validation; nicknames are fine.
+- User ids are case-sensitive when mapped to storage; keep casing consistent (`Auston` and `auston` are different buckets).
 - Backend binds that id to:
   - persona state under `backend/lexi/routes/users/<user>/lexi_persona_state.json`,
   - long-term memory under `Lex/memory/users/<user>/ltm.jsonl`,
@@ -161,6 +162,7 @@ docker compose exec lexi-backend sh -lc 'curl -sS http://127.0.0.1:9000/lexi/rea
 
 - Gate vector search/ingest behind `LEXI_VECTOR_ENABLED=1`. Storage lives at `LEXI_VECTOR_CHROMA_PATH` (default `/workspace/ai-lab/Lex/vector_store`) with collection name `LEXI_VECTOR_COLLECTION` (`lex_memory`). Embeddings use a local `sentence-transformers` model; no remote calls.
 - Turn on per-user profile + avatar manifests with `LEXI_USER_DATA_ENABLED=1` (writes under `LEX_USER_DATA_ROOT`, default `<repo>/memory/users/<id>/...`). Keeps the first avatar and the latest edit with prompt/traits/seed metadata for continuity; when disabled it is a no-op.
+- If only one of `LEXI_MEMORY_ROOT` or `LEX_USER_DATA_ROOT` is set, it is used for both memory and user data so the buckets align.
 - See `docs/user_data_and_vectors.md` for how the flags combine and where artifacts are stored.
 
 **Avatar job queue highlights**
@@ -206,6 +208,10 @@ Keep the duplication in mind whenever you modify routes, persona logic, or SD he
 - `FLUX_*` environment variables must match the paths visible to the Comfy container (Compose mounts `/mnt/data/comfy` read-only into the backend to guarantee this).
 - Flux tuning lives in `backend/lexi/sd/flux_defaults.py`; update that file once and every Comfy graph + backend default stays in sync.
 - Prompt scaffolding lives in `backend/lexi/sd/flux_prompt_builder.py`, keeping the “Lexiverse” base text immutable while allowing trait/style deltas appended at runtime.
+- Current defaults (Dec 2025): 768×1344 canvas, 24 steps, cfg 3.0, guidance 2.8/2.8, sampler `euler`, denoise 1.0; ControlNet enabled by default at 0.55 unless `controlnet_enabled=false` or `LEXI_CONTROLNET_ENABLED=0`.
+- Prompt guardrails: positive includes “healthy feminine body proportions” and “wide framing, subject occupies ≤70% of vertical frame”; negatives add framing blockers plus “halo/outline/glow/rimlight/backlight/overprocessed HDR/bloom” and “overdefined muscles/bodybuilder physique.”
+- Style prompt swapped to neutral studio light: “neutral studio key light + soft fill, no rimlight, no neon; natural skin texture, realistic specular highlights; filmic contrast, neutral color grade, accurate white balance.”
+- ControlNet is automatically skipped if the model asset is missing; denoise stays 1.0 for txt2img even when CN is on.
 - `backend/lexi/utils/request_ip.py` and `utils/ip_seed.py` derive deterministic per-IP seeds and filenames so every user keeps a consistent identity unless you override the seed manually.
 - Populate those folders with the Flux bundle (e.g. `flux1-kontext-dev.safetensors`, `clip_l.safetensors`, `t5xxl_fp8_e4m3fn.safetensors`, `ae.safetensors`). Example:
 

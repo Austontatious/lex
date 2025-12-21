@@ -8,7 +8,7 @@ from collections import deque
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from ..utils.user_identity import normalize_user_id, user_id_feature_enabled
+from ..user_identity import request_user_id
 from ..utils.user_profile import (
     load_user_profile,
     user_profile_feature_enabled,
@@ -44,9 +44,9 @@ router = APIRouter(prefix="/lexi/user", tags=["user"])
 
 
 def _require_user(request: Request) -> str:
-    if not user_id_feature_enabled():
-        raise HTTPException(status_code=404, detail="user_id disabled")
-    user = normalize_user_id(getattr(request.state, "user_id", None))
+    if getattr(request.state, "needs_disambiguation", False):
+        raise HTTPException(status_code=409, detail="identity collision")
+    user = request_user_id(request)
     if not user:
         raise HTTPException(status_code=401, detail="missing user id")
     return user

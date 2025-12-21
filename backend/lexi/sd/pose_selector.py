@@ -4,7 +4,7 @@ import csv
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 
 @dataclass(frozen=True)
@@ -55,8 +55,16 @@ def _load_records(csv_path: Path, render_dir: Path) -> List[PoseRecord]:
                 continue
             stem = fname.rsplit("_keypoints", 1)[0]
             render_name = f"{stem}_rendered.jpg"
+            # Keypoints may live alongside the renders; prefer the render_dir if csv_dir is missing files.
             keypoints_path = csv_path.parent / fname
+            if not keypoints_path.exists():
+                alt = render_dir / fname
+                if alt.exists():
+                    keypoints_path = alt
             render_path = render_dir / render_name
+            # Skip entries that are missing keypoints; otherwise downstream pose maps cannot be built.
+            if not keypoints_path.exists():
+                continue
             records.append(
                 PoseRecord(
                     filename=fname,
@@ -97,6 +105,7 @@ def choose_pose(
     camera_bucket: Optional[str] = None,
     pose_id: Optional[str] = None,
     rng_seed: Optional[int] = None,
+    predicate: Optional[Callable[[PoseRecord], bool]] = None,
 ) -> Optional[PoseChoice]:
     """
     Pick a pose render + metadata using the bucket CSV.
@@ -150,6 +159,11 @@ def choose_pose(
     candidates = _filtered(records, shape_bucket, camera_bucket)
     if not candidates:
         candidates = records
+
+    if predicate:
+        candidates = [c for c in candidates if predicate(c)]
+        if not candidates:
+            return None
 
     choice = rng.choice(candidates)
     stem = choice.filename.rsplit("_keypoints", 1)[0]

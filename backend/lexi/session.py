@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import logging
 import os
@@ -14,7 +15,7 @@ from starlette.concurrency import run_in_threadpool
 
 from .sd.generate import generate_default_avatar_for_ip
 from .utils.user_profile import touch_last_seen, user_profile_feature_enabled
-from .utils.user_identity import normalize_user_id, user_id_feature_enabled
+from .user_identity import resolve_identity
 
 LOG_DIR = Path(os.getenv("LEX_LOG_DIR", "./logs/sessions")).resolve()
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -82,27 +83,31 @@ async def session_middleware(
 
     log_path = _session_file(session_id)
     client_ip = _safe_ip(request)
-    user_id = None
-    if user_id_feature_enabled():
-        user_id = normalize_user_id(request.headers.get("x-lexi-user"))
-
     request.state.session_id = session_id
     request.state.session_log_path = log_path
     request.state.client_ip = client_ip
     request.state.user_agent = request.headers.get("user-agent", "")
-    request.state.user_id = user_id
     default_avatar_info = None
     if new_session:
+        async def _kickoff_default_avatar() -> None:
+            try:
+                DEFAULT_AVATAR_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+                await run_in_threadpool(
+                    generate_default_avatar_for_ip,
+                    client_ip,
+                    str(DEFAULT_AVATAR_MEDIA_DIR),
+                )
+            except Exception as exc:  # pragma: no cover - best effort
+                logger.warning("Default avatar bootstrap failed: %s", exc)
+
         try:
-            DEFAULT_AVATAR_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
-            default_avatar_info = await run_in_threadpool(
-                generate_default_avatar_for_ip,
-                client_ip,
-                str(DEFAULT_AVATAR_MEDIA_DIR),
-            )
-        except Exception as exc:  # pragma: no cover - best effort
-            logger.warning("Default avatar bootstrap failed: %s", exc)
+            asyncio.create_task(_kickoff_default_avatar())
+            default_avatar_info = {"queued": True}
+        except Exception:
+            logger.debug("Default avatar kickoff failed", exc_info=True)
     request.state.default_avatar = default_avatar_info
+
+    user_id, _, identity_source, needs_disambiguation, _ = resolve_identity(request)
 
     visit_meta: VisitMeta = {
         "ts": _now_ms(),
@@ -115,10 +120,18 @@ async def session_middleware(
         "referer": request.headers.get("referer", ""),
         "session_id": session_id,
         "user_id": user_id,
+        "identity_source": identity_source,
+        "identity_needs_disambiguation": needs_disambiguation,
     }
     write_session_event(log_path, visit_meta)
 
     response = await call_next(request)
+
+    if getattr(request.state, "device_id_generated", False):
+        try:
+            response.headers["X-Lexi-Device"] = str(getattr(request.state, "device_id", ""))
+        except Exception:
+            pass
 
     if new_session:
         response.set_cookie(

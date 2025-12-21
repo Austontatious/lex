@@ -33,8 +33,6 @@ load_traits = _load_traits
 save_traits = _save_traits
 from ..persona.persona_core import lexi_persona
 from ..persona.persona_config import PERSONA_MODE_REGISTRY
-from ..memory.memory_core import memory
-from ..memory.memory_types import MemoryShard
 from ..alpha.session_manager import SessionRegistry
 from ..session_logging import (
     log_event,
@@ -53,6 +51,7 @@ from ..utils.ip_seed import (
     ip_to_seed,
 )
 from ..utils.request_ip import request_ip
+from ..user_identity import identity_payload, request_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -134,10 +133,6 @@ def _per_ip_avatar_path(request: Request) -> Optional[str]:
     return None
 router.include_router(now_router)  # /now
 router.include_router(tools_router)  # /tools/web_search
-
-# Paths for avatar storage and trait state persistence
-TRAIT_STATE_PATH: Path = Path(__file__).resolve().parent / "lexi_persona_state.json"
-
 
 def _avatar_dir() -> Path:
     """Resolve the active avatar directory, ensuring it exists."""
@@ -369,6 +364,38 @@ def _append_session_memory(request: Request, event: Dict[str, Any]) -> None:
 @router.post("/process")
 async def process(req: ChatRequest, request: Request):
     logger.info("🗨️ /process turn")
+    if getattr(request.state, "needs_disambiguation", False):
+        handle_raw = request.headers.get("x-lexi-handle") or getattr(request.state, "handle_norm", None)
+        handle_label = handle_raw or "that name"
+        if handle_label:
+            prompt = (
+                f"I already know an {handle_label} — is that you or should I call you something else?"
+            )
+        else:
+            prompt = "I already know that name — is that you or should I call you something else?"
+        return JSONResponse(
+            {
+                "cleaned": prompt,
+                "raw": "",
+                "choices": [],
+                "mode": lexi_persona.get_mode(),
+                "session_id": getattr(request.state, "session_id", None),
+                "needs_disambiguation": True,
+                "candidates": getattr(request.state, "identity_candidates", []),
+                "identity": identity_payload(request),
+            }
+        )
+    resolved_user_id = request_user_id(request)
+    try:
+        lexi_persona.set_user(resolved_user_id)
+        lexi_persona.bind_session(getattr(request.state, "session_id", None))
+    except Exception:
+        pass
+    try:
+        mem_state = lexi_persona.memory.debug_state()
+        logger.info("memory_state %s", json.dumps(mem_state, ensure_ascii=True))
+    except Exception:
+        pass
     log_event(request, "user", req.prompt or "", event="chat_prompt")
     _append_session_memory(
         request,
@@ -473,7 +500,7 @@ async def process(req: ChatRequest, request: Request):
         )
 
     if incoming_intent == "new_look":
-        traits_state = load_traits()
+        traits_state = load_traits(resolved_user_id)
         if traits_state is None:
             traits_state = {}
         has_traits = bool(traits_state)
@@ -538,7 +565,7 @@ async def process(req: ChatRequest, request: Request):
         if avatar_url:
             try:
                 lexi_persona.set_avatar_path(avatar_url)  # type: ignore
-                save_traits(traits_state, avatar_path=avatar_url)
+                save_traits(traits_state, avatar_path=avatar_url, user_id=resolved_user_id)
             except Exception as exc:
                 logger.warning("⚠️ Persona state update failed: %s", exc)
 
@@ -575,9 +602,9 @@ async def process(req: ChatRequest, request: Request):
     # Trait extraction (optional; only if wired)
     inferred = extract_traits_from_text(req.prompt)
     if inferred:
-        traits = load_traits()
+        traits = load_traits(resolved_user_id)
         traits.update(inferred)
-        save_traits(traits)
+        save_traits(traits, user_id=resolved_user_id)
 
         result = generate_avatar_pipeline(
             traits=traits,
@@ -593,7 +620,7 @@ async def process(req: ChatRequest, request: Request):
         avatar_url = _ensure_avatar_url(request, url)
         if avatar_url:
             lexi_persona.set_avatar_path(avatar_url)  # type: ignore
-            save_traits(traits, avatar_path=avatar_url)
+            save_traits(traits, avatar_path=avatar_url, user_id=resolved_user_id)
 
         _append_session_memory(
             request,
@@ -640,11 +667,7 @@ async def process(req: ChatRequest, request: Request):
         usage = gen_meta.get("usage")
 
         try:
-            memory.remember(
-                MemoryShard(
-                    role="assistant", content=reply_text, meta={"tags": ["chat"], "compressed": True}
-                )
-            )
+            lexi_persona.memory.store_context(prompt_text, reply_text)
         except Exception as mem_err:
             logger.warning("⚠️ Memory store skipped: %s", mem_err)
 
@@ -847,13 +870,16 @@ async def process(req: ChatRequest, request: Request):
 # Set persona mode
 # ---------------------------------------------------------------------
 @router.post("/set_mode")
-async def set_mode(payload: Dict[str, Any] = Body(...)) -> Dict[str, str]:
+async def set_mode(request: Request, payload: Dict[str, Any] = Body(...)) -> Dict[str, str]:
     mode = payload.get("mode")
     if mode not in PERSONA_MODE_REGISTRY:
         logger.warning("🛑 Invalid mode: %s", mode)
         raise HTTPException(status_code=400, detail="Invalid mode")
     lexi_persona.set_mode(mode)
-    save_traits({}, avatar_path=None)
+    if getattr(request.state, "needs_disambiguation", False):
+        raise HTTPException(status_code=409, detail="identity collision")
+    user_id = request_user_id(request)
+    save_traits({}, avatar_path=None, user_id=user_id)
     logger.info("✅ Mode set to: %s", mode)
     return {"status": "ok", "mode": mode}
 
@@ -873,7 +899,10 @@ async def generate_avatar(request: Request, req: AvatarGenRequest) -> JSONRespon
       - If lexi_base.png does not exist: pipeline will create it (txt2img).
       - Otherwise: pipeline will img2img from lexi_base.png.
     """
-    traits = req.traits or load_traits()
+    if getattr(request.state, "needs_disambiguation", False):
+        raise HTTPException(status_code=409, detail="identity collision")
+    user_id = request_user_id(request)
+    traits = req.traits or load_traits(user_id)
     prompt = req.prompt
     changes = req.changes
     client_ip = _client_ip(request)
@@ -947,7 +976,7 @@ async def generate_avatar(request: Request, req: AvatarGenRequest) -> JSONRespon
     try:
         # Store relative URL if provided to keep storage portable
         lexi_persona.set_avatar_path(abs_url)  # type: ignore
-        save_traits(traits, avatar_path=abs_url)
+        save_traits(traits, avatar_path=abs_url, user_id=user_id)
     except Exception as exc:
         logger.warning("⚠️ Persona state update failed: %s", exc)
 

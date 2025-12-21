@@ -20,16 +20,20 @@ services:
       LEXI_VECTOR_ENABLED: "1"
       LEXI_VECTOR_CHROMA_PATH: /data/vector_store
       LEXI_VECTOR_COLLECTION: lex_memory
+      LEXI_IDENTITY_DB_PATH: /data/identity/identity.db
+      LEXI_MEMORY_ROOT: /data/memory
     volumes:
       - /mnt/data/models:/mnt/data/models:ro
       - /mnt/data/comfy:/mnt/data/comfy:ro
       - /mnt/data/Lex/docker/comfy/workflows:/app/docker/comfy/workflows:ro
       - /mnt/data/avatars:/app/frontend/public/avatars:rw
       - /mnt/data/Lex/data:/data:rw
-      - /mnt/data/Lex/logs/sessions:/app/logs/sessions:rw
+      - /mnt/data/Lex/logs:/app/logs:rw
       - lex_hf_cache:/data/hf_cache:rw
       - /mnt/data/Lex/overrides/backend_routes/lexi.py:/app/backend/lexi/routes/lexi.py:ro
       - /mnt/data/Lex/overrides/backend_routes/lexi_persona.py:/app/backend/lexi/routes/lexi_persona.py:ro
+      - /mnt/data/Lex/overrides/backend_routes/account.py:/app/backend/lexi/routes/account.py:ro
+      - /mnt/data/Lex/overrides/backend_routes/onboarding.py:/app/backend/lexi/routes/onboarding.py:ro
 
   lexi-frontend:
     environment:
