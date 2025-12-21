@@ -4,10 +4,11 @@ import { Flex, Spinner, Text } from "@chakra-ui/react";
 const WarmingUpScreen: React.FC = () => {
   return (
     <Flex
+      className="appShell"
       direction="column"
       align="center"
       justify="center"
-      minH="100vh"
+      minH="var(--app-dvh)"
       bg="gray.800"
       color="white"
     >

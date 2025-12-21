@@ -10,15 +10,10 @@ BASE_POS_1 = (
 )
 
 BASE_POS_2 = (
-    "provocative editorial glamour, bold and confident sensuality;\n"
-    "studio-lit neon wash with cinematic lighting balance, vibrant LED exposure, and soft diffusion;\n"
-    "glossy highlights, rich tonal contrast, illuminated contours, and glowing skin;\n"
-    "soft golden-hour lighting with warm key and subtle fill; balanced exposure and realistic HDR tone curve;\n"
-    "balanced warm daylight, soft sun-kissed luminance, gentle specular highlights, natural skin tones;\n"
-    "indirect soft key with gentle rim light and subtle depth shadows;\n"
-    "minimal casual outfit with neutral palette and clean textures; timeless aesthetic;\n"
-    "daylight-balanced color temperature, cinematic neutral tone mapping;\n"
-    "dual-tone magenta–blue rimlight for cinematic color separation."
+    "neutral studio key light + soft fill, no rimlight, no neon;\n"
+    "natural skin texture, realistic specular highlights;\n"
+    "filmic contrast, neutral color grade, accurate white balance;\n"
+    "minimal casual outfit with neutral palette and clean textures; timeless aesthetic."
 )
 
 BASE_NEG_1 = (
@@ -36,7 +31,8 @@ BASE_NEG_2 = (
     "visible lighting equipment, glare, or strong backlight;\n"
     "unnatural bronze skin tone or exaggerated contrast;\n"
     "formalwear, jewelry, or explicit attire;\n"
-    "monochrome or over-orange color grading."
+    "monochrome or over-orange color grading;\n"
+    "halo, outline, glow, rimlight, backlight, cutout, sticker, overprocessed HDR, bloom."
 )
 
 __all__ = [

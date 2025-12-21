@@ -40,7 +40,15 @@ const AlphaTour = ({ steps, onComplete, onSkip }: AlphaTourProps) => {
   }
 
   return (
-    <Flex direction="column" minH="100vh" px={6} py={10} align="center" justify="center">
+    <Flex
+      className="appShell"
+      direction="column"
+      minH="var(--app-dvh)"
+      px={6}
+      py={10}
+      align="center"
+      justify="center"
+    >
       <Box
         w="100%"
         maxW="640px"
@@ -54,7 +62,7 @@ const AlphaTour = ({ steps, onComplete, onSkip }: AlphaTourProps) => {
           <Heading size="lg">
             tour — step {index + 1} / {safeSteps.length}
           </Heading>
-          <Button variant="ghost" onClick={onSkip}>
+          <Button variant="ghost" size="lg" onClick={onSkip}>
             skip
           </Button>
         </Flex>
@@ -66,7 +74,7 @@ const AlphaTour = ({ steps, onComplete, onSkip }: AlphaTourProps) => {
           <Text fontSize="lg" color="gray.600" _dark={{ color: "gray.100" }}>
             {current.copy}
           </Text>
-          <Button colorScheme="pink" onClick={goNext}>
+          <Button colorScheme="pink" size="lg" onClick={goNext}>
             {index >= safeSteps.length - 1 ? "Let’s chat" : "Next"}
           </Button>
         </VStack>

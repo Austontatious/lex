@@ -157,6 +157,7 @@ function ChatShell({
   const [loading, setLoading] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const triggerAvatarRefresh = useCallback(async () => {
     try {
@@ -344,129 +345,127 @@ const handleAvatarEdit = useCallback(
 );
 
 
-const handleSend = useCallback(async () => {
-  const text = input.trim();
-  if (!text || loading) return;
-  setInput("");
-  appendMessage({ sender: "user", content: text });
+  const handleSend = useCallback(async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+    inputRef.current?.focus();
+    appendMessage({ sender: "user", content: text });
 
-  if (waitingForLegalChoice) {
-    const trimmed = text.trim().toLowerCase();
-    if (trimmed === "yes" || trimmed === "y") {
-      await onLegalYes?.();
+    if (waitingForLegalChoice) {
+      const trimmed = text.trim().toLowerCase();
+      if (trimmed === "yes" || trimmed === "y") {
+        await onLegalYes?.();
+        return;
+      }
+      if (trimmed === "no" || trimmed === "n") {
+        await onLegalNo?.(false);
+        return;
+      }
+      await onLegalNo?.(true);
+    }
+
+    // --- 1) If we're already mid-flow, keep going ---
+    if (avatarFlow) {
+      handleTraitFlow(text);
       return;
     }
-    if (trimmed === "no" || trimmed === "n") {
-      await onLegalNo?.(false);
+
+    // --- 2) Otherwise ask the backend "chat or avatar_flow?" ---
+    let intent = "chat";
+    try {
+      ({ intent } = await classifyIntent(text));
+      console.log("🕵️ Intent is", intent);
+    } catch (e) {
+      console.warn("Intent API failed, defaulting to chat", e);
+    }
+
+    if (intent === "avatar_flow" || intent === "new_look") {
+      setAvatarFlow(true);
+      handleTraitFlow(text);
       return;
     }
-    await onLegalNo?.(true);
-  }
 
-  // --- 1) If we're already mid-flow, keep going ---
-  if (avatarFlow) {
-    handleTraitFlow(text);
-    return;
-  }
-
-  // --- 2) Otherwise ask the backend "chat or avatar_flow?" ---
-  let intent = "chat";
-  try {
-    ({ intent } = await classifyIntent(text));
-    console.log("🕵️ Intent is", intent);
-  } catch (e) {
-    console.warn("Intent API failed, defaulting to chat", e);
-  }
-
-  if (intent === "avatar_flow" || intent === "new_look") {
-    // flip your FSM
-    setAvatarFlow(true);
-    // send this first message into the trait collector
-    handleTraitFlow(text);
-    return;
-  }
-
-  if (intent === "avatar_edit") {
-    await handleAvatarEdit(text);
-    return;
-  }
-
-  if (intent === "describe_avatar") {
-  // 🎭 Don't enter avatar flow. Just describe her current traits
-    const personaData = await fetchPersona();
-    if (!personaData || !personaData.traits) {
-      appendMessage({ sender: "ai", content: "I'm not sure how I look right now..." });
+    if (intent === "avatar_edit") {
+      await handleAvatarEdit(text);
       return;
     }
-    const traits = personaData.traits;
 
-    const desc = Object.entries(traits)
-      .map(([k, v]) => `${k.replace("_", " ")}: ${v}`)
-      .join(", ");
-    appendMessage({ sender: "ai", content: `Here's how I look right now: ${desc}.` });
-    return;
-  }
+    if (intent === "describe_avatar") {
+      const personaData = await fetchPersona();
+      if (!personaData || !personaData.traits) {
+        appendMessage({ sender: "ai", content: "I'm not sure how I look right now..." });
+        return;
+      }
+      const traits = personaData.traits;
 
-  // --- 3) Fallback to your normal LLM chat ---
-  const aiId = mkId();
-  appendMessage({ id: aiId, sender: "ai", content: "", streaming: true });
-  setLoading(true);
-  let streamed = "";
-  try {
-    const res = await sendPrompt({
-      prompt: text,
-      onChunk(delta) {
-        streamed += delta;
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === aiId ? { ...m, content: streamed, streaming: true } : m
-          )
-        );
-      },
-    });
-    const finalText =
-      (typeof res?.cleaned === "string" && res.cleaned.trim()) ||
-      streamed.trim() ||
-      "[no response]";
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === aiId
-          ? {
-              ...m,
-              content: finalText,
-              streaming: false,
-            }
-          : m
-      )
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Streaming failed";
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === aiId
-          ? {
-              ...m,
-              content: `[error] ${message}`,
-              streaming: false,
-              error: true,
-            }
-          : m
-      )
-    );
-  } finally {
-    setLoading(false);
-  }
-}, [
-  input,
-  loading,
-  avatarFlow,
-  appendMessage,
-  handleTraitFlow,
-  handleAvatarEdit,
-  waitingForLegalChoice,
-  onLegalYes,
-  onLegalNo,
-]);
+      const desc = Object.entries(traits)
+        .map(([k, v]) => `${k.replace("_", " ")}: ${v}`)
+        .join(", ");
+      appendMessage({ sender: "ai", content: `Here's how I look right now: ${desc}.` });
+      return;
+    }
+
+    // --- 3) Fallback to your normal LLM chat ---
+    const aiId = mkId();
+    appendMessage({ id: aiId, sender: "ai", content: "", streaming: true });
+    setLoading(true);
+    let streamed = "";
+    try {
+      const res = await sendPrompt({
+        prompt: text,
+        onChunk(delta) {
+          streamed += delta;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === aiId ? { ...m, content: streamed, streaming: true } : m
+            )
+          );
+        },
+      });
+      const finalText =
+        (typeof res?.cleaned === "string" && res.cleaned.trim()) ||
+        streamed.trim() ||
+        "[no response]";
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === aiId
+            ? {
+                ...m,
+                content: finalText,
+                streaming: false,
+              }
+            : m
+        )
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Streaming failed";
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === aiId
+            ? {
+                ...m,
+                content: `[error] ${message}`,
+                streaming: false,
+                error: true,
+              }
+            : m
+        )
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    input,
+    loading,
+    avatarFlow,
+    appendMessage,
+    handleTraitFlow,
+    handleAvatarEdit,
+    waitingForLegalChoice,
+    onLegalYes,
+    onLegalNo,
+  ]);
 
 //import { useEffect } from "react";
 //import {
@@ -499,203 +498,226 @@ const handleSend = useCallback(async () => {
 
   return (
     <>
-      <Flex direction="column" minH="100vh" bg={bg} fontFamily="'Nunito', sans-serif">
-      <HStack
-        p={3}
-        bg="pink.500"
-        color="white"
-        boxShadow="0 2px 12px rgba(255, 105, 180, 0.6)"
-        data-tour="header"
+      <Flex
+        className="appShell"
+        direction="column"
+        minH="var(--app-dvh)"
+        bg={bg}
+        fontFamily="'Nunito', sans-serif"
       >
-        <Box fontWeight="bold" fontSize="xl">
-          Lexi Chat
-        </Box>
-        <Spacer />
-        {onDownloadSession && (
-          <Button size="sm" variant="outline" color="white" onClick={onDownloadSession}>
-            Download session
-          </Button>
-        )}
-        <FeedbackButton />
-        <IconButton
-          aria-label="Toggle dark mode"
-          icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
-          onClick={toggleColorMode}
-          variant="ghost"
+        <HStack
+          className="fixedBar"
+          p={3}
+          bg="pink.500"
           color="white"
-        />
-      </HStack>
+          boxShadow="0 2px 12px rgba(255, 105, 180, 0.6)"
+          data-tour="header"
+        >
+          <Box fontWeight="bold" fontSize="xl">
+            Lexi Chat
+          </Box>
+          <Spacer />
+          {onDownloadSession && (
+            <Button size="lg" variant="outline" color="white" onClick={onDownloadSession}>
+              Download session
+            </Button>
+          )}
+          <FeedbackButton />
+          <IconButton
+            aria-label="Toggle dark mode"
+            icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
+            onClick={toggleColorMode}
+            variant="ghost"
+            color="white"
+            size="lg"
+            minW={11}
+            minH={11}
+          />
+        </HStack>
 
-      <Box flex="1" px={4} pt={4} pb={2} minH="0">
-        <Box className="chat-layout with-avatar" h="100%" minH="0" w="100%">
-          <Box as="aside" className="avatar-pane" data-tour="avatar">
-            {avatarUrl && (
+        <Box flex="1" px={4} pt={4} pb={2} minH="0">
+          <Box className="chat-layout with-avatar" h="100%" minH="0" w="100%">
+            <Box as="aside" className="avatar-pane" data-tour="avatar">
+              {avatarUrl && (
+                <Box
+                  className="avatar-card"
+                  borderRadius="2xl"
+                  border="2px solid hotpink"
+                  overflow="hidden"
+                  animation="pulseGlow 2s infinite"
+                  boxShadow="0 0 24px rgba(255, 64, 128, 0.25)"
+                  sx={{
+                    "@keyframes pulseGlow": {
+                      "0%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
+                      "50%": { boxShadow: "0 0 18px rgba(255, 105, 180, 0.8)" },
+                      "100%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
+                    },
+                  }}
+                >
+                  <Box position="relative">
+                    {avatarGenerating && !loadingVideoErrored ? (
+                      <Box
+                        as="video"
+                        className="avatar-loading-video"
+                        src={loadingVideoSrc}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        preload="none"
+                        poster={avatarUrl ?? undefined}
+                        aria-label="Avatar generating animation"
+                        onError={() => setLoadingVideoErrored(true)}
+                      />
+                    ) : (
+                      <Image
+                        data-avatar
+                        src={avatarUrl}
+                        alt="Lex avatar"
+                        w="100%"
+                        loading="lazy"
+                        decoding="async"
+                        display="block"
+                        objectFit="cover"
+                        aspectRatio="3 / 4"
+                        sizes="(max-width: 900px) 100vw, 280px"
+                        backdropFilter="blur(4px)"
+                      />
+                    )}
+                    {avatarGenerating && (
+                      <Flex
+                        className="avatar-loading-overlay"
+                        align="flex-end"
+                        justify="space-between"
+                        px={3}
+                        py={2}
+                        gap={3}
+                      >
+                        <Text fontWeight="bold">Generating your new look…</Text>
+                        <Spinner size="sm" thickness="3px" color="pink.200" />
+                      </Flex>
+                    )}
+                  </Box>
+                </Box>
+              )}
+              <Button
+                mt={3}
+                variant="outline"
+                colorScheme="pink"
+                size="lg"
+                onClick={() => setAvatarToolsOpen(true)}
+                data-tour="gallery"
+              >
+                Open avatar tools
+              </Button>
+            </Box>
+
+            <Box
+              as="main"
+              className="chat-pane"
+              display="flex"
+              flexDirection="column"
+              h="100%"
+              minH="0"
+            >
               <Box
-                className="avatar-card"
-                borderRadius="2xl"
-                border="2px solid hotpink"
-                overflow="hidden"
-                animation="pulseGlow 2s infinite"
-                boxShadow="0 0 24px rgba(255, 64, 128, 0.25)"
-                sx={{
-                  "@keyframes pulseGlow": {
-                    "0%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
-                    "50%": { boxShadow: "0 0 18px rgba(255, 105, 180, 0.8)" },
-                    "100%": { boxShadow: "0 0 8px rgba(255, 105, 180, 0.3)" },
-                  },
+                className="chat-scroll"
+                flex="1"
+                overflowY="auto"
+                minH="0"
+                pt={2}
+                pb={2}
+                px={2}
+                css={{
+                  scrollbarColor: "hotpink transparent",
+                  scrollbarWidth: "thin",
                 }}
               >
-                <Box position="relative">
-                  {avatarGenerating && !loadingVideoErrored ? (
-                    <Box as="video"
-                      className="avatar-loading-video"
-                      src={loadingVideoSrc}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      aria-label="Avatar generating animation"
-                      onError={() => setLoadingVideoErrored(true)}
-                    />
-                  ) : (
-                    <Image
-                      data-avatar
-                      src={avatarUrl}
-                      alt="Lex avatar"
-                      w="100%"
-                      display="block"
-                      backdropFilter="blur(4px)"
-                    />
-                  )}
-                  {avatarGenerating && (
-                    <Flex
-                      className="avatar-loading-overlay"
-                      align="flex-end"
-                      justify="space-between"
-                      px={3}
-                      py={2}
-                      gap={3}
-                    >
-                      <Text fontWeight="bold">Generating your new look…</Text>
-                      <Spinner size="sm" thickness="3px" color="pink.200" />
-                    </Flex>
-                  )}
-                </Box>
+                <VStack spacing={4} align="stretch">
+                  {messages.map((m) => {
+                    if (typeof m.content !== "string" || m.content.trim().length === 0) return null;
+
+                    const isUser = m.sender === "user";
+                    const isAi = m.sender === "ai";
+                    const bubbleBg = isUser ? userBubbleBg : isAi ? aiBubbleBg : systemBubbleBg;
+                    const bubbleColor = isUser
+                      ? userBubbleColor
+                      : isAi
+                      ? aiBubbleColor
+                      : systemBubbleColor;
+
+                    return (
+                      <Box
+                        key={m.id}
+                        className="bubble"
+                        alignSelf={
+                          m.sender === "user"
+                            ? "flex-end"
+                            : m.sender === "ai"
+                            ? "flex-start"
+                            : "center"
+                        }
+                        bg={bubbleBg}
+                        color={bubbleColor}
+                        px={5}
+                        py={3}
+                        borderRadius="xl"
+                        maxW="80%"
+                        whiteSpace="pre-wrap"
+                        opacity={m.streaming ? 0.9 : 1}
+                        border={m.error ? "1px solid red" : bubbleBorder}
+                        boxShadow={bubbleShadow}
+                        backdropFilter="blur(10px)"
+                        transition="all 0.2s ease-in-out"
+                      >
+                        {m.content}
+                        {m.streaming && <Spinner size="xs" ml={2} />}
+                      </Box>
+                    );
+                  })}
+
+                  <div ref={chatEndRef} />
+                </VStack>
               </Box>
-            )}
-            <Button
-              mt={3}
-              variant="outline"
-              colorScheme="pink"
-              size="sm"
-              onClick={() => setAvatarToolsOpen(true)}
-              data-tour="gallery"
-            >
-              Open avatar tools
-            </Button>
-          </Box>
-
-          <Box
-            as="main"
-            className="chat-pane"
-            display="flex"
-            flexDirection="column"
-            h="100%"
-            minH="0"
-          >
-            <Box
-              className="chat-scroll"
-              flex="1"
-              overflowY="auto"
-              minH="0"
-              pt={2}
-              pb={2}
-              px={2}
-              css={{
-                scrollbarColor: "hotpink transparent",
-                scrollbarWidth: "thin",
-              }}
-            >
-              <VStack spacing={4} align="stretch">
-                {messages.map((m) => {
-                  if (typeof m.content !== "string" || m.content.trim().length === 0) return null;
-
-                  const isUser = m.sender === "user";
-                  const isAi = m.sender === "ai";
-                  const bubbleBg = isUser ? userBubbleBg : isAi ? aiBubbleBg : systemBubbleBg;
-                  const bubbleColor = isUser
-                    ? userBubbleColor
-                    : isAi
-                    ? aiBubbleColor
-                    : systemBubbleColor;
-
-                  return (
-                    <Box
-                      key={m.id}
-                      className="bubble"
-                      alignSelf={
-                        m.sender === "user"
-                          ? "flex-end"
-                          : m.sender === "ai"
-                          ? "flex-start"
-                          : "center"
-                      }
-                      bg={bubbleBg}
-                      color={bubbleColor}
-                      px={5}
-                      py={3}
-                      borderRadius="xl"
-                      maxW="80%"
-                      whiteSpace="pre-wrap"
-                      opacity={m.streaming ? 0.9 : 1}
-                      border={m.error ? "1px solid red" : bubbleBorder}
-                      boxShadow={bubbleShadow}
-                      backdropFilter="blur(10px)"
-                      transition="all 0.2s ease-in-out"
-                    >
-                      {m.content}
-                      {m.streaming && <Spinner size="xs" ml={2} />}
-                    </Box>
-                  );
-                })}
-
-                <div ref={chatEndRef} />
-              </VStack>
             </Box>
           </Box>
         </Box>
-      </Box>
 
-      <HStack
-        p={3}
-        bg={composerBg}
-        boxShadow={composerShadow}
-        data-tour="composer"
-      >
-        <Textarea
-          flex="1"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Type a message... (Enter = send, Shift+Enter = newline)"
-          resize="none"
-          disabled={loading}
-          bg={composerFieldBg}
-          color={composerText}
-          _placeholder={{ color: composerPlaceholder }}
-          border={composerFieldBorder}
+        <HStack
+          className="fixedBar"
+          p={3}
+          bg={composerBg}
           boxShadow={composerShadow}
-          backdropFilter="blur(6px)"
-        />
-        <Button
-          onClick={handleSend}
-          colorScheme="pink"
-          isDisabled={!input.trim() || loading}
-          boxShadow="0 0 14px rgba(255, 105, 180, 0.7)"
+          data-tour="composer"
         >
-          Send
-        </Button>
-      </HStack>
+          <Textarea
+            flex="1"
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message... (Enter = send, Shift+Enter = newline)"
+            resize="none"
+            disabled={loading}
+            size="lg"
+            minH="56px"
+            bg={composerFieldBg}
+            color={composerText}
+            _placeholder={{ color: composerPlaceholder }}
+            border={composerFieldBorder}
+            boxShadow={composerShadow}
+            backdropFilter="blur(6px)"
+          />
+          <Button
+            onClick={handleSend}
+            colorScheme="pink"
+            size="lg"
+            isDisabled={!input.trim() || loading}
+            boxShadow="0 0 14px rgba(255, 105, 180, 0.7)"
+          >
+            Send
+          </Button>
+        </HStack>
       </Flex>
       <AvatarToolsModal
         isOpen={avatarToolsOpen}
@@ -751,18 +773,29 @@ export default function App() {
     try {
       await startAlphaSession({ userId: null });
       setSessionStarted(true);
-      const res = await sendLexiEvent({
-        type: "system_onboarding",
-        mode: "tour",
-        flags: { nowEnabled: true, sentiment: true, avatarGen: true },
-      });
-      const text = typeof res?.message?.content === "string" ? res.message.content.trim() : "";
-      const skipLine = typeof res?.skip_message === "string" ? res.skip_message.trim() : "";
-      const onboarding: AlphaWelcomeCopy = {
-        tour_text: text || onboardingTourFallback,
-        skip_text: skipLine || onboardingSkipFallback,
-      };
-      setOnboardingCopy(onboarding);
+      void (async () => {
+        try {
+          const res = await sendLexiEvent({
+            type: "system_onboarding",
+            mode: "tour",
+            flags: { nowEnabled: true, sentiment: true, avatarGen: true },
+          });
+          const text = typeof res?.message?.content === "string" ? res.message.content.trim() : "";
+          const skipLine = typeof res?.skip_message === "string" ? res.skip_message.trim() : "";
+          const onboarding: AlphaWelcomeCopy = {
+            tour_text: text || onboardingTourFallback,
+            skip_text: skipLine || onboardingSkipFallback,
+          };
+          setOnboardingCopy(onboarding);
+        } catch (err) {
+          console.error("alpha onboarding init failed:", err);
+          const onboarding: AlphaWelcomeCopy = {
+            tour_text: onboardingTourFallback,
+            skip_text: onboardingSkipFallback,
+          };
+          setOnboardingCopy(onboarding);
+        }
+      })();
     } catch (err) {
       console.error("alpha onboarding init failed:", err);
       const onboarding: AlphaWelcomeCopy = {
@@ -1088,7 +1121,7 @@ export default function App() {
   const renderOnboarding = () => {
     if (phase === "pick_mode") {
       return (
-        <Flex align="center" justify="center" minH="100vh" px={6}>
+        <Flex className="appShell" align="center" justify="center" minH="var(--app-dvh)" px={6}>
           <Box
             maxW="640px"
             w="100%"
@@ -1127,7 +1160,7 @@ export default function App() {
           ? "Drop the email or username I’d recognize."
           : "Use a username or email — I’ll remember it for this session.";
       return (
-        <Flex align="center" justify="center" minH="100vh" px={6}>
+        <Flex className="appShell" align="center" justify="center" minH="var(--app-dvh)" px={6}>
           <Box
             maxW="640px"
             w="100%"
@@ -1146,6 +1179,7 @@ export default function App() {
                 placeholder="username or email"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
+                size="lg"
                 isDisabled={bootstrapLoading}
               />
               {statusMessage ? (
@@ -1156,13 +1190,19 @@ export default function App() {
               <HStack spacing={4}>
                 <Button
                   colorScheme="pink"
+                  size="lg"
                   onClick={() => void handleSubmitIdentifier()}
                   isDisabled={!identifier.trim()}
                   isLoading={bootstrapLoading}
                 >
                   continue
                 </Button>
-                <Button variant="ghost" onClick={() => setPhase("pick_mode")} isDisabled={bootstrapLoading}>
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  onClick={() => setPhase("pick_mode")}
+                  isDisabled={bootstrapLoading}
+                >
                   back
                 </Button>
               </HStack>
@@ -1174,7 +1214,7 @@ export default function App() {
 
     if (phase === "resolve_conflict" && bootstrapResp) {
       return (
-        <Flex align="center" justify="center" minH="100vh" px={6}>
+        <Flex className="appShell" align="center" justify="center" minH="var(--app-dvh)" px={6}>
           <Box
             maxW="640px"
             w="100%"
@@ -1190,10 +1230,10 @@ export default function App() {
                 I already know {bootstrapResp.display_name || "this name"}. Is that you, or should we pick something new?
               </Text>
               <HStack spacing={4}>
-                <Button colorScheme="pink" onClick={handleConflictThatsMe}>
+                <Button colorScheme="pink" size="lg" onClick={handleConflictThatsMe}>
                   that’s me
                 </Button>
-                <Button variant="outline" onClick={handleConflictPickNew}>
+                <Button variant="outline" size="lg" onClick={handleConflictPickNew}>
                   pick something new
                 </Button>
               </HStack>
@@ -1212,7 +1252,7 @@ export default function App() {
             : "I think we’ve already met… don’t you remember?"
           : "Before we dive in, quick legal check-in.";
       return (
-        <Flex align="center" justify="center" minH="100vh" px={6}>
+        <Flex className="appShell" align="center" justify="center" minH="var(--app-dvh)" px={6}>
           <Box
             maxW="720px"
             w="100%"
@@ -1230,11 +1270,12 @@ export default function App() {
                     Want to read the legal stuff again, or skip the boring part and just talk?
                   </Text>
                   <HStack spacing={4}>
-                    <Button variant="outline" onClick={() => setShowLegalModal(true)}>
+                    <Button variant="outline" size="lg" onClick={() => setShowLegalModal(true)}>
                       show me the legal stuff
                     </Button>
                     <Button
                       colorScheme="pink"
+                      size="lg"
                       onClick={() => void handleReturningSkip()}
                       isLoading={disclaimerAckPending}
                     >
@@ -1259,6 +1300,7 @@ export default function App() {
                   </Box>
                   <Button
                     colorScheme="pink"
+                    size="lg"
                     alignSelf="flex-start"
                     onClick={() => void handleDisclaimerAccept(true, "legal_v1")}
                     isLoading={disclaimerAckPending}
@@ -1299,7 +1341,12 @@ export default function App() {
           )}
         </ModalBody>
         <ModalFooter>
-          <Button colorScheme="pink" onClick={() => void handleLegalModalAccept()} isLoading={disclaimerAckPending}>
+          <Button
+            colorScheme="pink"
+            size="lg"
+            onClick={() => void handleLegalModalAccept()}
+            isLoading={disclaimerAckPending}
+          >
             I accept
           </Button>
         </ModalFooter>

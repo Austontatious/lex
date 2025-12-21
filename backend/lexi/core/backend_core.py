@@ -171,8 +171,10 @@ from ..routes.now import router as now_router, tools as tools_router
 from ..routes.alpha import router as alpha_router
 from ..routes.onboarding import router as onboarding_router
 from ..routes.account import router as account_router
+from ..routes.identity import router as identity_router
 from ..routes.user_data import router as user_data_router
 from ..routes.vector import router as vector_router
+from ..routes.avatar_edit import router as avatar_edit_router
 
 app.include_router(lexi_router)
 app.include_router(health_router)
@@ -184,8 +186,10 @@ app.include_router(tools_router)  # <-- ...and /tools/web_search
 app.include_router(alpha_router)
 app.include_router(onboarding_router, prefix="/lexi")
 app.include_router(account_router)
+app.include_router(identity_router)
 app.include_router(user_data_router)
 app.include_router(vector_router)
+app.include_router(avatar_edit_router, prefix="/lexi")
 # Core chat routes (optional)
 try:
     from ..routes import lexi as lexi_routes

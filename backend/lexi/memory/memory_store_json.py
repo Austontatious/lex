@@ -4,12 +4,14 @@ from __future__ import annotations
 import re
 import json
 import threading
+import logging
 from pathlib import Path
 from typing import List
 
 from .memory_types import MemoryShard
 
 _LOCK = threading.Lock()
+logger = logging.getLogger("lexi.memory_store")
 
 
 class MemoryStoreJSON:

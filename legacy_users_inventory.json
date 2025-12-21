@@ -1,0 +1,1070 @@
+{
+  "artifacts": {
+    "content_hits": [
+      {
+        "match": "alpha session registry",
+        "path": "/mnt/data/Lex/tools/inventory_users.py"
+      },
+      {
+        "match": "session_manager.py",
+        "path": "/mnt/data/Lex/tools/inventory_users.py"
+      }
+    ],
+    "file_matches": [
+      {
+        "path": "/mnt/data/Lex/README-ALPHA-DEPLOY.md",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/constraints.alpha.txt",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/logs/sessions_pre_2025-12-05.zip",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/logs/accounts/accounts.sqlite3",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/tests/test_session_logging.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/tests/__pycache__/test_session_logging.cpython-310-pytest-8.4.2.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/core/session_store.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/core/__pycache__/session_store.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/memory/session_memory.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/memory/session_memory.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/memory/__pycache__/session_memory.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/routes/lexi_persona_state.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/routes/alpha.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/routes/__pycache__/alpha.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/alpha/session_manager.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/alpha/__pycache__/session_manager.cpython-311.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/Lexi/lexi/alpha/__pycache__/session_manager.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/pip/_vendor/requests/sessions.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/pip/_vendor/requests/__pycache__/sessions.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/pip/_internal/network/session.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/pip/_internal/network/__pycache__/session.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypy/message_registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypy/message_registry.cpython-310-x86_64-linux-gnu.so",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypy/__pycache__/message_registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypy/typeshed/stdlib/email/headerregistry.pyi",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypyc/lower/registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypyc/lower/registry.cpython-310-x86_64-linux-gnu.so",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypyc/lower/__pycache__/registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypyc/primitives/registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypyc/primitives/registry.cpython-310-x86_64-linux-gnu.so",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/venv/lib/python3.10/site-packages/mypyc/primitives/__pycache__/registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/tools/inventory_users.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/tools/__pycache__/inventory_users.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/session_logging.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/session.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/memory/session_memory.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/memory/session_memory.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/memory/__pycache__/session_memory.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/routes/lexi_persona_state.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/routes/alpha.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/routes/__pycache__/alpha.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/models/registry.yaml",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/models/model_registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/models/__pycache__/model_registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/alpha/session_manager.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/backend/lexi/alpha/__pycache__/session_manager.cpython-311.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/caniuse-lite/data/features/png-alpha.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/core-js-pure/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/core-js-pure/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/core-js/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/core-js/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/framer-motion/dist/es/gestures/pan/PanSession.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/jest-jasmine2/build/jasmine/spyRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/jest-jasmine2/build/jasmine/spyRegistry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/tailwindcss/lib/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/tailwindcss/lib/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/tailwindcss/src/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/tailwindcss/src/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/regenerate-unicode-properties/Binary_Property/Alphabetic.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/jsdom/lib/jsdom/living/custom-elements/CustomElementRegistry-impl.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/jsdom/lib/jsdom/living/generated/CustomElementRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/jsdom/lib/jsdom/living/window/SessionHistory.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/bonjour-service/dist/lib/registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/bonjour-service/dist/lib/registry.js.map",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/bonjour-service/dist/lib/registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/css-declaration-sorter/orders/alphabetical.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/workbox-build/build/lib/module-registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/workbox-build/build/lib/module-registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/workbox-build/src/lib/module-registry.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/node_modules/language-subtag-registry/data/json/registry.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/src/components/onboarding/AlphaTour.tsx",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_backup/frontend/src/components/onboarding/AlphaWelcome.tsx",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributions/constraint_registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributions/__pycache__/constraint_registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributed/rpc/backend_registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributed/rpc/_testing/faulty_agent_backend_registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributed/rpc/_testing/__pycache__/faulty_agent_backend_registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributed/rpc/__pycache__/backend_registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributed/_shard/op_registry_utils.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributed/_shard/__pycache__/op_registry_utils.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributed/elastic/rendezvous/registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/distributed/elastic/rendezvous/__pycache__/registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/_library/fake_class_registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/_library/simple_registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/_library/__pycache__/fake_class_registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/_library/__pycache__/simple_registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/jit/mobile/nnc/registry.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/jit/tensorexpr/external_functions_registry.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/jit/runtime/symbolic_shape_registry_util.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/jit/runtime/serialized_shape_function_registry.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/jit/runtime/decomposition_registry_util.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/jit/runtime/decomposition_registry.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/jit/runtime/shape_function_registry.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/jit/runtime/symbolic_shape_registry.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/jit/passes/utils/op_registry.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/torch/csrc/distributed/c10d/GroupRegistry.hpp",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/c10/util/Registry.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/ATen/core/DeprecatedTypePropertiesRegistry.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/ATen/ops/feature_alpha_dropout.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/ATen/ops/alpha_dropout_compositeimplicitautograd_dispatch.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/ATen/ops/alpha_dropout_ops.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/ATen/ops/alpha_dropout.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/ATen/ops/feature_alpha_dropout_native.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/ATen/ops/feature_alpha_dropout_ops.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/ATen/ops/alpha_dropout_native.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/include/ATen/ops/feature_alpha_dropout_compositeimplicitautograd_dispatch.h",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/onnx/_internal/exporter/_torchlib/_torchlib_registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/onnx/_internal/exporter/_torchlib/__pycache__/_torchlib_registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/_dynamo/graph_break_registry.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/_dynamo/backends/registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/torch/_dynamo/backends/__pycache__/registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/requests/sessions.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/requests/__pycache__/sessions.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/pip/_vendor/requests/sessions.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/pip/_vendor/requests/__pycache__/sessions.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/pip/_internal/network/session.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/pip/_internal/network/__pycache__/session.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/fsspec/registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/fsspec/__pycache__/registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/sympy/core/alphabets.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/sympy/core/__pycache__/alphabets.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/sympy/interactive/session.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/sympy/interactive/__pycache__/session.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/starlette/middleware/sessions.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/starlette/middleware/__pycache__/sessions.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/tiktoken/registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/.venv/lib/python3.10/site-packages/tiktoken/__pycache__/registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/session_logging.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/session.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/core/session_store.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/memory/session_memory.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/memory/session_memory.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/memory/__pycache__/session_memory.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/routes/lexi_persona_state.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/routes/alpha.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/routes/account.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/routes/__pycache__/account.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/routes/__pycache__/alpha.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/alpha/session_manager.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/backend/lexi/alpha/__pycache__/session_manager.cpython-311.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/caniuse-lite/data/features/png-alpha.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/core-js-pure/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/core-js-pure/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/core-js/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/core-js/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/framer-motion/dist/es/gestures/pan/PanSession.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/jest-jasmine2/build/jasmine/spyRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/jest-jasmine2/build/jasmine/spyRegistry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/tailwindcss/lib/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/tailwindcss/lib/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/tailwindcss/src/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/tailwindcss/src/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/regenerate-unicode-properties/Binary_Property/Alphabetic.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/jsdom/lib/jsdom/living/custom-elements/CustomElementRegistry-impl.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/jsdom/lib/jsdom/living/generated/CustomElementRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/jsdom/lib/jsdom/living/window/SessionHistory.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/bonjour-service/dist/lib/registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/bonjour-service/dist/lib/registry.js.map",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/bonjour-service/dist/lib/registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/css-declaration-sorter/orders/alphabetical.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/workbox-build/build/lib/module-registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/workbox-build/build/lib/module-registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/workbox-build/src/lib/module-registry.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend/node_modules/language-subtag-registry/data/json/registry.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/memory/session_memory.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/memory/session_memory.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/memory/__pycache__/session_memory.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/routes/lexi_persona_state.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/routes/alpha.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/routes/__pycache__/alpha.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/models/registry.yaml",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/models/model_registry.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/models/__pycache__/model_registry.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/caniuse-lite/data/features/png-alpha.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/core-js-pure/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/core-js-pure/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/core-js/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/core-js/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/framer-motion/dist/es/gestures/pan/PanSession.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/jest-jasmine2/build/jasmine/spyRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/jest-jasmine2/build/jasmine/spyRegistry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/tailwindcss/lib/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/tailwindcss/lib/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/tailwindcss/src/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/tailwindcss/src/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/regenerate-unicode-properties/Binary_Property/Alphabetic.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/jsdom/lib/jsdom/living/custom-elements/CustomElementRegistry-impl.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/jsdom/lib/jsdom/living/generated/CustomElementRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/jsdom/lib/jsdom/living/window/SessionHistory.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/bonjour-service/dist/lib/registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/bonjour-service/dist/lib/registry.js.map",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/bonjour-service/dist/lib/registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/css-declaration-sorter/orders/alphabetical.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/workbox-build/build/lib/module-registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/workbox-build/build/lib/module-registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/workbox-build/src/lib/module-registry.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/node_modules/language-subtag-registry/data/json/registry.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/src/components/onboarding/AlphaTour.tsx",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/frontend/src/components/onboarding/AlphaWelcome.tsx",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/alpha/session_manager.py",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/lexi/alpha/__pycache__/session_manager.cpython-310.pyc",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/frontend/src/components/onboarding/AlphaTour.tsx",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/Lexi_snapshot/frontend/src/components/onboarding/AlphaWelcome.tsx",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/caniuse-lite/data/features/png-alpha.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/core-js-pure/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/core-js-pure/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/core-js/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/core-js/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/framer-motion/dist/es/gestures/pan/PanSession.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/jest-jasmine2/build/jasmine/spyRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/jest-jasmine2/build/jasmine/spyRegistry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/tailwindcss/lib/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/tailwindcss/lib/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/tailwindcss/src/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/tailwindcss/src/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/regenerate-unicode-properties/Binary_Property/Alphabetic.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/jsdom/lib/jsdom/living/custom-elements/CustomElementRegistry-impl.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/jsdom/lib/jsdom/living/generated/CustomElementRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/jsdom/lib/jsdom/living/window/SessionHistory.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/bonjour-service/dist/lib/registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/bonjour-service/dist/lib/registry.js.map",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/bonjour-service/dist/lib/registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/css-declaration-sorter/orders/alphabetical.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/workbox-build/build/lib/module-registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/workbox-build/build/lib/module-registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/workbox-build/src/lib/module-registry.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/node_modules/language-subtag-registry/data/json/registry.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/src/components/onboarding/AlphaTour.tsx",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/duplicates/backend_lexi_frontend_dup/src/components/onboarding/AlphaWelcome.tsx",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/_quarantine/conflicts/_quarantine__duplicates__Lexi_snapshot__lexi__memory__session_memory.py__71ca4524f8e5",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/docs/identity_alpha.md",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/caniuse-lite/data/features/png-alpha.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/core-js-pure/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/core-js-pure/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/core-js/internals/get-alphabet-option.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/core-js/internals/symbol-registry-detection.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/framer-motion/dist/es/gestures/pan/PanSession.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/jest-jasmine2/build/jasmine/spyRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/jest-jasmine2/build/jasmine/spyRegistry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/tailwindcss/lib/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/tailwindcss/lib/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/tailwindcss/src/util/withAlphaVariable.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/tailwindcss/src/util/removeAlphaVariables.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/regenerate-unicode-properties/Binary_Property/Alphabetic.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/jsdom/lib/jsdom/living/custom-elements/CustomElementRegistry-impl.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/jsdom/lib/jsdom/living/generated/CustomElementRegistry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/jsdom/lib/jsdom/living/window/SessionHistory.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/bonjour-service/dist/lib/registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/bonjour-service/dist/lib/registry.js.map",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/bonjour-service/dist/lib/registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/css-declaration-sorter/orders/alphabetical.mjs",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/workbox-build/build/lib/module-registry.js",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/workbox-build/build/lib/module-registry.d.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/workbox-build/src/lib/module-registry.ts",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/node_modules/language-subtag-registry/data/json/registry.json",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/src/components/onboarding/AlphaTour.tsx",
+        "reason": "filename_match"
+      },
+      {
+        "path": "/mnt/data/Lex/frontend/src/components/onboarding/AlphaWelcome.tsx",
+        "reason": "filename_match"
+      }
+    ]
+  },
+  "identity_db": "/mnt/data/Lex/data/identity/identity.db",
+  "identity_db_stats": {
+    "exists": false
+  },
+  "memory_root": "/mnt/data/Lex/backend/memory",
+  "user_data_root": "/mnt/data/avatars",
+  "users": [
+    {
+      "hints": {
+        "user_id": "tester@example.com"
+      },
+      "kind": "legacy",
+      "legacy_id": "tester@example.com",
+      "paths": {
+        "memory": "/mnt/data/Lex/backend/memory/users/tester@example.com"
+      },
+      "stats": {
+        "memory": {
+          "bytes": 1867,
+          "file_count": 1
+        },
+        "total_bytes": 1867,
+        "total_files": 1
+      }
+    }
+  ]
+}

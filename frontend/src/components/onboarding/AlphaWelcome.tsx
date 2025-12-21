@@ -30,7 +30,15 @@ const AlphaWelcome = ({ copy, onYes, onNo, loadingChoice }: AlphaWelcomeProps) =
   const paragraphs = tourText.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
 
   return (
-    <Flex direction="column" align="center" justify="center" minH="100vh" px={6} py={10}>
+    <Flex
+      className="appShell"
+      direction="column"
+      align="center"
+      justify="center"
+      minH="var(--app-dvh)"
+      px={6}
+      py={10}
+    >
       <Box
         maxW="640px"
         w="100%"

@@ -36,6 +36,17 @@ _REPO_KONTEXT_IMG2IMG = Path(__file__).resolve().parents[3] / "docker/comfy/work
 if not _DEFAULT_KONTEXT_IMG2IMG.exists() and _REPO_KONTEXT_IMG2IMG.exists():
     _DEFAULT_KONTEXT_IMG2IMG = _REPO_KONTEXT_IMG2IMG
 
+# Dedicated edit workflow (semantic mask + Flux Fill). Kept separate from txt2img defaults.
+_DEFAULT_WORKFLOW_EDIT = Path(
+    os.getenv("LEXI_COMFY_WORKFLOW_EDIT")
+    or "/app/docker/comfy/workflows/fusion_fill_edit_api.json"
+)
+_REPO_WORKFLOW_EDIT = (
+    Path(__file__).resolve().parents[3] / "docker/comfy/workflows/fusion_fill_edit_api.json"
+)
+if not _DEFAULT_WORKFLOW_EDIT.exists() and _REPO_WORKFLOW_EDIT.exists():
+    _DEFAULT_WORKFLOW_EDIT = _REPO_WORKFLOW_EDIT
+
 _WORKFLOW_CACHE: Dict[str, tuple[float, str]] = {}
 log = logging.getLogger("lexi.sd.comfy")
 log.setLevel(logging.INFO)
@@ -56,6 +67,16 @@ def _workflow_path(override: Optional[Path] = None) -> Path:
         raise FileNotFoundError(
             f"Flux workflow template not found at {candidate}. "
             "Set FLUX_WORKFLOW_PATH to a valid JSON file."
+        )
+    return candidate
+
+
+def _edit_workflow_path(override: Optional[Path] = None) -> Path:
+    candidate = override or _DEFAULT_WORKFLOW_EDIT
+    if not candidate.exists():
+        raise FileNotFoundError(
+            f"Edit workflow template not found at {candidate}. "
+            "Set LEXI_COMFY_WORKFLOW_EDIT to a valid JSON file."
         )
     return candidate
 
@@ -86,6 +107,62 @@ def _load_workflow_template(path: Optional[Path] = None) -> Dict[str, Any]:
     return wf
 
 
+def _nodes_map(workflow: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """
+    Normalize workflow nodes into a mutable id->node mapping.
+    Supports both API-style dicts and UI export lists under "nodes".
+    """
+    if isinstance(workflow.get("nodes"), list):
+        nodes_list = workflow["nodes"]
+        nodes = {
+            str(n.get("id")): n for n in nodes_list if isinstance(n, dict) and n.get("id") is not None
+        }
+        return nodes
+    return {str(k): v for k, v in workflow.items() if isinstance(v, dict)}
+
+
+def _set_input_value(
+    workflow: Dict[str, Any],
+    *,
+    class_types: tuple[str, ...],
+    key: str,
+    value: Any,
+    occurrence: int = 0,
+) -> Optional[str]:
+    """
+    Set an input value on the Nth node matching class_types.
+    Returns the node id on success, None if not found.
+    """
+    def _sort_key(item: tuple[str, Dict[str, Any]]) -> Any:
+        try:
+            return int(item[0])
+        except ValueError:
+            return item[0]
+
+    nodes = [
+        (nid, node)
+        for nid, node in sorted(_nodes_map(workflow).items(), key=_sort_key)
+        if node.get("class_type") in class_types
+    ]
+    if occurrence >= len(nodes):
+        return None
+    nid, node = nodes[occurrence]
+    inputs = node.setdefault("inputs", {})
+    inputs[key] = value
+    return nid
+
+
+def _set_text_payload(node: Dict[str, Any], text: str) -> None:
+    """Best-effort update for text-like fields on a node."""
+    inputs = node.setdefault("inputs", {})
+    for key in ("text", "clip_l", "t5xxl", "prompt"):
+        if key in inputs:
+            inputs[key] = text
+    widgets = node.get("widgets_values")
+    if isinstance(widgets, list) and widgets:
+        widgets[0] = text
+
+
 def _normalize_ip_seed(ip: str) -> int:
     digits = "".join(ch for ch in (ip or "") if ch.isdigit())
     if digits:
@@ -97,6 +174,17 @@ def _normalize_ip_seed(ip: str) -> int:
 def _sanitize_prefix(token: Optional[str]) -> str:
     safe = normalize_ip(token or "")
     return safe or "lexi"
+
+
+def _set_if_present(node: Dict[str, Any], key: str, value: Any) -> bool:
+    """Set an input only if the key already exists."""
+    inputs = node.get("inputs")
+    if not isinstance(inputs, dict):
+        return False
+    if key not in inputs:
+        return False
+    inputs[key] = value
+    return True
 
 
 def comfy_flux_generate(
@@ -148,11 +236,13 @@ def comfy_flux_generate(
     encode_neg["guidance"] = float(guidance or FLUX_DEFAULTS["guidance_neg"])
 
     sampler_inputs["seed"] = int(seed)
-    sampler_inputs["steps"] = int(steps or FLUX_DEFAULTS["steps"])
+    sampler_inputs["steps"] = max(20, int(steps or FLUX_DEFAULTS["steps"]))
     sampler_inputs["cfg"] = float(cfg or FLUX_DEFAULTS["cfg"])
     sampler_inputs["sampler_name"] = sampler_name or FLUX_DEFAULTS["sampler"]
     sampler_inputs["scheduler"] = scheduler or FLUX_DEFAULTS["scheduler"]
-    sampler_inputs["denoise"] = float(denoise or FLUX_DEFAULTS["denoise"])
+    sampler_inputs["denoise"] = 1.0
+    if str(sampler_inputs.get("sampler_name", "")).endswith("_sde_gpu"):
+        sampler_inputs["sampler_name"] = "dpmpp_2m"
 
     latent_inputs["width"] = int(width)
     latent_inputs["height"] = int(height)
@@ -363,9 +453,163 @@ def comfy_flux_generate_img2img_v10(
     raise RuntimeError(f"Comfy Flux img2img v10 generation failed: {last_err}")
 
 
+def comfy_flux_fill_edit(
+    image_path: str,
+    target_phrase: str,
+    prompt: str,
+    *,
+    face_phrase: str = "face",
+    seed: Optional[int] = None,
+    steps: Optional[int] = None,
+    cfg: Optional[float] = None,
+    denoise: Optional[float] = None,
+    sampler_name: Optional[str] = None,
+    scheduler: Optional[str] = None,
+    workflow_path: Optional[Path] = None,
+    timeout_s: int = 90,
+    retries: int = 1,
+    client_id: str = "lexi-flux-fill-edit",
+    filename_prefix: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Prepare and submit the Flux Fill edit workflow (semantic mask + inpaint).
+    Expects the workflow JSON to already include the Florence2 → SAM2 → mask math path.
+    """
+    path = _edit_workflow_path(workflow_path)
+    workflow = _load_workflow_template(path)
+    nodes = _nodes_map(workflow)
+    patched_fields: list[str] = []
+
+    # Image input
+    img_node = _set_input_value(
+        workflow,
+        class_types=("LoadImage", "LoadImageMask", "ImageInput"),
+        key="image",
+        value=image_path,
+        occurrence=0,
+    )
+    if img_node:
+        patched_fields.append(f"image@{img_node}")
+
+    # Target + face phrases via Florence2
+    florence_classes = ("Florence2Run", "Florence2", "Florence2RunSE")
+    target_node = _set_input_value(
+        workflow,
+        class_types=florence_classes,
+        key="text",
+        value=target_phrase,
+        occurrence=0,
+    )
+    if target_node:
+        patched_fields.append(f"target_phrase@{target_node}")
+    face_node = _set_input_value(
+        workflow,
+        class_types=florence_classes,
+        key="text",
+        value=face_phrase,
+        occurrence=1,
+    )
+    if face_node:
+        patched_fields.append(f"face_phrase@{face_node}")
+
+    # Inpaint prompt (CLIP encode or equivalent)
+    encode_nodes = [
+        (nid, node)
+        for nid, node in nodes.items()
+        if node.get("class_type")
+        in (
+            "CLIPTextEncodeFlux",
+            "CLIPTextEncode",
+            "CLIPTextEncodeSDXL",
+            "FluxGuidance",
+        )
+    ]
+    if encode_nodes:
+        _set_text_payload(encode_nodes[0][1], prompt or "")
+        patched_fields.append(f"prompt@{encode_nodes[0][0]}")
+
+    # Sampler / scheduler knobs
+    sampler_classes = (
+        "KSampler",
+        "KSamplerAdvanced",
+        "SamplerCustomAdvanced",
+        "ModelSamplingFlux",
+        "KSamplerSelect",
+        "BasicScheduler",
+        "RandomNoise",
+    )
+    for nid, node in nodes.items():
+        if node.get("class_type") not in sampler_classes:
+            continue
+        if seed is not None:
+            if _set_if_present(node, "seed", int(seed)) or _set_if_present(node, "noise_seed", int(seed)):
+                patched_fields.append(f"seed@{nid}")
+        if steps is not None:
+            if _set_if_present(node, "steps", int(steps)):
+                patched_fields.append(f"steps@{nid}")
+        if cfg is not None and _set_if_present(node, "cfg", float(cfg)):
+            patched_fields.append(f"cfg@{nid}")
+        if scheduler and _set_if_present(node, "scheduler", scheduler):
+            patched_fields.append(f"scheduler@{nid}")
+        if denoise is not None and _set_if_present(node, "denoise", float(denoise)):
+            patched_fields.append(f"denoise@{nid}")
+        if sampler_name and _set_if_present(node, "sampler_name", sampler_name):
+            patched_fields.append(f"sampler@{nid}")
+
+    # Save image prefix
+    if filename_prefix:
+        save_node = _set_input_value(
+            workflow,
+            class_types=("SaveImage",),
+            key="filename_prefix",
+            value=_sanitize_prefix(filename_prefix),
+        )
+        if save_node:
+            patched_fields.append(f"filename_prefix@{save_node}")
+
+    missing = []
+    if not img_node:
+        missing.append("LoadImage.image")
+    if not target_node:
+        missing.append("Florence2 target text")
+    if not encode_nodes:
+        missing.append("Text encoder / prompt node")
+    if missing:
+        raise RuntimeError(
+            "Edit workflow missing expected nodes: "
+            + ", ".join(missing)
+            + ". Update fusion_fill_edit_api.json or set LEXI_COMFY_WORKFLOW_EDIT."
+        )
+
+    payload = {"prompt": workflow, "client_id": client_id}
+    _log_prompt_payload("flux_edit_fill", payload)
+    last_err: Optional[Exception] = None
+    for attempt in range(retries + 1):
+        try:
+            response = requests.post(f"{COMFY_URL}/prompt", json=payload, timeout=timeout_s)
+            response.raise_for_status()
+            if response.headers.get("content-type", "").startswith("application/json"):
+                log.info(
+                    "[lexi][flux_edit_fill] submitted workflow=%s patched=%s",
+                    path,
+                    ",".join(patched_fields) or "none",
+                )
+                return response.json()
+            return {"status_code": response.status_code}
+        except Exception as exc:  # pragma: no cover - network path
+            last_err = exc
+            log.warning(
+                "[lexi][flux_edit_fill] comfy prompt attempt %s failed: %s", attempt + 1, exc
+            )
+            if attempt < retries:
+                time.sleep(0.5)
+    raise RuntimeError(f"Comfy Flux edit-fill generation failed: {last_err}")
+
+
 __all__ = [
     "comfy_flux_generate",
     "comfy_flux_generate_v2",
     "comfy_flux_generate_img2img_v10",
+    "comfy_flux_fill_edit",
     "_normalize_ip_seed",
 ]

@@ -74,16 +74,67 @@ def _load_text(path: Path) -> str:
         return ""
 
 
-async def build_full_disclaimer_text(entry_mode: Literal["new", "returning"] = "new") -> str:
+async def build_adlib_disclaimer_text(
+    request: Request,
+    entry_mode: Literal["new", "returning"] = "new",
+) -> str:
     """
-    Return the long-form disclaimer text, preferring the static file and falling
-    back to the tour fallback copy if needed.
+    Generate Lexi's ad-libbed onboarding disclaimer (short, friendly, non-canned),
+    ending with a YES/NO prompt. Never inline the full legal text.
+    Falls back to LEXI_TOUR_FALLBACK if generation fails.
     """
-    text = _load_text(LEGAL_PATH)
-    if text:
+    try:
+        # Keep tool contract tiny. We don't actually need tools here,
+        # but you already have a tools pipeline.
+        tool_contract = {
+            "name": "now_lookup",
+            "description": "Optional: fetch headlines if needed",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "topic": {"type": "string"},
+                    "geo": {"type": "string"},
+                },
+                "required": ["topic"],
+            },
+        }
+
+        system = _tour_system_prompt()
+        ctx = _tour_context(tool_contract)
+
+        messages = [
+            {"role": "system", "content": system},
+            {
+                "role": "user",
+                "content": (
+                    f"Entry mode: {entry_mode}.\n"
+                    "Give the short, ad-libbed onboarding disclaimer in Lexi's voice. "
+                    "3-6 short paragraphs. Mention boundaries, privacy, not-a-doctor, "
+                    "and end by asking if they want the boring legal version. "
+                    "Do NOT include the legal text. "
+                    "End with: say 'yes' to see it, 'no' to skip."
+                ),
+            },
+            {"role": "system", "content": json.dumps(ctx)},
+        ]
+
+        # No tools actually required; keep list empty to prevent tool-call weirdness.
+        res = await _chat_with_tools(messages, tools=[], max_tokens=420, temperature=0.85)
+        text = (res.get("content") or "").strip()
+
+        # Guardrails: if model returns empty or suspiciously contains the legal header, fallback.
+        if not text or "BORING LEGAL VERSION" in text or "LEXI - BORING LEGAL" in text:
+            return LEXI_TOUR_FALLBACK
+
         return text
-    log.warning("legal disclaimer text missing; falling back to tour copy (%s)", entry_mode)
-    return LEXI_TOUR_FALLBACK
+    except Exception as exc:
+        log.warning("adlib disclaimer generation failed: %s", exc)
+        return LEXI_TOUR_FALLBACK
+
+
+def load_legal_disclaimer_text() -> str:
+    text = _load_text(LEGAL_PATH)
+    return text
 
 
 def _tour_system_prompt() -> str:
@@ -247,6 +298,25 @@ async def onboarding_boot(req: OnboardingReq, request: Request) -> Dict[str, Any
 
     context = _tour_context(tool_contract)
     legal_available = LEGAL_PATH.exists()
+    session_id = _active_session_id(request)
+    registry = _session_registry(request)
+    if mode == "tour" and session_id and registry:
+        try:
+            cached_text = registry.get_onboarding_text(session_id)
+        except Exception:
+            cached_text = None
+        if cached_text:
+            return {
+                "ok": True,
+                "message": {"role": "assistant", "content": cached_text},
+                "tool_used": False,
+                "fallback": False,
+                "tools_contract": tool_contract,
+                "legal_available": legal_available,
+                "legal_path": "/lexi/tour/legal",
+                "skip_message": SKIP_FALLBACK,
+                "cached": True,
+            }
 
     fallback = False
     used_tools = False
@@ -273,6 +343,12 @@ async def onboarding_boot(req: OnboardingReq, request: Request) -> Dict[str, Any
             fallback = True
             reply_text = LEXI_TOUR_FALLBACK
 
+    if mode == "tour" and session_id and registry and reply_text:
+        try:
+            registry.set_onboarding_text(session_id, reply_text)
+        except Exception:
+            pass
+
     _log_session_event(
         request,
         {
@@ -293,6 +369,7 @@ async def onboarding_boot(req: OnboardingReq, request: Request) -> Dict[str, Any
         "legal_available": legal_available,
         "legal_path": "/lexi/tour/legal",
         "skip_message": SKIP_FALLBACK,
+        "cached": False,
     }
 
 
@@ -327,7 +404,7 @@ async def disclaimer_preload(req: DisclaimerPreloadReq, request: Request) -> Dic
     except Exception:
         registry.create_session(session_id=session_id)
 
-    text = await build_full_disclaimer_text(entry_mode=req.entry_mode)
+    text = await build_adlib_disclaimer_text(request, entry_mode=req.entry_mode)
     try:
         registry.set_disclaimer(session_id, text)
     except Exception as exc:  # pragma: no cover - cache best-effort
@@ -350,5 +427,11 @@ async def disclaimer_cached(request: Request) -> Dict[str, Any]:
     except Exception:
         cached = None
     if not cached:
-        return {"status": "EMPTY"}
+        # fallback: generate on demand so UI never shows canned splash
+        text = await build_full_disclaimer_text(entry_mode="returning")
+        try:
+            registry.set_disclaimer(session_id, text)
+        except Exception:
+            pass
+        return {"status": "OK", "disclaimer": text}
     return {"status": "OK", "disclaimer": cached}

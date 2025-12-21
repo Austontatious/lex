@@ -38,6 +38,8 @@ class SessionState:
     memory_path: Path
     summary_path: Path
     metrics_path: Path
+    onboarding_path: Path
+    disclaimer_path: Path
     counters: Dict[str, int] = field(
         default_factory=lambda: {"avatar_preview": 0, "avatar_upscale": 0}
     )
@@ -46,6 +48,7 @@ class SessionState:
     message_count: int = 0
     last_checkpoint_count: int = 0
     disclaimer_cache: Optional[str] = None
+    onboarding_text: Optional[str] = None
 
     def iso_created(self) -> str:
         return _iso(self.created_at)
@@ -61,8 +64,10 @@ class SessionRegistry:
         base = Path(self._settings.logs_base_dir())
         self.sessions_root = base / "sessions"
         self.archive_root = base / "archive"
+        self.index_root = self.sessions_root / "_index"
         self.sessions_root.mkdir(parents=True, exist_ok=True)
         self.archive_root.mkdir(parents=True, exist_ok=True)
+        self.index_root.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._sessions: Dict[str, SessionState] = {}
         self._base_counts = {
@@ -88,6 +93,11 @@ class SessionRegistry:
         with self._lock:
             if session_id and session_id in self._sessions:
                 return self._sessions[session_id]
+            if session_id:
+                existing = self._rehydrate_session(session_id)
+                if existing:
+                    self._sessions[session_id] = existing
+                    return existing
             session_id = session_id or f"sess_{uuid.uuid4().hex[:12]}"
             today = _utc_now().date().isoformat()
             session_dir = self.sessions_root / today / session_id
@@ -96,6 +106,8 @@ class SessionRegistry:
             memory_path = session_dir / "memory.jsonl"
             summary_path = session_dir / "summary.json"
             metrics_path = session_dir / "metrics.json"
+            onboarding_path = session_dir / "onboarding.txt"
+            disclaimer_path = session_dir / "disclaimer.txt"
 
             for path in (memory_path,):
                 path.touch(exist_ok=True)
@@ -111,6 +123,8 @@ class SessionRegistry:
                 memory_path=memory_path,
                 summary_path=summary_path,
                 metrics_path=metrics_path,
+                onboarding_path=onboarding_path,
+                disclaimer_path=disclaimer_path,
             )
 
             metadata = {
@@ -136,13 +150,20 @@ class SessionRegistry:
             metrics_path.write_text(json.dumps(metrics_doc, indent=2, sort_keys=True), encoding="utf-8")
 
             self._sessions[session_id] = state
+            self._write_index(session_id, session_dir)
             return state
 
     def get(self, session_id: str) -> SessionState:
         with self._lock:
             state = self._sessions.get(session_id)
             if not state:
+                state = self._rehydrate_session(session_id)
+                if state:
+                    self._sessions[session_id] = state
+            if not state:
                 raise KeyError(f"Unknown session_id {session_id!r}")
+            if state.user_id is None:
+                self._refresh_state_from_disk(state)
             return state
 
     def require(self, session_id: Optional[str]) -> SessionState:
@@ -266,6 +287,10 @@ class SessionRegistry:
         with self._lock:
             state = self.require(session_id)
             state.disclaimer_cache = text
+            try:
+                state.disclaimer_path.write_text(text or "", encoding="utf-8")
+            except Exception:
+                pass
             self._write_summary(
                 state,
                 {
@@ -276,7 +301,45 @@ class SessionRegistry:
     def get_disclaimer(self, session_id: str) -> Optional[str]:
         with self._lock:
             state = self.require(session_id)
-            return state.disclaimer_cache
+            if state.disclaimer_cache:
+                return state.disclaimer_cache
+            try:
+                cached = state.disclaimer_path.read_text(encoding="utf-8")
+            except Exception:
+                cached = ""
+            cached = cached.strip()
+            if cached:
+                state.disclaimer_cache = cached
+            return cached or None
+
+    def set_onboarding_text(self, session_id: str, text: str) -> None:
+        with self._lock:
+            state = self.require(session_id)
+            state.onboarding_text = text
+            try:
+                state.onboarding_path.write_text(text or "", encoding="utf-8")
+            except Exception:
+                pass
+            self._write_summary(
+                state,
+                {
+                    "onboarding_cached_at": _iso(),
+                },
+            )
+
+    def get_onboarding_text(self, session_id: str) -> Optional[str]:
+        with self._lock:
+            state = self.require(session_id)
+            if state.onboarding_text:
+                return state.onboarding_text
+            try:
+                cached = state.onboarding_path.read_text(encoding="utf-8")
+            except Exception:
+                cached = ""
+            cached = cached.strip()
+            if cached:
+                state.onboarding_text = cached
+            return cached or None
 
     # ------------------------------------------------------------------
     # Archiving
@@ -331,3 +394,109 @@ class SessionRegistry:
     def _archive_destination(self, state: SessionState) -> Path:
         date_dir = state.created_at.date().isoformat()
         return self.archive_root / date_dir / state.session_id
+
+    def _refresh_state_from_disk(self, state: SessionState) -> None:
+        doc = self._load_summary(state)
+        if not doc:
+            return
+        user_id = doc.get("user_id")
+        if state.user_id is None and isinstance(user_id, str) and user_id:
+            state.user_id = user_id
+        if "consent" in doc:
+            state.consent = bool(doc.get("consent"))
+        variant = doc.get("variant")
+        if isinstance(variant, str) and variant:
+            state.variant = variant
+
+    def _index_path(self, session_id: str) -> Path:
+        return self.index_root / session_id
+
+    def _write_index(self, session_id: str, session_dir: Path) -> None:
+        try:
+            rel = session_dir.relative_to(self.sessions_root)
+        except Exception:
+            rel = session_dir
+        try:
+            self._index_path(session_id).write_text(str(rel), encoding="utf-8")
+        except Exception:
+            pass
+
+    def _resolve_session_dir(self, session_id: str) -> Optional[Path]:
+        index_path = self._index_path(session_id)
+        try:
+            rel = index_path.read_text(encoding="utf-8").strip()
+        except Exception:
+            rel = ""
+        if rel:
+            candidate = (self.sessions_root / rel).resolve()
+            if candidate.exists():
+                return candidate
+        for candidate in self.sessions_root.glob(f"*/{session_id}"):
+            if candidate.is_dir():
+                self._write_index(session_id, candidate)
+                return candidate
+        return None
+
+    def _parse_iso(self, value: Optional[str]) -> datetime:
+        if not value:
+            return _utc_now()
+        try:
+            cleaned = value.replace("Z", "+00:00")
+            return datetime.fromisoformat(cleaned)
+        except Exception:
+            return _utc_now()
+
+    def _rehydrate_session(self, session_id: str) -> Optional[SessionState]:
+        session_dir = self._resolve_session_dir(session_id)
+        if not session_dir:
+            return None
+        summary_path = session_dir / "summary.json"
+        metrics_path = session_dir / "metrics.json"
+        memory_path = session_dir / "memory.jsonl"
+        onboarding_path = session_dir / "onboarding.txt"
+        disclaimer_path = session_dir / "disclaimer.txt"
+        if not summary_path.exists():
+            return None
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8") or "{}")
+        except Exception:
+            summary = {}
+        created_at = self._parse_iso(summary.get("created_at"))
+        consent = bool(summary.get("consent", True))
+        user_id = summary.get("user_id")
+        variant = summary.get("variant") or self._pick_variant()
+        state = SessionState(
+            session_id=session_id,
+            created_at=created_at,
+            consent=consent,
+            user_id=user_id,
+            variant=variant,
+            session_dir=session_dir,
+            memory_path=memory_path,
+            summary_path=summary_path,
+            metrics_path=metrics_path,
+            onboarding_path=onboarding_path,
+            disclaimer_path=disclaimer_path,
+        )
+        if not memory_path.exists():
+            memory_path.touch(exist_ok=True)
+        try:
+            cached = disclaimer_path.read_text(encoding="utf-8").strip()
+            if cached:
+                state.disclaimer_cache = cached
+        except Exception:
+            pass
+        try:
+            cached = onboarding_path.read_text(encoding="utf-8").strip()
+            if cached:
+                state.onboarding_text = cached
+        except Exception:
+            pass
+        try:
+            metrics = json.loads(metrics_path.read_text(encoding="utf-8") or "{}")
+            counts = metrics.get("counts")
+            if isinstance(counts, dict):
+                state.counters.update({k: int(v) for k, v in counts.items() if isinstance(v, int)})
+        except Exception:
+            pass
+        return state

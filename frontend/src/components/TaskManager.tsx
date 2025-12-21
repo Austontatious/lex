@@ -35,11 +35,12 @@ const TaskManager: React.FC<TaskManagerProps> = ({ onSend, response }) => {
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSend();
             }}
+            size="lg"
             bg="whiteAlpha.100"
             color="white"
           />
-          <InputRightElement width="4.5rem">
-            <Button h="1.75rem" size="sm" onClick={handleSend} colorScheme="teal">
+          <InputRightElement width="6rem">
+            <Button size="lg" onClick={handleSend} colorScheme="teal" minH={11} minW={11}>
               Send
             </Button>
           </InputRightElement>
@@ -58,4 +59,3 @@ const TaskManager: React.FC<TaskManagerProps> = ({ onSend, response }) => {
 };
 
 export default TaskManager;
-

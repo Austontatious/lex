@@ -16,7 +16,10 @@ RUN git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git
 
 # Install Python dependencies (PyTorch already provided by base image)
 WORKDIR /app/ComfyUI
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir \
+      opencv-python-headless matplotlib scikit-image imageio piexif \
+      segment-anything dill
 
 # Default server flags (overridable via CLI_ARGS env)
 ENV CLI_ARGS="--listen 0.0.0.0 --port 8188"

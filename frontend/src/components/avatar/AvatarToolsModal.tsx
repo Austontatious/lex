@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Badge,
   Box,
   Button,
   FormControl,
@@ -27,77 +26,12 @@ import {
 } from "../../services/api";
 import { refreshAvatar } from "../../lib/refreshAvatar";
 
-const BASE_AVATAR_PROMPT =
-  "cinematic full-body portrait of Lexi, professional instagram influencer aesthetic, neutral studio backdrop, ultra flattering editorial lighting, soft volumetric rim light, golden hour glow effect, dewy realistic skin texture, confident subtle expression, tasteful suggestive pose, shallow depth of field, high detail, cinematic color grading, hyperrealistic, instagram editorial aesthetic";
-
-const DEFAULT_NEGATIVE_PROMPT =
-  "low quality, blurry, distorted face, extra limbs, deformed hands, watermark, logo, text, duplicate body parts";
-
-const HAIR_MAP = {
-  keep: "soft natural hair color",
-  brunette: "rich dark brunette",
-  blonde: "soft golden blonde",
-  redhead: "warm copper red",
-  black: "glossy jet black",
-};
-
-const HAIR_STYLE_MAP = {
-  keep: "loosely styled",
-  straight: "sleek straight",
-  wavy: "soft beachy waves",
-  curly: "big soft curls",
-  updo: "messy romantic updo",
-};
-
-const SKIN_TONE_MAP = {
-  keep: "naturally glowing skin",
-  fair: "fair porcelain skin",
-  light_medium: "light peachy skin",
-  olive: "warm olive-toned skin",
-  tan: "sun-kissed medium tone skin",
-  deep: "rich deep brown skin",
-};
-
-const EYE_MAP = {
-  keep: "expressive eyes",
-  brown: "warm brown eyes",
-  hazel: "gold-flecked hazel eyes",
-  green: "vibrant green eyes",
-  blue: "bright blue eyes",
-};
-
-const OUTFIT_MAP = {
-  keep: "a simple, form-flattering outfit that shows off her figure",
-  lbd: "a sleek, curve-hugging little black dress, subtle but glamorous",
-  lounge: "soft, fitted loungewear, cozy knit top and snug lounge pants",
-  casual: "a fitted tee and high-waisted skinny jeans, elevated casual",
-  business: "a tailored blazer over a fitted top and slim trousers, polished and sharp",
-  sporty: "a fitted sports bra and high-waisted leggings, gym-ready and athletic",
-};
-
-const VIBE_MAP = {
-  soft: "soft relaxed body language, warm gentle smile, inviting eyes, cozy approachable energy",
-  playful: "sparkling eyes, playful smirk, slightly tilted head, teasing fun energy",
-  elegant: "poised posture, graceful hands, serene expression, refined elegant presence",
-  confident:
-    "strong stance, shoulders back, direct eye contact, subtle knowing smile, unapologetically confident energy",
-  sultry:
-    "slow smoldering gaze, lips slightly parted, subtly arched posture, relaxed but undeniably sensual energy",
-};
-
-const LEXIVERSE_STYLE_MAP: Record<LexiverseStyle, string> = {
-  off: "",
-  soft: "subtle stylized Lexiverse lighting and color",
-  full: "bold Lexiverse-inspired stylized lighting, slightly surreal color grading",
-  promo: "dramatic Lexiverse promo art style, highly stylized lighting",
-};
-
-type HairKey = keyof typeof HAIR_MAP;
-type HairStyleKey = keyof typeof HAIR_STYLE_MAP;
-type SkinKey = keyof typeof SKIN_TONE_MAP;
-type EyeKey = keyof typeof EYE_MAP;
-type OutfitKey = keyof typeof OUTFIT_MAP;
-type VibeKey = keyof typeof VIBE_MAP;
+type HairKey = "brunette" | "blonde" | "redhead" | "black";
+type HairStyleKey = "straight" | "wavy" | "curly" | "updo";
+type SkinKey = "fair" | "light_medium" | "olive" | "tan" | "deep";
+type EyeKey = "brown" | "hazel" | "green" | "blue";
+type OutfitKey = "lbd" | "lounge" | "casual" | "business" | "sporty";
+type VibeKey = "soft" | "playful" | "elegant" | "confident" | "sultry";
 
 type AvatarFormState = {
   hair: HairKey;
@@ -111,34 +45,15 @@ type AvatarFormState = {
 };
 
 const DEFAULT_FORM_STATE: AvatarFormState = {
-  hair: "keep",
-  hairStyle: "keep",
-  skinTone: "keep",
-  eyes: "keep",
-  outfit: "keep",
+  hair: "brunette",
+  hairStyle: "wavy",
+  skinTone: "light_medium",
+  eyes: "hazel",
+  outfit: "lbd",
   vibe: "soft",
-  lexiverseStyle: "soft",
+  lexiverseStyle: "promo",
   extraDetails: "",
 };
-
-function buildAvatarPrompt(state: AvatarFormState): string {
-  const hairColor = HAIR_MAP[state.hair];
-  const hairStyle = HAIR_STYLE_MAP[state.hairStyle];
-  const hairCombined = [hairColor, hairStyle].filter(Boolean).join(" ");
-
-  const parts = [
-    BASE_AVATAR_PROMPT,
-    hairCombined ? `${hairCombined} hair` : "",
-    EYE_MAP[state.eyes],
-    SKIN_TONE_MAP[state.skinTone],
-    OUTFIT_MAP[state.outfit],
-    VIBE_MAP[state.vibe],
-    LEXIVERSE_STYLE_MAP[state.lexiverseStyle],
-    state.extraDetails.trim(),
-  ];
-
-  return parts.filter(Boolean).join(", ");
-}
 
 type AvatarToolsModalProps = {
   isOpen: boolean;
@@ -191,13 +106,19 @@ export function AvatarToolsModal({
     setIsSubmitting(true);
     onGenerationStart?.();
     try {
-      const prompt = buildAvatarPrompt(formState);
       const payload = {
-        prompt,
-        negative_prompt: DEFAULT_NEGATIVE_PROMPT,
         sd_mode: mode,
         lexiverse_style: formState.lexiverseStyle,
-        // push img2img harder off the base to break repetition
+        traits: {
+          hair: formState.hair,
+          hair_style: formState.hairStyle,
+          skin_tone: formState.skinTone,
+          eyes: formState.eyes,
+          outfit: formState.outfit,
+          vibe: formState.vibe,
+        },
+        extra_details: formState.extraDetails || undefined,
+        // keep strength in case img2img is revived later
         strength: mode === "img2img" ? 0.6 : undefined,
       } as const;
       const res = await requestAvatarGeneration(payload);
@@ -294,12 +215,16 @@ export function AvatarToolsModal({
       alignItems="center"
       justifyContent="center"
       px={{ base: 4, md: 6 }}
+      pt="calc(var(--safe-top) + 12px)"
+      pb="calc(var(--safe-bottom) + 12px)"
       role="dialog"
       aria-modal="true"
+      onClick={onClose}
     >
       <Box
         w="100%"
         maxW="1100px"
+        maxH="calc(var(--app-dvh) - var(--safe-top) - var(--safe-bottom) - 24px)"
         bg={surface}
         color={textColor}
         p={{ base: 5, md: 7 }}
@@ -307,6 +232,9 @@ export function AvatarToolsModal({
         boxShadow="2xl"
         position="relative"
         overflow="hidden"
+        display="flex"
+        flexDirection="column"
+        onClick={(event) => event.stopPropagation()}
       >
         <Box
           position="absolute"
@@ -314,8 +242,8 @@ export function AvatarToolsModal({
           bgGradient="linear(to-br, rgba(255,105,180,0.15), rgba(118,75,255,0.12))"
           pointerEvents="none"
         />
-        <Box position="relative" zIndex={1}>
-          <HStack justify="space-between" mb={4}>
+        <Box position="relative" zIndex={1} display="flex" flexDirection="column" flex="1" minH="0">
+          <HStack justify="space-between" mb={4} flexShrink={0}>
             <Box>
               <Text fontWeight="bold" fontSize="xl">
                 Avatar tools
@@ -327,187 +255,183 @@ export function AvatarToolsModal({
             <IconButton
               aria-label="Close avatar tools"
               icon={<CloseIcon boxSize={3} />}
-              size="sm"
+              size="lg"
+              minW={11}
+              minH={11}
               variant="ghost"
               onClick={onClose}
             />
           </HStack>
 
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-            <VStack align="stretch" spacing={4}>
-              <HStack spacing={3}>
-                <FormControl>
-                  <FormLabel fontSize="sm">Hair</FormLabel>
-                  <Select
-                    value={formState.hair}
-                    onChange={(e) => updateField("hair", e.target.value as HairKey)}
-                  >
-                    <option value="keep">Keep as is</option>
-                    <option value="brunette">Dark brunette</option>
-                    <option value="blonde">Blonde</option>
-                    <option value="redhead">Redhead</option>
-                    <option value="black">Black hair</option>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel fontSize="sm">Style</FormLabel>
-                  <Select
-                    value={formState.hairStyle}
-                    onChange={(e) => updateField("hairStyle", e.target.value as HairStyleKey)}
-                  >
-                    <option value="keep">Keep natural</option>
-                    <option value="straight">Straight</option>
-                    <option value="wavy">Wavy</option>
-                    <option value="curly">Curly</option>
-                    <option value="updo">Updo</option>
-                  </Select>
-                </FormControl>
-              </HStack>
-
-              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
-                <FormControl>
-                  <FormLabel fontSize="sm">Skin tone</FormLabel>
-                  <Select
-                    value={formState.skinTone}
-                    onChange={(e) => updateField("skinTone", e.target.value as SkinKey)}
-                  >
-                    <option value="keep">Keep as is</option>
-                    <option value="fair">Fair</option>
-                    <option value="light_medium">Light/medium</option>
-                    <option value="olive">Olive</option>
-                    <option value="tan">Tan</option>
-                    <option value="deep">Deep</option>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel fontSize="sm">Eyes</FormLabel>
-                  <Select
-                    value={formState.eyes}
-                    onChange={(e) => updateField("eyes", e.target.value as EyeKey)}
-                  >
-                    <option value="keep">Keep as is</option>
-                    <option value="brown">Brown</option>
-                    <option value="hazel">Hazel</option>
-                    <option value="green">Green</option>
-                    <option value="blue">Blue</option>
-                  </Select>
-                </FormControl>
-              </SimpleGrid>
-
-              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
-                <FormControl>
-                  <FormLabel fontSize="sm">Outfit</FormLabel>
-                  <Select
-                    value={formState.outfit}
-                    onChange={(e) => updateField("outfit", e.target.value as OutfitKey)}
-                  >
-                    <option value="keep">Keep as is</option>
-                    <option value="lbd">Little black dress</option>
-                    <option value="lounge">Cozy loungewear</option>
-                    <option value="casual">Casual jeans and tee</option>
-                    <option value="business">Business chic</option>
-                    <option value="sporty">Sporty / gym fit</option>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel fontSize="sm">Vibe / mood</FormLabel>
-                  <Select
-                    value={formState.vibe}
-                    onChange={(e) => updateField("vibe", e.target.value as VibeKey)}
-                  >
-                    <option value="soft">Soft & cuddly</option>
-                    <option value="playful">Playful</option>
-                    <option value="elegant">Elegant</option>
-                    <option value="confident">Confident</option>
-                    <option value="sultry">Sultry</option>
-                  </Select>
-                </FormControl>
-              </SimpleGrid>
-
-              <FormControl>
-                <FormLabel fontSize="sm">Anything specific you want to add?</FormLabel>
-                <Textarea
-                  value={formState.extraDetails}
-                  onChange={(e) => updateField("extraDetails", e.target.value)}
-                  placeholder="e.g., soft pink nails, studio lighting, a hint of freckles…"
-                  minH="80px"
-                  maxH="160px"
-                  resize="vertical"
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel fontSize="sm">Lexiverse style intensity</FormLabel>
-                <Select
-                  value={formState.lexiverseStyle}
-                  onChange={(e) =>
-                    updateField("lexiverseStyle", e.target.value as AvatarFormState["lexiverseStyle"])
-                  }
-                >
-                  <option value="off">Off</option>
-                  <option value="soft">Soft Lexiverse</option>
-                  <option value="full">Full Lexiverse</option>
-                  <option value="promo">Promo mode</option>
-                </Select>
-              </FormControl>
-            </VStack>
-
-            <VStack align="stretch" spacing={4}>
-              <Box
-                borderWidth="1px"
-                borderRadius="xl"
-                overflow="hidden"
-                boxShadow="sm"
-                bg="blackAlpha.50"
-              >
-                {currentAvatarUrl ? (
-                  <Image src={currentAvatarUrl} alt="Current avatar" w="100%" h="100%" />
-                ) : (
-                  <Box p={6}>
-                    <Text color={helperColor} textAlign="center">
-                      Your current avatar will show here.
-                    </Text>
-                  </Box>
-                )}
-              </Box>
-              <Box>
-                <Badge mb={2} colorScheme="pink" bg={badgeBg}>
-                  Generation mode
-                </Badge>
-                <VStack align="stretch" spacing={3}>
-                  <Button
-                    colorScheme="pink"
-                    onClick={() => void handleGenerate("img2img")}
-                    isDisabled={isSubmitting}
-                  >
-                    {isSubmitting ? <Spinner size="sm" mr={2} /> : null}
-                    Change my look
-                  </Button>
-                  <Text fontSize="xs" color={helperColor} ml={1}>
-                    Lightly update my look while keeping me recognizably Lexi.
-                  </Text>
-                  <Button
-                    variant="outline"
-                    onClick={() => void handleGenerate("txt2img")}
-                    isDisabled={isSubmitting}
-                  >
-                    {isSubmitting ? <Spinner size="sm" mr={2} /> : null}
-                    Try something new
-                  </Button>
-                  <Text fontSize="xs" color={helperColor} ml={1}>
-                    Generate a brand new Lexi from scratch.
-                  </Text>
-                </VStack>
-              </Box>
-
-              {isSubmitting && (
-                <HStack spacing={2} color={helperColor}>
-                  <Spinner size="sm" color="pink.400" />
-                  <Text fontSize="sm">Generating your new look…</Text>
+          <Box
+            flex="1"
+            minH="0"
+            overflowY="auto"
+            pb="calc(var(--safe-bottom) + 12px)"
+            css={{ WebkitOverflowScrolling: "touch" }}
+          >
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+              <VStack align="stretch" spacing={4}>
+                <HStack spacing={3}>
+                  <FormControl>
+                    <FormLabel fontSize="sm">Hair</FormLabel>
+                    <Select
+                      size="lg"
+                      value={formState.hair}
+                      onChange={(e) => updateField("hair", e.target.value as HairKey)}
+                    >
+                      <option value="brunette">Dark brunette</option>
+                      <option value="blonde">Blonde</option>
+                      <option value="redhead">Redhead</option>
+                      <option value="black">Black hair</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize="sm">Style</FormLabel>
+                    <Select
+                      size="lg"
+                      value={formState.hairStyle}
+                      onChange={(e) => updateField("hairStyle", e.target.value as HairStyleKey)}
+                    >
+                      <option value="straight">Straight</option>
+                      <option value="wavy">Wavy</option>
+                      <option value="curly">Curly</option>
+                      <option value="updo">Updo</option>
+                    </Select>
+                  </FormControl>
                 </HStack>
-              )}
-            </VStack>
-          </SimpleGrid>
+
+                <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
+                  <FormControl>
+                    <FormLabel fontSize="sm">Skin tone</FormLabel>
+                    <Select
+                      size="lg"
+                      value={formState.skinTone}
+                      onChange={(e) => updateField("skinTone", e.target.value as SkinKey)}
+                    >
+                      <option value="fair">Fair</option>
+                      <option value="light_medium">Light/medium</option>
+                      <option value="olive">Olive</option>
+                      <option value="tan">Tan</option>
+                      <option value="deep">Deep</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize="sm">Eyes</FormLabel>
+                    <Select
+                      size="lg"
+                      value={formState.eyes}
+                      onChange={(e) => updateField("eyes", e.target.value as EyeKey)}
+                    >
+                      <option value="brown">Brown</option>
+                      <option value="hazel">Hazel</option>
+                      <option value="green">Green</option>
+                      <option value="blue">Blue</option>
+                    </Select>
+                  </FormControl>
+                </SimpleGrid>
+
+                <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
+                  <FormControl>
+                    <FormLabel fontSize="sm">Outfit</FormLabel>
+                    <Select
+                      size="lg"
+                      value={formState.outfit}
+                      onChange={(e) => updateField("outfit", e.target.value as OutfitKey)}
+                    >
+                      <option value="lbd">Little black dress</option>
+                      <option value="lounge">Cozy loungewear</option>
+                      <option value="casual">Casual jeans and tee</option>
+                      <option value="business">Business chic</option>
+                      <option value="sporty">Sporty / gym fit</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize="sm">Vibe / mood</FormLabel>
+                    <Select
+                      size="lg"
+                      value={formState.vibe}
+                      onChange={(e) => updateField("vibe", e.target.value as VibeKey)}
+                    >
+                      <option value="soft">Soft & cuddly</option>
+                      <option value="playful">Playful</option>
+                      <option value="elegant">Elegant</option>
+                      <option value="confident">Confident</option>
+                      <option value="sultry">Sultry</option>
+                    </Select>
+                  </FormControl>
+                </SimpleGrid>
+
+                <FormControl>
+                  <FormLabel fontSize="sm">Anything specific you want to add?</FormLabel>
+                  <Textarea
+                    size="lg"
+                    value={formState.extraDetails}
+                    onChange={(e) => updateField("extraDetails", e.target.value)}
+                    placeholder="e.g., soft pink nails, studio lighting, a hint of freckles…"
+                    minH="80px"
+                    maxH="160px"
+                    resize="vertical"
+                  />
+                </FormControl>
+
+                {/* Lexiverse is always on; promo intensity locked in */}
+              </VStack>
+
+              <VStack align="stretch" spacing={4}>
+                <Box
+                  borderWidth="1px"
+                  borderRadius="xl"
+                  overflow="hidden"
+                  boxShadow="sm"
+                  bg="blackAlpha.50"
+                >
+                  {currentAvatarUrl ? (
+                    <Image
+                      src={currentAvatarUrl}
+                      alt="Current avatar"
+                      w="100%"
+                      h="100%"
+                      loading="lazy"
+                      decoding="async"
+                      objectFit="cover"
+                      aspectRatio="3 / 4"
+                      sizes="(max-width: 768px) 100vw, 320px"
+                    />
+                  ) : (
+                    <Box p={6}>
+                      <Text color={helperColor} textAlign="center">
+                        Your current avatar will show here.
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
+                <Box>
+                  <VStack align="stretch" spacing={3}>
+                    <Button
+                      colorScheme="pink"
+                      size="lg"
+                      onClick={() => void handleGenerate("txt2img")}
+                      isDisabled={isSubmitting}
+                    >
+                      {isSubmitting ? <Spinner size="sm" mr={2} /> : null}
+                      Try something new
+                    </Button>
+                    <Text fontSize="xs" color={helperColor} ml={1}>
+                      Fresh Lexiverse look with your selected traits.
+                    </Text>
+                  </VStack>
+                </Box>
+
+                {isSubmitting && (
+                  <HStack spacing={2} color={helperColor}>
+                    <Spinner size="sm" color="pink.400" />
+                    <Text fontSize="sm">Generating your new look…</Text>
+                  </HStack>
+                )}
+              </VStack>
+            </SimpleGrid>
+          </Box>
         </Box>
       </Box>
     </Box>

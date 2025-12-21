@@ -1,0 +1,24 @@
+{
+  "generated_at": "auto",
+  "identity_db": "/mnt/data/Lex/data/identity/identity.db",
+  "memory_root": "/mnt/data/Lex/backend/memory",
+  "plan": [
+    {
+      "canonical_user_id": "user_133b410f-8739-45eb-8152-2e35a9a57443",
+      "handle_links": [
+        "tester@example.com"
+      ],
+      "handle_norm": "tester_example.com",
+      "merge_from": [
+        "tester@example.com"
+      ],
+      "needs_disambiguation": false
+    }
+  ],
+  "summary": {
+    "ambiguous": 0,
+    "canonical_plans": 1,
+    "legacy_entries": 1
+  },
+  "user_data_root": "/mnt/data/avatars"
+}

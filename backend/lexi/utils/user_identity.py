@@ -1,13 +1,18 @@
-"""Helpers for optional per-user bucketing (email-or-name identifiers)."""
+"""Helpers for per-user bucketing (path-safe identifiers)."""
 
 from __future__ import annotations
 
+import logging
 import os
-import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-_INVALID_CHARS = re.compile(r"[^a-z0-9_.@-]+")
+from ..identity.normalize import normalize_user_id_for_paths
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from starlette.requests import Request
+
+logger = logging.getLogger("lexi.user_identity")
 
 
 def user_id_feature_enabled() -> bool:
@@ -18,30 +23,26 @@ def user_id_feature_enabled() -> bool:
 
 def normalize_user_id(user_id: Optional[str]) -> Optional[str]:
     """
-    Lowercase and sanitize an email-or-name into a safe path fragment.
-
-    - Strips whitespace, swaps spaces for hyphens.
-    - Collapses invalid characters to "-" and trims noisy punctuation.
-    - Returns ``None`` if nothing usable remains.
+    Normalize a user id into a safe path fragment.
     """
-    if not user_id:
+    return normalize_user_id_for_paths(user_id)
+
+
+def sanitize_user_id(user_id: Optional[str]) -> Optional[str]:
+    """Alias for normalization (kept explicit for path safety)."""
+    return normalize_user_id(user_id)
+
+
+def resolve_user_id(request: "Request") -> Optional[str]:
+    """Legacy shim: return request.state.user_id and log misuse."""
+    if request is None:
         return None
-
-    text = str(user_id).strip().lower()
-    if not text:
-        return None
-
-    text = text.replace(" ", "-")
-    text = _INVALID_CHARS.sub("-", text)
-    text = re.sub(r"-{2,}", "-", text).strip("-._")
-    if not text:
-        return None
-
-    # Keep identifiers short to avoid pathological paths.
-    if len(text) > 80:
-        text = text[:80].rstrip("-._")
-
-    return text or None
+    current = getattr(request.state, "user_id", None)
+    if current:
+        logger.error("resolve_user_id called; use request.state.user_id instead")
+    else:
+        logger.error("resolve_user_id called before identity middleware")
+    return current
 
 
 def user_bucket(base_dir: Path | str, user_id: Optional[str]) -> Optional[Path]:
@@ -63,4 +64,10 @@ def user_bucket(base_dir: Path | str, user_id: Optional[str]) -> Optional[Path]:
     return bucket
 
 
-__all__ = ["normalize_user_id", "user_bucket", "user_id_feature_enabled"]
+__all__ = [
+    "normalize_user_id",
+    "sanitize_user_id",
+    "resolve_user_id",
+    "user_bucket",
+    "user_id_feature_enabled",
+]

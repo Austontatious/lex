@@ -9,7 +9,7 @@ export function FeedbackButton() {
   return (
     <>
       <Button
-        size="sm"
+        size="lg"
         variant="outline"
         color="white"
         borderColor="whiteAlpha.600"
@@ -22,4 +22,3 @@ export function FeedbackButton() {
     </>
   );
 }
-

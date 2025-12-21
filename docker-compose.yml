@@ -49,6 +49,9 @@ services:
       - /mnt/data/comfy/custom_nodes:/app/ComfyUI/custom_nodes
       - /mnt/data/comfy/extra_model_paths.yaml:/app/ComfyUI/extra_model_paths.yaml:ro
       - /mnt/data/Lex/assets/default.png:/app/ComfyUI/input/default.png:ro
+      - ./data:/data:ro
+    ports:
+      - "8188:8188"
     healthcheck:
       test: ["CMD", "bash", "-lc", "curl -sf http://127.0.0.1:8188/ || exit 1"]
       interval: 15s
@@ -102,7 +105,7 @@ services:
       - comfy-sd
     volumes:
       - ./data:/data
-      - ./logs/sessions:/app/logs/sessions
+      - ./logs:/app/logs
       - hf_cache:/data/hf_cache
       - /mnt/data/models:/mnt/data/models:ro
       - /mnt/data/comfy:/mnt/data/comfy:ro
@@ -111,6 +114,7 @@ services:
       python3 -m uvicorn lexi.core.backend_core:app
       --host 0.0.0.0
       --port 9000
+      --workers 4
       --proxy-headers
       --timeout-keep-alive 300
       --timeout-graceful-shutdown 300

@@ -35,10 +35,10 @@ from ..config.config import (
     AVATAR_URL_PREFIX,
     STATIC_ROOT,
     STATIC_URL_PREFIX,
-    TRAIT_STATE_PATH,
 )
 from ..persona.persona_core import lexi_persona
 from ..session_logging import log_event
+from ..memory.memory_core import resolve_memory_root
 from ..utils.ip_seed import (
     avatars_public_url_base,
     avatars_static_dir,
@@ -48,7 +48,8 @@ from ..utils.ip_seed import (
 )
 from ..utils.request_ip import request_ip
 from ..utils.publish_static import latest_output_png, publish_as
-from ..utils.user_identity import normalize_user_id
+from ..user_identity import request_user_id
+from ..utils.user_identity import normalize_user_id, user_bucket
 from ..utils.avatar_manifest import (
     record_avatar_event,
     latest_avatar_path,
@@ -240,11 +241,32 @@ def _web_to_fs(static_web_path: str) -> Optional[Path]:
 
 # -------------------- Trait state helpers --------------------
 
+PERSONA_STATE_NAME = "persona_state.json"
 
-def _load_traits() -> Dict[str, str]:
+def _persona_state_path(user_id: Optional[str]) -> Path:
+    base = resolve_memory_root()
+    bucket = user_bucket(base, user_id or "shared")
+    if bucket:
+        return bucket / PERSONA_STATE_NAME
+    fallback = base / "users" / "shared" / PERSONA_STATE_NAME
     try:
-        if TRAIT_STATE_PATH.exists():
-            data = json.loads(TRAIT_STATE_PATH.read_text())
+        fallback.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    return fallback
+
+
+def _require_user_id(request: Request) -> Optional[str]:
+    if getattr(request.state, "needs_disambiguation", False):
+        raise HTTPException(status_code=409, detail="identity collision")
+    return request_user_id(request)
+
+
+def _load_traits(user_id: Optional[str] = None) -> Dict[str, str]:
+    try:
+        path = _persona_state_path(user_id)
+        if path.exists():
+            data = json.loads(path.read_text())
             traits = data.get("traits", {}) or {}
             if isinstance(traits, dict):
                 return {str(k): str(v) for k, v in traits.items()}
@@ -253,25 +275,36 @@ def _load_traits() -> Dict[str, str]:
     return {}
 
 
-def _save_state(traits: Dict[str, str], avatar_path: Optional[str] = None) -> None:
+def _save_state(
+    traits: Dict[str, str],
+    avatar_path: Optional[str] = None,
+    *,
+    user_id: Optional[str] = None,
+) -> None:
     state: Dict[str, Any] = {"traits": traits}
     if avatar_path:
         state["avatar_path"] = avatar_path
     try:
-        TRAIT_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+        path = _persona_state_path(user_id)
+        path.write_text(json.dumps(state, ensure_ascii=False, indent=2))
     except Exception as exc:
         logger.warning("Failed to save traits/state: %s", exc)
 
 
 # --- Back-compat shim for routes.lexi expecting _save_traits() ---
-def _save_traits(traits: Dict[str, str], avatar_path: Optional[str] = None) -> None:
-    _save_state(traits, avatar_path)
+def _save_traits(
+    traits: Dict[str, str],
+    avatar_path: Optional[str] = None,
+    user_id: Optional[str] = None,
+) -> None:
+    _save_state(traits, avatar_path, user_id=user_id)
 
 
-def _get_saved_avatar_web() -> Optional[str]:
+def _get_saved_avatar_web(user_id: Optional[str] = None) -> Optional[str]:
     try:
-        if TRAIT_STATE_PATH.exists():
-            data = json.loads(TRAIT_STATE_PATH.read_text())
+        path = _persona_state_path(user_id)
+        if path.exists():
+            data = json.loads(path.read_text())
             p = data.get("avatar_path")
             if isinstance(p, str):
                 base = p.split("?")[0]
@@ -512,8 +545,9 @@ async def persona_avatar_status(job_id: str, request: Request) -> Dict[str, Any]
 @router.get("", response_model=PersonaOut)
 @router.get("/", response_model=PersonaOut)
 async def get_persona(request: Request) -> PersonaOut:
-    traits = _load_traits()
-    avatar_web = _get_saved_avatar_web()
+    user_id = _require_user_id(request)
+    traits = _load_traits(user_id)
+    avatar_web = _get_saved_avatar_web(user_id)
     image_path = _resolve_avatar_url(request, avatar_web)
 
     ready = not _get_missing_fields(traits)
@@ -533,12 +567,13 @@ async def add_trait(request: Request, body: TraitIn) -> Dict[str, Any]:
 
     log_event(request, "user", text, event="persona_add_trait")
 
-    traits = _load_traits()
+    user_id = _require_user_id(request)
+    traits = _load_traits(user_id)
     missing = _get_missing_fields(traits)
     if missing:
         # Fill the next missing field with user-provided text
         traits[missing[0]] = text
-        _save_state(traits)
+        _save_state(traits, user_id=user_id)
 
     ready = not _get_missing_fields(traits)
     prompt = _assemble_prompt(traits) if ready else ""
@@ -556,7 +591,7 @@ async def add_trait(request: Request, body: TraitIn) -> Dict[str, Any]:
     persona = {
         "traits": traits,
         "certainty": 1.0 if ready else 0.8,
-        "image_path": _resolve_avatar_url(request, _get_saved_avatar_web()),
+        "image_path": _resolve_avatar_url(request, _get_saved_avatar_web(user_id)),
     }
     if narration:
         log_event(
@@ -582,8 +617,8 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
     if _generate_fn is None:
         raise HTTPException(status_code=500, detail="Avatar pipeline is unavailable")
 
-    user_id = normalize_user_id(getattr(request.state, "user_id", None))
-    traits = _load_traits()
+    user_id = _require_user_id(request)
+    traits = _load_traits(user_id)
     ip = _client_ip(request)
     base_name = normalize_user_id(user_id) or _avatar_basename_for_ip(ip)
 
@@ -653,7 +688,7 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
         # Prefer caller-provided source_path; otherwise fall back to saved avatar
         src_fs = resolve_path(body.source_path) if body.source_path else None
         if src_fs is None:
-            saved_web = _get_saved_avatar_web()
+            saved_web = _get_saved_avatar_web(user_id)
             if saved_web:
                 p = _web_to_fs(saved_web)
                 src_fs = p.as_posix() if p else None
@@ -788,7 +823,7 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
     if isinstance(web_url, str) and web_url.strip():
         absolute = _absolute_url(request, web_url)
         stored_path = web_url if web_url.startswith("/") else absolute
-        _save_state(traits, avatar_path=stored_path)
+        _save_state(traits, avatar_path=stored_path, user_id=user_id)
         _record_success(absolute, result.get("narration", "Here she is!"))
         base_part = web_url.split("?")[0]
         filename = Path(base_part).name
@@ -808,7 +843,7 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
         file_path = result.get("file") or result.get("path")
     if isinstance(file_path, str) and Path(file_path).exists():
         web_url = _fs_to_web(Path(file_path))
-        _save_state(traits, avatar_path=web_url)
+        _save_state(traits, avatar_path=web_url, user_id=user_id)
         absolute = _absolute_url(request, web_url)
         _record_success(absolute, result.get("narration", "Here she is!"))
         return {
@@ -829,7 +864,7 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
             out = (_AVATARS_DIR / fname).resolve()
             out.write_bytes(base64.b64decode(b64))
             web_url = _fs_to_web(out)
-            _save_state(traits, avatar_path=web_url)
+            _save_state(traits, avatar_path=web_url, user_id=user_id)
             absolute = _absolute_url(request, web_url)
             _record_success(absolute, result.get("narration"))
             return {
@@ -846,8 +881,9 @@ async def generate_avatar(request: Request, body: AvatarIn) -> Dict[str, Any]:
 
 
 @router.get("/debug/traits")
-def debug_traits() -> Dict[str, Any]:
-    file_traits = _load_traits()
+def debug_traits(request: Request) -> Dict[str, Any]:
+    user_id = _require_user_id(request)
+    file_traits = _load_traits(user_id)
     try:
         persona_traits = getattr(lexi_persona, "get_traits", lambda: {})()
     except Exception:

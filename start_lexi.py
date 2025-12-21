@@ -32,6 +32,13 @@ NESTED_PKG = PROJECT_ROOT / "Lexi"
 if str(NESTED_PKG) not in sys.path:
     sys.path.insert(0, str(NESTED_PKG))
 
+DEPRECATION_MESSAGE = (
+    "start_lexi.py is deprecated; use `docker compose up -d` instead. "
+    "Set LEXI_SUPPRESS_START_LEXI_WARNING=1 to silence this warning."
+)
+if os.getenv("LEXI_SUPPRESS_START_LEXI_WARNING") != "1":
+    print(DEPRECATION_MESSAGE, file=sys.stderr)
+
 # External services (updated defaults)
 COMFY_URL = os.getenv("COMFY_URL", "http://host.docker.internal:8188").rstrip("/")
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "http://host.docker.internal:8008/v1").rstrip("/")
@@ -101,7 +108,7 @@ def launch_backend(port: int) -> subprocess.Popen:
         env.setdefault("LEX_MODEL_ID", LLM_MODEL)
     if "LEX_DATA_DIR" not in env:
         env["LEX_DATA_DIR"] = str(PROJECT_ROOT / "Lexi")
-    env.setdefault("LEX_MEMORY_PATH", str(PROJECT_ROOT / "Lexi" / "memory" / "lexi_memory.jsonl"))
+    env.setdefault("LEXI_MEMORY_ROOT", str(PROJECT_ROOT / "data" / "memory"))
 
     # ── SDXL / Comfy defaults (filenames ONLY; Comfy reads from models/checkpoints) ──
     # These are safe defaults and can be overridden by real env at runtime.
@@ -129,10 +136,10 @@ def launch_backend(port: int) -> subprocess.Popen:
 
     proc = subprocess.Popen(
         [
-            PYTHON_BIN, "-m", "uvicorn", "Lexi.lexi.core.backend_core:app",
+            PYTHON_BIN, "-m", "uvicorn", "backend.lexi.core.backend_core:app",
             "--host", "0.0.0.0", "--port", str(port),
             "--timeout-keep-alive", "0",
-            "--reload", "--reload-dir", str(PROJECT_ROOT / "Lexi"),
+            "--reload", "--reload-dir", str(PROJECT_ROOT / "backend"),
             "--workers", "1",
         ],
         env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1

@@ -19,8 +19,10 @@ os.environ.setdefault("LEX_MEMORY_PATH", str(tmp_mem))
 # Provide a stub for missing user_identity module before importing persona_core
 fake_user_identity = types.SimpleNamespace(
     normalize_user_id=lambda uid: uid,
+    sanitize_user_id=lambda uid: uid,
     user_bucket=lambda base, uid: None,
     user_id_feature_enabled=lambda: False,
+    resolve_user_id=lambda request: None,
 )
 sys.modules.setdefault("backend.lexi.utils.user_identity", fake_user_identity)
 sys.modules.setdefault("lexi.utils.user_identity", fake_user_identity)
