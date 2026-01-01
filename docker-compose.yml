@@ -60,18 +60,78 @@ services:
     networks:
       - lexnet
 
+  vllm:
+    build:
+      context: ./docker/vllm
+      dockerfile: Dockerfile
+    image: local/vllm-openai:lexi
+    profiles: ["default"]
+    restart: unless-stopped
+    ipc: host
+    entrypoint: ["/vllm-entrypoint.sh"]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0,1,2,3
+      - CUDA_VISIBLE_DEVICES=0,1,2,3
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0", "1", "2", "3"]
+              capabilities: [gpu]
+    volumes:
+      - /mnt/data/models:/mnt/data/models:ro
+      - /mnt/data/hf_cache:/root/.cache/huggingface
+      - ./docker/vllm/vllm-entrypoint.sh:/vllm-entrypoint.sh:ro
+    ports:
+      - "8008:8008"
+    command:
+      - python
+      - -m
+      - vllm.entrypoints.openai.api_server
+      - --model
+      - /mnt/data/models/Qwen/lexi-qwen3-30b-a3b-dpo-merged
+      - --served-model-name
+      - Lexi
+      - --tensor-parallel-size
+      - "4"
+      - --dtype
+      - float16
+      - --max-num-seqs
+      - "8"
+      - --swap-space
+      - "12"
+      - --max-model-len
+      - "32000"
+      - --enforce-eager
+      - --gpu-memory-utilization
+      - "0.88"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8008"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8008/v1/models').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    networks:
+      - lexnet
+
   lexi-backend:
     build:
       context: .
       dockerfile: docker/lexi-backend/Dockerfile
     image: lexi-backend:alpha
+    profiles: ["default"]
     env_file:
       - .env.development
     environment:
       <<: *common_env
-      LLM_API_BASE: ${LLM_API_BASE:-http://host.docker.internal:8008/v1}
-      OPENAI_API_BASE: ${OPENAI_API_BASE:-http://host.docker.internal:8008/v1}
-      SUMMARIZER_ENDPOINT: ${SUMMARIZER_ENDPOINT:-http://host.docker.internal:8008/v1/chat/completions}
+      LLM_API_BASE: ${LLM_API_BASE:-http://vllm:8008/v1}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-http://vllm:8008/v1}
+      SUMMARIZER_ENDPOINT: ${SUMMARIZER_ENDPOINT:-http://vllm:8008/v1/chat/completions}
       COMFY_URL: ${COMFY_URL:-http://comfy-sd:8188}
       LEX_COMFY_URL: ${LEX_COMFY_URL:-http://comfy-sd:8188}
       COMFY_BASE_URL: ${COMFY_BASE_URL:-http://comfy-sd:8188}
@@ -83,7 +143,71 @@ services:
       LEX_IMAGE_DIR: ${LEX_IMAGE_DIR:-/app/frontend/public/avatars}
       AVATARS_PUBLIC_DIR: ${AVATARS_PUBLIC_DIR:-/app/frontend/public/avatars}
       AVATARS_PUBLIC_URL: ${AVATARS_PUBLIC_URL:-/lexi/static/avatars}
-      LEXI_PERSONA_API_BASE: ${LEXI_PERSONA_API_BASE:-http://host.docker.internal:8008/v1}
+      LEXI_PERSONA_API_BASE: ${LEXI_PERSONA_API_BASE:-http://vllm:8008/v1}
+      LEXI_PERSONA_TIMEOUT: ${LEXI_PERSONA_TIMEOUT:-10}
+      LEX_SKIP_MODEL_PREFLIGHT: ${LEX_SKIP_MODEL_PREFLIGHT:-1}
+      LEX_AVATAR_DIR: ${LEX_AVATAR_DIR:-/app/frontend/public/avatars}
+      LEX_PUBLIC_BASE: ${LEX_PUBLIC_BASE:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://lexicompanion.com}
+      FLUX_MODELS_DIR: ${FLUX_MODELS_DIR:-/mnt/data/comfy/models}
+      FLUX_DIFFUSION_DIR: ${FLUX_DIFFUSION_DIR:-/mnt/data/comfy/models/diffusion_models}
+      FLUX_TEXT_ENCODER_DIR: ${FLUX_TEXT_ENCODER_DIR:-/mnt/data/comfy/models/clip}
+      FLUX_VAE_PATH: ${FLUX_VAE_PATH:-/mnt/data/comfy/models/vae/ae.safetensors}
+      FLUX_CLIP_L: ${FLUX_CLIP_L:-/mnt/data/comfy/models/clip/clip_l.safetensors}
+      FLUX_T5XXL: ${FLUX_T5XXL:-/mnt/data/comfy/models/text_encoders/t5xxl_fp8_e4m3fn.safetensors}
+    ports:
+      - "${API_PORT:-9000}:9000"
+    expose:
+      - "9000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - comfy-sd
+      - vllm
+    volumes:
+      - ./data:/data
+      - ./logs:/app/logs
+      - /mnt/data/Lex/logs/analytics:/mnt/data/Lex/logs/analytics
+      - hf_cache:/data/hf_cache
+      - /mnt/data/models:/mnt/data/models:ro
+      - /mnt/data/comfy:/mnt/data/comfy:ro
+      - /mnt/data/avatars:/app/frontend/public/avatars
+    command: >
+      python3 -m uvicorn lexi.core.backend_core:app
+      --host 0.0.0.0
+      --port 9000
+      --workers 4
+      --proxy-headers
+      --timeout-keep-alive 300
+      --timeout-graceful-shutdown 300
+    restart: unless-stopped
+    networks: [lexnet]
+
+  lexi-backend-host-vllm:
+    build:
+      context: .
+      dockerfile: docker/lexi-backend/Dockerfile
+    image: lexi-backend:alpha
+    profiles: ["no-vllm"]
+    env_file:
+      - .env.development
+    environment:
+      <<: *common_env
+      LLM_API_BASE: http://host.docker.internal:8008/v1
+      OPENAI_API_BASE: http://host.docker.internal:8008/v1
+      SUMMARIZER_ENDPOINT: http://host.docker.internal:8008/v1/chat/completions
+      COMFY_URL: ${COMFY_URL:-http://comfy-sd:8188}
+      LEX_COMFY_URL: ${LEX_COMFY_URL:-http://comfy-sd:8188}
+      COMFY_BASE_URL: ${COMFY_BASE_URL:-http://comfy-sd:8188}
+      IMAGE_API_BASE: ${IMAGE_API_BASE:-http://comfy-sd:8188}
+      LEX_VAE: ${LEX_VAE:-ae.safetensors}
+      LEX_CLIP: ${LEX_CLIP:-clip_l.safetensors}
+      LEX_T5: ${LEX_T5:-t5xxl_fp8_e4m3fn.safetensors}
+      LEXI_STATIC_DIR: ${LEXI_STATIC_DIR:-/app/frontend/public}
+      LEX_IMAGE_DIR: ${LEX_IMAGE_DIR:-/app/frontend/public/avatars}
+      AVATARS_PUBLIC_DIR: ${AVATARS_PUBLIC_DIR:-/app/frontend/public/avatars}
+      AVATARS_PUBLIC_URL: ${AVATARS_PUBLIC_URL:-/lexi/static/avatars}
+      LEXI_PERSONA_API_BASE: http://host.docker.internal:8008/v1
       LEXI_PERSONA_TIMEOUT: ${LEXI_PERSONA_TIMEOUT:-10}
       LEX_SKIP_MODEL_PREFLIGHT: ${LEX_SKIP_MODEL_PREFLIGHT:-1}
       LEX_AVATAR_DIR: ${LEX_AVATAR_DIR:-/app/frontend/public/avatars}
@@ -106,6 +230,7 @@ services:
     volumes:
       - ./data:/data
       - ./logs:/app/logs
+      - /mnt/data/Lex/logs/analytics:/mnt/data/Lex/logs/analytics
       - hf_cache:/data/hf_cache
       - /mnt/data/models:/mnt/data/models:ro
       - /mnt/data/comfy:/mnt/data/comfy:ro
@@ -119,7 +244,10 @@ services:
       --timeout-keep-alive 300
       --timeout-graceful-shutdown 300
     restart: unless-stopped
-    networks: [lexnet]
+    networks:
+      lexnet:
+        aliases:
+          - lexi-backend
 
   lexi-frontend:
     build:
@@ -130,8 +258,6 @@ services:
       - .env.development
     environment:
       <<: *common_env
-    depends_on:
-      - lexi-backend
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     expose:
@@ -148,7 +274,6 @@ services:
       - ./cloudflared:/etc/cloudflared
     depends_on:
       - lexi-frontend
-      - lexi-backend
     restart: unless-stopped
     networks: [lexnet]
 

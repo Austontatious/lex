@@ -1,0 +1,160 @@
+.splash-root {
+  min-height: var(--app-dvh, 100vh);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--safe-top, 0px) + 28px) 24px calc(var(--safe-bottom, 0px) + 32px);
+  background: var(--lexi-card);
+  color: var(--lexi-text);
+  text-align: center;
+  font-family: "Baskerville", "Palatino Linotype", "Palatino", serif;
+}
+
+.splash-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.splash-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+.splash-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.58) 48%,
+    rgba(255, 255, 255, 0.92) 100%
+  );
+}
+
+.splash-content {
+  position: relative;
+  z-index: 2;
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  animation: splash-rise 0.7s ease-out both;
+}
+
+.splash-logo {
+  color: var(--lexi-pink);
+  width: min(240px, 70vw);
+  display: flex;
+  justify-content: center;
+}
+
+.splash-logo svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.splash-tagline {
+  margin: 0;
+  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: var(--lexi-muted);
+}
+
+.splash-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.splash-button {
+  width: 100%;
+  border-radius: 999px;
+  padding: 0.95rem 1.6rem;
+  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 2px solid transparent;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.splash-primary {
+  background: var(--lexi-pink);
+  color: #2e1c25;
+  box-shadow: var(--lexi-shadow);
+}
+
+.splash-primary:hover {
+  background: var(--lexi-pink-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 22px 40px rgba(246, 165, 192, 0.35);
+}
+
+.splash-secondary {
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--lexi-pink);
+  border-color: var(--lexi-pink);
+  box-shadow: 0 10px 24px rgba(246, 165, 192, 0.2);
+}
+
+.splash-secondary:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(246, 165, 192, 0.3);
+}
+
+.splash-button:focus-visible {
+  outline: 3px solid rgba(246, 165, 192, 0.55);
+  outline-offset: 3px;
+}
+
+@media (min-width: 720px) {
+  .splash-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .splash-button {
+    width: auto;
+    min-width: 200px;
+  }
+
+  .splash-tagline {
+    font-size: 1.1rem;
+  }
+}
+
+@keyframes splash-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-content {
+    animation: none;
+  }
+
+  .splash-button {
+    transition: none;
+  }
+}

@@ -4,6 +4,11 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import App from "./App";
+import AnalyticsDashboard from "./analytics/AnalyticsDashboard";
+import AnalyticsBootstrap from "./analytics/AnalyticsBootstrap";
+import SplashRoute from "./tour/SplashRoute";
+import TourLegal from "./tour/TourLegal";
+import TourScreen from "./tour/TourScreen";
 import TourProvider from "./tour/TourProvider";
 import reportWebVitals from "./reportWebVitals";
 
@@ -13,11 +18,15 @@ const root = ReactDOM.createRoot(
 root.render(
   <React.StrictMode>
     <ChakraProvider>
+      <AnalyticsBootstrap />
       <BrowserRouter>
         <TourProvider>
           <Routes>
-            <Route path="/" element={<App />} />
-            <Route path="/tour" element={<Navigate to="/?tour=start" replace />} />
+            <Route path="/" element={<SplashRoute />} />
+            <Route path="/tour" element={<TourScreen />} />
+            <Route path="/tour/legal" element={<TourLegal />} />
+            <Route path="/chat" element={<App />} />
+            <Route path="/analytics" element={<AnalyticsDashboard />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </TourProvider>

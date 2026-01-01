@@ -1,6 +1,8 @@
-# Lexi vLLM Service (`lexi-vllm.service`)
+# Lexi vLLM Service (`lexi-vllm.service`) — Legacy Host Fallback
 
-This server runs the Lexi vLLM OpenAI-compatible API as a systemd service.
+This server runs the Lexi vLLM OpenAI-compatible API as a **legacy** systemd service.
+The default path is now the Compose `vllm` service; use `COMPOSE_PROFILES=no-vllm docker compose up -d`
+if you need to run this host service instead.
 
 ## Service basics
 
@@ -18,19 +20,16 @@ Working directory:
 
 The script launches vLLM with:
 
-    CUDA_VISIBLE_DEVICES=1,2,3,4 /mnt/data/vllm-venv/bin/python -m vllm.entrypoints.openai.api_server \
+    CUDA_VISIBLE_DEVICES=0,1,2,3 /mnt/data/vllm-venv/bin/python -m vllm.entrypoints.openai.api_server \
       --model /mnt/data/models/Qwen/lexi-qwen3-30b-a3b-dpo-merged \
       --served-model-name Lexi \
       --tensor-parallel-size 4 \
       --dtype float16 \
-      --max-model-len 4096 \
-      --gpu-memory-utilization 0.88 \
-      --max-num-seqs 64 \
+      --max-num-seqs 8 \
       --swap-space 12 \
-      --distributed-executor-backend mp \
-      --trust-remote-code \
-      --download-dir /mnt/data/models \
-      --disable-custom-all-reduce \
+      --max-model-len 32000 \
+      --enforce-eager \
+      --gpu-memory-utilization 0.88 \
       --host 0.0.0.0 \
       --port 8008
 
@@ -87,4 +86,3 @@ Enable (start automatically on boot):
 Disable (no auto-start on boot):
 
     sudo systemctl disable lexi-vllm.service
-

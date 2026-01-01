@@ -175,6 +175,7 @@ from ..routes.identity import router as identity_router
 from ..routes.user_data import router as user_data_router
 from ..routes.vector import router as vector_router
 from ..routes.avatar_edit import router as avatar_edit_router
+from ..routes.analytics import router as analytics_router
 
 app.include_router(lexi_router)
 app.include_router(health_router)
@@ -190,6 +191,7 @@ app.include_router(identity_router)
 app.include_router(user_data_router)
 app.include_router(vector_router)
 app.include_router(avatar_edit_router, prefix="/lexi")
+app.include_router(analytics_router)
 # Core chat routes (optional)
 try:
     from ..routes import lexi as lexi_routes

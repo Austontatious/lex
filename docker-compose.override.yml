@@ -30,7 +30,6 @@ services:
       - /mnt/data/Lex/data:/data:rw
       - /mnt/data/Lex/logs:/app/logs:rw
       - lex_hf_cache:/data/hf_cache:rw
-      - /mnt/data/Lex/overrides/backend_routes/lexi.py:/app/backend/lexi/routes/lexi.py:ro
       - /mnt/data/Lex/overrides/backend_routes/lexi_persona.py:/app/backend/lexi/routes/lexi_persona.py:ro
       - /mnt/data/Lex/overrides/backend_routes/account.py:/app/backend/lexi/routes/account.py:ro
       - /mnt/data/Lex/overrides/backend_routes/onboarding.py:/app/backend/lexi/routes/onboarding.py:ro

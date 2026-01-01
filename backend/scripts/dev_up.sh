@@ -4,6 +4,7 @@ set -euo pipefail
 # Simple dev launcher with logs + health checks
 # - Starts vLLM (8008) and ComfyUI (8188) if not already running
 # - Boots Lexi backend+frontend via start_lexi.py
+# LEGACY: host-based vLLM/Comfy launcher; Compose services are the default path.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="${ROOT_DIR}/logs"
@@ -14,18 +15,15 @@ if ! curl -fsS "http://127.0.0.1:8008/v1/models" >/dev/null 2>&1; then
   echo "[dev_up] starting vLLM on :8008"
   export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1,2,3}
   nohup /mnt/data/vllm-venv/bin/python -m vllm.entrypoints.openai.api_server \
-    --model /mnt/data/models/Qwen/Qwen2.5-32B-AGI \
+    --model /mnt/data/models/Qwen/lexi-qwen3-30b-a3b-dpo-merged \
     --served-model-name Lexi \
     --tensor-parallel-size 4 \
     --dtype float16 \
-    --max-model-len 4096 \
-    --gpu-memory-utilization 0.88 \
-    --max-num-seqs 64 \
+    --max-num-seqs 8 \
     --swap-space 12 \
-    --distributed-executor-backend mp \
-    --trust-remote-code \
-    --download-dir /mnt/data/models \
-    --disable-custom-all-reduce \
+    --max-model-len 32000 \
+    --enforce-eager \
+    --gpu-memory-utilization 0.88 \
     --host 0.0.0.0 --port 8008 \
     >"$LOG_DIR/vllm.log" 2>&1 & echo $! >"$LOG_DIR/vllm.pid"
 else
@@ -35,7 +33,7 @@ fi
 # --- ComfyUI ---
 if ! curl -fsS "http://127.0.0.1:8188/queue" >/dev/null 2>&1; then
   echo "[dev_up] starting ComfyUI on :8188"
-  export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES_COMFY:-4,5}
+  export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES_COMFY:-4}
   pushd /mnt/data/comfy >/dev/null
   source venv/bin/activate
   nohup python3 main.py --listen 0.0.0.0 --port 8188 \
@@ -55,4 +53,3 @@ nohup python3 "${ROOT_DIR}/start_lexi.py" \
 sleep 2
 echo "[dev_up] PIDs:"; cat "$LOG_DIR"/*.pid 2>/dev/null || true
 echo "[dev_up] Logs: $LOG_DIR"
-

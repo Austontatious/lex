@@ -124,26 +124,31 @@ async def process(req: ChatRequest, request: Request) -> JSONResponse:
                 "mode": lex_persona.get_mode(),
             }
         )
-    # 1) Trait inference
+    # -----------------------------------------------------------------
+    # DEPRECATED: legacy appearance extraction from conversation.
+    # Avatar Tools Modal is the canonical path. This auto-trigger is
+    # intentionally disabled to prevent silent avatar updates.
+    # -----------------------------------------------------------------
     inferred = (
         extract_traits_from_text(req.prompt) if "extract_traits_from_text" in globals() else {}
     )
     if inferred:
-        traits = load_traits()
-        traits.update(inferred)
-        save_traits(traits)
-
-        result = generate_avatar_pipeline(", ".join(f"{k}: {v}" for k, v in traits.items()))
-        avatar_path = result.get("image", result.get("image_b64"))
-        lex_persona.set_avatar_path(avatar_path)  # type: ignore
-        save_traits(traits, avatar_path=avatar_path)
-
-        file_path = AVATAR_DIR / Path(lex_persona.get_avatar_path()).name  # type: ignore
+        logger.info(
+            "DEPRECATED auto appearance extraction ignored (traits=%s)",
+            ", ".join(f"{k}={v}" for k, v in inferred.items()),
+        )
+        message = (
+            "Legacy auto appearance extraction has been removed. "
+            "Use the Avatar Tools modal to update Lexi's look."
+        )
         return JSONResponse(
             {
-                "cleaned": "Got it, updating her look! 💄",
-                "avatar_url": cache_busted_url(file_path),
-                "traits": traits,
+                "cleaned": message,
+                "raw": message,
+                "choices": [{"text": message}],
+                "status": "ignored",
+                "error": "deprecated",
+                "deprecated": True,
                 "mode": lex_persona.get_mode(),
             }
         )

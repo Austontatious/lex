@@ -16,7 +16,7 @@ import re
 import os
 import time
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 from uuid import uuid4
 
 import requests
@@ -32,6 +32,7 @@ from ..config.config import AVATAR_URL_PREFIX, STARTER_AVATAR_PATH, AVATAR_DIR a
 load_traits = _load_traits
 save_traits = _save_traits
 from ..persona.persona_core import lexi_persona
+from ..persona.prompt_templates import PromptTemplates
 from ..persona.persona_config import PERSONA_MODE_REGISTRY
 from ..alpha.session_manager import SessionRegistry
 from ..session_logging import (
@@ -52,12 +53,20 @@ from ..utils.ip_seed import (
 )
 from ..utils.request_ip import request_ip
 from ..user_identity import identity_payload, request_user_id
+from ..prompts.tour_mode import TOUR_MODE_SHIM
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Lexi Core"])
 
 USE_COMFY_ONLY = os.getenv("LEX_USE_COMFY_ONLY", "0") == "1"
+
+TOUR_PROMPT_MAX_CHARS = int(os.getenv("LEXI_TOUR_PROMPT_MAX_CHARS", "600"))
+TOUR_RESPONSE_MAX_TOKENS = int(os.getenv("LEXI_TOUR_RESPONSE_MAX_TOKENS", "220"))
+TOUR_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("LEXI_TOUR_RATE_LIMIT_WINDOW_SECONDS", "60"))
+TOUR_RATE_LIMIT_MAX = int(os.getenv("LEXI_TOUR_RATE_LIMIT_MAX", "6"))
+_TOUR_RATE_LIMIT: Dict[str, List[float]] = {}
+_TOUR_RATE_LIMIT_LOCK = asyncio.Lock()
 
 AVATAR_DIR: Path = CONFIG_AVATAR_DIR
 AVATARS_PUBLIC_DIR = avatars_static_dir()
@@ -85,6 +94,30 @@ def _record_metric(request: Request, event: str, detail: Optional[Dict[str, Any]
 
 def _client_ip(request: Request) -> str:
     return request_ip(request)
+
+
+def _tour_rate_limit_key(request: Request) -> str:
+    session_id = request.headers.get("x-lexi-session") or getattr(request.state, "session_id", None)
+    if session_id:
+        return f"session:{session_id}"
+    return f"ip:{_client_ip(request)}"
+
+
+async def _enforce_tour_rate_limit(request: Request) -> None:
+    now = time.time()
+    window_start = now - TOUR_RATE_LIMIT_WINDOW_SECONDS
+    key = _tour_rate_limit_key(request)
+    async with _TOUR_RATE_LIMIT_LOCK:
+        history = _TOUR_RATE_LIMIT.get(key, [])
+        history = [ts for ts in history if ts >= window_start]
+        if len(history) >= TOUR_RATE_LIMIT_MAX:
+            if history:
+                _TOUR_RATE_LIMIT[key] = history
+            else:
+                _TOUR_RATE_LIMIT.pop(key, None)
+            raise HTTPException(status_code=429, detail="Too many tour requests. Please try again soon.")
+        history.append(now)
+        _TOUR_RATE_LIMIT[key] = history
 
 
 def _external_base(request: Request) -> str:
@@ -208,6 +241,11 @@ async def _per_ip_avatar_or_fallback(request: Request) -> str:
 class ChatRequest(BaseModel):
     prompt: str
     intent: Optional[str] = None
+
+
+class TourPromptRequest(BaseModel):
+    prompt: str
+    card_id: Optional[str] = None
 
 
 class IntentRequest(BaseModel):
@@ -359,6 +397,81 @@ def _append_session_memory(request: Request, event: Dict[str, Any]) -> None:
         registry.append_memory(session_id, event)
     except Exception:
         pass
+
+
+@router.post("/tour/prompt")
+async def tour_prompt(req: TourPromptRequest, request: Request) -> JSONResponse:
+    logger.info("🗨️ /tour/prompt card=%s", req.card_id)
+    prompt_text = (req.prompt or "").strip()
+    if not prompt_text:
+        raise HTTPException(status_code=400, detail="Prompt must be a non-empty string")
+    if len(prompt_text) > TOUR_PROMPT_MAX_CHARS:
+        raise HTTPException(status_code=413, detail="Prompt is too long")
+
+    await _enforce_tour_rate_limit(request)
+
+    if prompt_text.startswith(("Lexi:", "assistant:")):
+        logger.warning("🛑 Ignoring looped assistant prompt: %r", req.prompt)
+        return JSONResponse(
+            {
+                "cleaned": "[loop detected, halted]",
+                "raw": "",
+                "choices": [],
+                "mode": lexi_persona.get_mode(),
+            }
+        )
+
+    safety_decision = classify_safety(prompt_text)
+    log_safety_event(
+        request,
+        turn_id=uuid4().hex,
+        safety_event=safety_decision["action"],
+        categories=safety_decision.get("categories", []),
+    )
+    if safety_decision.get("blocked"):
+        refusal = "I can't help with that."
+        return JSONResponse(
+            {
+                "cleaned": refusal,
+                "raw": refusal,
+                "choices": [{"text": refusal}],
+                "mode": lexi_persona.get_mode(),
+                "safety": safety_decision,
+            },
+            status_code=403,
+        )
+
+    prompt_pkg = PromptTemplates.build_prompt(
+        memories_json=[],
+        user_message=prompt_text,
+        active_persona=lexi_persona.get_mode(),
+        injections=[TOUR_MODE_SHIM],
+    )
+    try:
+        reply = await asyncio.to_thread(
+            lexi_persona._gen,
+            prompt_pkg,
+            sampler_overrides={"max_tokens": TOUR_RESPONSE_MAX_TOKENS},
+        )
+    except Exception as exc:
+        logger.error("❌ LexiPersona._gen failed (tour prompt): %s", exc)
+        trace = log_error_event(request, exc, context={"route": "/tour/prompt"})
+        payload = soft_error_payload(error_detail=str(exc), trace_id=trace)
+        payload["mode"] = lexi_persona.get_mode()
+        return JSONResponse(payload)
+
+    reply_text = ensure_crisis_safety_style(prompt_text, reply or "")
+    if not reply_text.strip():
+        reply_text = "[no response]"
+
+    return JSONResponse(
+        {
+            "cleaned": reply_text,
+            "raw": reply_text,
+            "choices": [{"text": reply_text}],
+            "mode": lexi_persona.get_mode(),
+        }
+    )
 
 
 @router.post("/process")
@@ -560,7 +673,7 @@ async def process(req: ChatRequest, request: Request):
 
         url = result.get("avatar_url") or result.get("url")
         avatar_url = _ensure_avatar_url(request, url)
-        narration = result.get("narration") or "Got it, updating her look! 💄"
+        narration = result.get("narration") or "Updating Lexi's look now."
 
         if avatar_url:
             try:
@@ -599,51 +712,29 @@ async def process(req: ChatRequest, request: Request):
 
         return JSONResponse(response_payload)
 
-    # Trait extraction (optional; only if wired)
+    # -----------------------------------------------------------------
+    # DEPRECATED: legacy appearance extraction from conversation.
+    # Avatar Tools Modal is the canonical path. This auto-trigger is
+    # intentionally disabled to prevent silent avatar updates.
+    # -----------------------------------------------------------------
     inferred = extract_traits_from_text(req.prompt)
     if inferred:
-        traits = load_traits(resolved_user_id)
-        traits.update(inferred)
-        save_traits(traits, user_id=resolved_user_id)
-
-        result = generate_avatar_pipeline(
-            traits=traits,
-            seed=seed_default,
-            base_name=base_name,
+        logger.info(
+            "DEPRECATED auto appearance extraction ignored (traits=%s)",
+            ", ".join(f"{k}={v}" for k, v in inferred.items()),
         )
-        if not result.get("ok"):
-            raise HTTPException(
-                status_code=502, detail=result.get("error", "avatar generation failed")
-            )
-
-        url = result.get("avatar_url") or result.get("url")
-        avatar_url = _ensure_avatar_url(request, url)
-        if avatar_url:
-            lexi_persona.set_avatar_path(avatar_url)  # type: ignore
-            save_traits(traits, avatar_path=avatar_url, user_id=resolved_user_id)
-
-        _append_session_memory(
-            request,
-            {
-                "role": "assistant",
-                "event": "chat_avatar_update",
-                "traits": traits,
-                "avatar_url": avatar_url,
-            },
-        )
-        log_event(
-            request,
-            "assistant",
-            "Got it, updating her look! 💄",
-            event="chat_avatar_update",
-            avatar_url=avatar_url,
+        message = (
+            "Legacy auto appearance extraction has been removed. "
+            "Use the Avatar Tools modal to update Lexi's look."
         )
         return JSONResponse(
             {
-                "cleaned": "Got it, updating her look! 💄",
-                "avatar_url": avatar_url,
-                "url": avatar_url,
-                "traits": traits,
+                "cleaned": message,
+                "raw": message,
+                "choices": [{"text": message}],
+                "status": "ignored",
+                "error": "deprecated",
+                "deprecated": True,
                 "mode": lexi_persona.get_mode(),
                 "session_id": getattr(request.state, "session_id", None),
             }
@@ -1061,6 +1152,7 @@ _save_traits_state = save_traits
 __all__ = ["router", "_load_traits_state", "_save_traits_state"]
 
 
+# DEPRECATED: legacy auto appearance extraction from chat. Avatar Tools modal is canonical.
 def extract_traits_from_text(text: str) -> Dict[str, str]:
     """Heuristic trait extraction based on visual keywords."""
     categories = extract_categories(text or "")

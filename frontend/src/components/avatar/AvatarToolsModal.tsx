@@ -79,7 +79,6 @@ export function AvatarToolsModal({
   const surface = useColorModeValue("white", "gray.900");
   const textColor = useColorModeValue("gray.800", "whiteAlpha.900");
   const helperColor = useColorModeValue("gray.500", "whiteAlpha.700");
-  const badgeBg = useColorModeValue("pink.50", "whiteAlpha.200");
 
   useEffect(() => {
     if (!isOpen) {
