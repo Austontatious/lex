@@ -188,6 +188,14 @@ export interface DebugTraitsResponse {
   persona_traits: Traits;
 }
 
+export interface AnalyticsSummary {
+  unique_all_time: number;
+  unique_today: number;
+  concurrent_now: number;
+  peak_concurrent_today: number;
+  day: string;
+}
+
 export type AvatarGenMode = "txt2img" | "img2img";
 
 export type LexiverseStyle = "promo";
@@ -348,10 +356,39 @@ export function debugTraits(): Promise<DebugTraitsResponse> {
   return jsonFetch<DebugTraitsResponse>(`${PERSONA_PREFIX}/debug/traits`);
 }
 
+/** GET /analytics/summary */
+export function fetchAnalyticsSummary(): Promise<AnalyticsSummary> {
+  return jsonFetch<AnalyticsSummary>(`/analytics/summary`);
+}
+
 export interface SendPromptOptions {
   prompt: string;
   intent?: string;
   onChunk?: (delta: string) => void;
+}
+
+export interface TourPromptResponse {
+  cleaned?: string;
+  raw?: string;
+  choices?: Array<{ text?: string }>;
+  mode?: string | null;
+}
+
+export async function sendTourPrompt(prompt: string, cardId?: string): Promise<TourPromptResponse> {
+  const response = await apiFetch(`/tour/prompt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ prompt, card_id: cardId }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "");
+    throw new Error(
+      `[API] POST /process failed (${response.status}): ${errText || response.statusText}`
+    );
+  }
+
+  return response.json() as Promise<TourPromptResponse>;
 }
 
 export async function sendPrompt({ prompt, intent, onChunk }: SendPromptOptions) {
@@ -672,6 +709,7 @@ export const API = {
   getPersona,
   fetchPersona,
   debugTraits,
+  fetchAnalyticsSummary,
   requestAvatarGeneration,
   fetchAvatarGenerationStatus,
   sendPrompt,

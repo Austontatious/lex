@@ -18,7 +18,7 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
 
 ### Served model (merged)
 - Merged checkpoint: `/mnt/data/models/Qwen/lexi-qwen3-30b-a3b-dpo-merged`
-- Example vLLM launch:
+- Example vLLM launch (legacy host fallback):
   ```
   CUDA_VISIBLE_DEVICES=0,1,2,3 \
   /mnt/data/vllm-venv/bin/python -m vllm.entrypoints.openai.api_server \
@@ -26,14 +26,11 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
     --served-model-name Lexi \
     --tensor-parallel-size 4 \
     --dtype float16 \
-    --max-model-len 4096 \
-    --gpu-memory-utilization 0.88 \
-    --max-num-seqs 64 \
+    --max-num-seqs 8 \
     --swap-space 12 \
-    --distributed-executor-backend mp \
-    --trust-remote-code \
-    --download-dir /mnt/data/models \
-    --disable-custom-all-reduce \
+    --max-model-len 32000 \
+    --enforce-eager \
+    --gpu-memory-utilization 0.88 \
     --host 0.0.0.0 --port 8008
   ```
 
@@ -48,11 +45,14 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
 - Copy `.env.example` to `.env.development` and `.env.production`.
 - `docker compose up` (and `make dev`) read `.env.development` by default.
 - Production runs layer `docker-compose.override.prod.yml` and `.env.production`.
+- Compose profiles are controlled via `.env` (default `COMPOSE_PROFILES=default`); use `COMPOSE_PROFILES=no-vllm` to disable the vLLM container.
 - Secrets belong only in the real runtime `.env.*` files, Docker/Swarm secrets, or a vault.
 - Session NDJSON logs land under `logs/sessions/YYYY-MM-DD/<session>.ndjson`. Mount this path in prod for durability.
 
-- Host integrations rely on the Compose-provided gateway alias:
-  - `LLM_API_BASE`, `OPENAI_API_BASE`, `SUMMARIZER_ENDPOINT` → `http://host.docker.internal:8008/v1`
+- vLLM (default Compose service):
+  - `LLM_API_BASE`, `OPENAI_API_BASE`, `SUMMARIZER_ENDPOINT` → `http://vllm:8008/v1`
+  - Host fallback (no-vllm profile) → `http://host.docker.internal:8008/v1`
+- Comfy (default Compose service):
   - `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE`, `LEX_COMFY_URL` → `http://comfy-sd:8188` (bundled ComfyUI). Switch to `http://host.docker.internal:8188` only if you run Comfy on the host.
   - `FLUX_MODELS_DIR`, `FLUX_DIFFUSION_DIR`, `FLUX_TEXT_ENCODER_DIR`, and `FLUX_VAE_PATH` must resolve to your Flux assets (e.g. `flux1-kontext-dev.safetensors`, `clip_l.safetensors`, `t5xxl_fp8_e4m3fn.safetensors`, `ae.safetensors`).
 - `LEX_USE_COMFY_ONLY=1` keeps avatar preflight errors soft (warn JSON instead of 502). `LEX_AVATAR_DIR` (default `/app/frontend/public/avatars`) and `LEX_PUBLIC_BASE` influence the generated avatar URLs.
@@ -63,7 +63,7 @@ Lex is an emotionally intelligent AI assistant designed for **local-first execut
 - FastAPI ships with permissive CORS, but production should set `CORS_ORIGINS=https://lexicompanion.com` (append other origins with commas). The middleware already exposes `X-Lexi-Session`.
 - Running the optional Cloudflare tunnel requires attaching `lex-cloudflared-1` to `lexnet` so service discovery finds `lexi-frontend` and `lexi-backend`.
 
-### Local Dev (bundled Comfy + host vLLM)
+### Local Dev (bundled Comfy + bundled vLLM)
 
 ```bash
 cp .env.example .env.development
@@ -71,8 +71,8 @@ make dev
 make backcurl     # curl $COMFY_URL/api/version from inside the backend container
 ```
 
-- `docker-compose.yml` builds the `comfy-sd` image (Flux-ready ComfyUI) and pins GPU `4` by default; adjust `NVIDIA_VISIBLE_DEVICES` as needed.
-- Containers still map `host.docker.internal` → the host gateway so the backend reaches vLLM (`http://host.docker.internal:8008`) and other host-only services.
+- `docker-compose.yml` builds the `comfy-sd` image (Flux-ready ComfyUI) and pins GPU `4` by default; vLLM pins GPUs `0,1,2,3`.
+- Escape hatch (host vLLM): `COMPOSE_PROFILES=no-vllm docker compose up -d`, then launch vLLM on the host.
 - `BASE_MODELS_DIR` defaults to `/mnt/data/models`; override it per machine in `.env.development`.
 - `make logs`, `make ps`, and `make sh` are handy while iterating (`make help` lists everything).
 
@@ -107,9 +107,28 @@ npm install
 npm run dev
 ```
 
-### Sanity checks
+### Verification
 
 ```bash
+# Default (containerized vLLM)
+docker compose up -d
+curl -sS http://localhost:8008/v1/models
+nvidia-smi
+
+# Host fallback (no-vllm profile)
+COMPOSE_PROFILES=no-vllm docker compose up -d
+CUDA_VISIBLE_DEVICES=0,1,2,3 /mnt/data/vllm-venv/bin/python -m vllm.entrypoints.openai.api_server \
+  --model /mnt/data/models/Qwen/lexi-qwen3-30b-a3b-dpo-merged \
+  --served-model-name Lexi \
+  --tensor-parallel-size 4 \
+  --dtype float16 \
+  --max-num-seqs 8 \
+  --swap-space 12 \
+  --max-model-len 32000 \
+  --enforce-eager \
+  --gpu-memory-utilization 0.88 \
+  --host 0.0.0.0 --port 8008
+
 # 1) Build/run in dev
 make dev && make backcurl
 
@@ -232,9 +251,9 @@ wget https://example.com/flux1-kontext-dev.safetensors -O /mnt/data/comfy/models
 - Node 18+ (for frontend)
 - Docker Engine 24+ **or** native CUDA toolchain (12.1 suggested)
 - NVIDIA GPU with ≥ 12GB VRAM (Stable Diffusion XL + vLLM)
-- Host-side builds of **ComfyUI** (port `8188`) and **vLLM** (port `8008`) when using the compose stack
+- Compose builds for **ComfyUI** (port `8188`) and **vLLM** (port `8008`) by default; host builds are only needed for the `no-vllm` fallback.
 
-When running inside Docker, ensure the host firewall allows traffic from the Docker bridge
+When running the host fallback, ensure the host firewall allows traffic from the Docker bridge
 (`172.17.0.0/16`) to those services; otherwise avatar generation and LLM calls will return 502s.
 
 ---

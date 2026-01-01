@@ -231,6 +231,8 @@ class AvatarGenRequest(BaseModel):
     controlnet_strength: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 
+# CANONICAL: Avatar Tools Modal endpoint. Do not remove.
+# CANONICAL: Avatar Tools Modal endpoint. Do not remove.
 @router.post("/gen/avatar")
 async def gen_avatar(
     request: Request,

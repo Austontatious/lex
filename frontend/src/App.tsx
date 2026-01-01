@@ -51,18 +51,19 @@ import {
   apiDisclaimerCached,
   apiDisclaimerAck,
 } from "./services/api";
-import type {
-  TraitResponse,
-  Persona,
-  EntryMode,
-  AccountBootstrapResp,
-} from "./services/api";
+import type { TraitResponse, EntryMode, AccountBootstrapResp } from "./services/api";
 import type { AlphaWelcomeCopy } from "./components/onboarding/AlphaWelcome";
 import { FeedbackButton } from "./components/FeedbackButton";
 import { AvatarToolsModal } from "./components/avatar/AvatarToolsModal";
 import "./styles/chat.css";
 import "./styles/avatar.css";
 import { refreshAvatar } from "./lib/refreshAvatar";
+import {
+  consumeChatAutostart,
+  consumeChatPrefill,
+  getTourFlags,
+  syncTourFlags,
+} from "./tour/tour_storage";
 
 interface ChatMessage {
   id: string;
@@ -153,7 +154,6 @@ function ChatShell({
   const [avatarGenerating, setAvatarGenerating] = useState(false);
   const [loadingVideoErrored, setLoadingVideoErrored] = useState(false);
   const [avatarToolsOpen, setAvatarToolsOpen] = useState(false);
-  const [persona, setPersona] = useState<Persona | null>(null);
   const [loading, setLoading] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -216,7 +216,6 @@ function ChatShell({
       }
       const data = await fetchPersona();
       if (!mounted || !data) return;
-      setPersona(data);
       setAvatarUrl(resolveAvatarUrl((data as any).image_path, nextStaticBase));
     })();
     return () => {
@@ -286,10 +285,6 @@ const handleTraitFlow = useCallback(
         setAvatarGenerating(false);
       }
 
-      // Now update persona, but do **NOT** set avatarUrl from it!
-      const updated = await fetchPersona();
-      setPersona(updated);
-
     } catch (err) {
       console.error(err);
       appendMessage({ sender: "ai", content: "[Avatar update failed]" });
@@ -306,11 +301,13 @@ const handleAvatarEdit = useCallback(
     try {
       const result = await sendPrompt({ prompt: userText, intent: "avatar_edit" });
       let reply =
-        typeof result === "object" &&
-        result !== null &&
-        typeof (result as any).cleaned === "string"
-          ? (result as any).cleaned
-          : "Got it, updating her look! 💄";
+        typeof result === "object" && result !== null
+          ? typeof (result as any).cleaned === "string"
+            ? (result as any).cleaned
+            : typeof (result as any).message === "string"
+              ? (result as any).message
+              : "Avatar updates are handled in the Avatar Tools modal."
+          : "Avatar updates are handled in the Avatar Tools modal.";
       const avatarCandidate =
         (result as any)?.avatar_url ??
         (result as any)?.url ??
@@ -324,14 +321,6 @@ const handleAvatarEdit = useCallback(
         await triggerAvatarRefresh();
       }
       appendMessage({ sender: "ai", content: reply });
-      try {
-        const updated = await fetchPersona();
-        if (updated) {
-          setPersona(updated);
-        }
-      } catch (personaErr) {
-        console.warn("Failed to refresh persona after avatar edit", personaErr);
-      }
     } catch (err) {
       console.error(err);
       appendMessage({ sender: "ai", content: "[Avatar edit failed]", error: true });
@@ -805,9 +794,19 @@ export default function App() {
       setOnboardingCopy(onboarding);
     } finally {
       setSessionStarting(false);
-      setPhase("pick_mode");
+      setPhase((current) => {
+        if (
+          current === "chat" ||
+          current === "enter_identifier" ||
+          current === "resolve_conflict" ||
+          current === "disclaimer"
+        ) {
+          return current;
+        }
+        return "pick_mode";
+      });
     }
-  }, [onboardingTourFallback, onboardingSkipFallback, sendLexiEvent]);
+  }, [onboardingTourFallback, onboardingSkipFallback]);
 
   useEffect(() => {
     if (sessionStarted || sessionStarting) return;
@@ -904,7 +903,36 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [phase, bootstrapResp, fetchTourLegal, showLegalModal, disclaimerText]);
+  }, [phase, bootstrapResp, showLegalModal, disclaimerText]);
+
+  const startChatAfterDisclaimer = useCallback(
+    (skipIntro?: boolean) => {
+      const opener = onboardingCopy?.tour_text || onboardingCopy?.intro;
+      if (!skipIntro && opener) {
+        queuePrefill([{ sender: "ai", content: opener.trim() }]);
+      }
+      setPhase("chat");
+    },
+    [onboardingCopy, queuePrefill]
+  );
+
+  useEffect(() => {
+    if (phase !== "pick_mode") return;
+    const mode = consumeChatAutostart();
+    if (!mode) return;
+    if (mode === "voice") {
+      startChatWithLexiDisclaimer();
+      return;
+    }
+    startChatAfterDisclaimer(true);
+  }, [phase, startChatAfterDisclaimer, startChatWithLexiDisclaimer]);
+
+  useEffect(() => {
+    if (phase !== "chat") return;
+    const prefill = consumeChatPrefill();
+    if (!prefill) return;
+    queuePrefill({ sender: "user", content: prefill });
+  }, [phase, queuePrefill]);
 
   const handlePickNew = useCallback(() => {
     setEntryMode("new");
@@ -940,7 +968,9 @@ export default function App() {
       setBootstrapResp(data);
       if (data.user_id) {
         setUserId(data.user_id);
+        syncTourFlags(data.user_id);
       }
+      const tourFlags = getTourFlags(data.user_id);
       if (entryMode === "returning" && data.status === "NOT_FOUND") {
         const nextAttempts = lookupAttempts + 1;
         setLookupAttempts(nextAttempts);
@@ -962,13 +992,18 @@ export default function App() {
       setLookupAttempts(0);
       const needsChatDisclaimer =
         (data.status === "CREATED_NEW" || data.status === "FOUND_EXISTING") &&
-        !data.has_seen_disclaimer;
+        !data.has_seen_disclaimer &&
+        !tourFlags.legalAck;
       if (needsChatDisclaimer) {
         startChatWithLexiDisclaimer();
         return;
       }
       if (data.status === "EXISTS_CONFLICT") {
         setPhase("resolve_conflict");
+        return;
+      }
+      if (tourFlags.legalAck) {
+        startChatAfterDisclaimer(true);
         return;
       }
       setPhase("disclaimer");
@@ -984,7 +1019,14 @@ export default function App() {
     } finally {
       setBootstrapLoading(false);
     }
-  }, [entryMode, lookupAttempts, identifier, toast, startChatWithLexiDisclaimer]);
+  }, [
+    entryMode,
+    lookupAttempts,
+    identifier,
+    toast,
+    startChatWithLexiDisclaimer,
+    startChatAfterDisclaimer,
+  ]);
 
   const handleConflictThatsMe = useCallback(() => {
     if (!bootstrapResp) return;
@@ -1008,17 +1050,6 @@ export default function App() {
     void apiDisclaimerPreload("new").catch(() => {});
   }, []);
 
-  const startChatAfterDisclaimer = useCallback(
-    (skipIntro?: boolean) => {
-      const opener = onboardingCopy?.tour_text || onboardingCopy?.intro;
-      if (!skipIntro && opener) {
-        queuePrefill([{ sender: "ai", content: opener.trim() }]);
-      }
-      setPhase("chat");
-    },
-    [onboardingCopy, queuePrefill]
-  );
-
   const handleDisclaimerAccept = useCallback(
     async (skipIntro?: boolean, version = "v1") => {
       if (!bootstrapResp?.user_id) {
@@ -1029,6 +1060,7 @@ export default function App() {
       try {
         await apiDisclaimerAck(bootstrapResp.user_id, true, version);
         setUserId(bootstrapResp.user_id);
+        syncTourFlags(bootstrapResp.user_id);
       } catch (err: any) {
         const msg = err instanceof Error ? err.message : "ack failed";
         toast({
@@ -1060,6 +1092,7 @@ export default function App() {
         if (bootstrapResp?.user_id) {
           await apiDisclaimerAck(bootstrapResp.user_id, true, "lexi_voice_v1");
           setUserId(bootstrapResp.user_id);
+          syncTourFlags(bootstrapResp.user_id);
         }
       } catch (err: any) {
         const msg = err instanceof Error ? err.message : "ack failed";
@@ -1085,6 +1118,7 @@ export default function App() {
       if (bootstrapResp?.user_id) {
         await apiDisclaimerAck(bootstrapResp.user_id, true, "legal_v1");
         setUserId(bootstrapResp.user_id);
+        syncTourFlags(bootstrapResp.user_id);
       }
       queuePrefill([
         {

@@ -19,7 +19,9 @@ WORKDIR /app/ComfyUI
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir \
       opencv-python-headless matplotlib scikit-image imageio piexif \
-      segment-anything dill
+      segment-anything dill \
+      gguf hydra-core blend-modes addict yapf timm onnxruntime-gpu \
+      git+https://github.com/facebookresearch/sam2
 
 # Default server flags (overridable via CLI_ARGS env)
 ENV CLI_ARGS="--listen 0.0.0.0 --port 8188"
