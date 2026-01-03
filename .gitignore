@@ -2,7 +2,6 @@
 __pycache__/
 *.py[cod]
 .venv/
-.env*
 # Node
 lex/frontend/node_modules/
 lex/frontend/dist/
@@ -42,6 +41,16 @@ backend/memory/identity/
 **/identity.db
 **/identity.db-shm
 **/identity.db-wal
+# Runtime / local state
+**/*.db
+**/*.db-*
+data/
+backend/memory/
+logs/
+models/
+node_modules/
+dist/
+build/
 # General workspace
 .DS_Store
 *.log
@@ -50,6 +59,7 @@ letsencrypt/
 *.tar
 *.tar.gz
 *.bak
+*.bak.*
 *.pyo
 .pytest_cache/
 .mypy_cache/
@@ -58,20 +68,27 @@ venv/
 # Environment & secrets
 .env
 .env.*
+.envrc
 !.env.example
-!.env.development
-!.env.production
+!.env.template
+# Runtime config (generated)
+**/runtime-config.js
+**/public/config.json
 # Node / frontend
 node_modules/
 dist/
 .next/
 build/
+**/asset-manifest.json
+**/public/static/
+*.map
 # Artifacts & large model files
 *.safetensors
 *.bin
 *.weights
 *.h5
 *.jsonl
+*.sqlite
 *.sqlite3
 # Editor & tooling
 .idea/
@@ -85,9 +102,13 @@ Lexi/lexi/sd/weights/
 
 # cloudflared creds
 cloudflared/cred.json
+traefik/acme.json
 
 # Local scratch / artifacts
 .pytest_state/
 _backup/
 _investigation/
+_quarantine/
 models/
+tmp/
+WIP_*.txt
