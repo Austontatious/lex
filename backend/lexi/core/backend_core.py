@@ -25,6 +25,23 @@ from ..sd.sd_pipeline import generate_avatar_pipeline
 from ..sd.flux_prompt_builder import BASE_AVATAR_AESTHETIC
 
 log = logging.getLogger("lexi.backend")
+_OVERRIDE_MARKER = "LEXI_OVERRIDE_ACTIVE"
+
+
+def _overrides_active() -> bool:
+    """Detect compose-mounted route overrides via a marker comment."""
+    route_path = Path(__file__).resolve().parents[1] / "routes" / "lexi_persona.py"
+    try:
+        with route_path.open("r", encoding="utf-8") as handle:
+            for _ in range(3):
+                line = handle.readline()
+                if not line:
+                    break
+                if _OVERRIDE_MARKER in line:
+                    return True
+    except OSError:
+        return False
+    return False
 
 
 def _unique_id(route: APIRoute) -> str:
@@ -63,6 +80,8 @@ app.middleware("http")(session_middleware)
 app.router.route_class = APIRoute
 app.include_router(avatar_bootstrap_router)
 app.state.alpha_sessions = SessionRegistry()
+if _overrides_active():
+    log.warning("Route overrides detected: overrides/backend_routes mounted.")
 # ---------------- CORS (dev-friendly) ----------------
 try:
     from ..config.config import settings  # type: ignore

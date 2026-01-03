@@ -3,9 +3,6 @@ __pycache__/
 *.py[cod]
 .venv/
 # Node
-lex/frontend/node_modules/
-lex/frontend/dist/
-lex/frontend/build/
 # Large binaries & installers (never commit)
 *.run
 *.zip
@@ -94,6 +91,10 @@ build/
 .idea/
 .vscode/
 .history/
+*~
+*.swp
+*.swo
+*.diff
 # Generated avatar assets
 Lexi/lexi/static/lexi/avatars/lexi_*.png
 Lexi/lexi/static/lexi/avatars/lexi_base_*.png
@@ -111,4 +112,5 @@ _investigation/
 _quarantine/
 models/
 tmp/
+artifacts/
 WIP_*.txt

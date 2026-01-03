@@ -1,4 +1,5 @@
 # Lexi/lexi/routes/lexi_persona.py
+# LEXI_OVERRIDE_ACTIVE
 from __future__ import annotations
 
 """
