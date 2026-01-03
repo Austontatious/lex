@@ -1,3 +1,4 @@
+import math
 import re
 from typing import Dict, Pattern, Callable, Optional
 
@@ -40,7 +41,7 @@ def infer_emotion(prompt: str) -> Dict[str, float]:
     joy, love, frustration, and neutral. Scores are normalized to sum to 1.0.
     """
     # Initialize all scores to zero
-    scores: Dict[str, float] = {emotion: 0.0 for emotion in EMOTIONS}
+    scores: Dict[str, float] = dict.fromkeys(EMOTIONS, 0.0)
 
     # Apply each pattern rule
     for pattern, emotion, weight, condition in PATTERN_ENTRIES:
@@ -49,7 +50,7 @@ def infer_emotion(prompt: str) -> Dict[str, float]:
 
     # Normalize scores so they sum to 1.0; default to neutral if no matches
     total = sum(scores.values())
-    if total == 0.0:
+    if math.isclose(total, 0.0, rel_tol=0.0, abs_tol=1e-9):
         scores["neutral"] = 1.0
     else:
         for emotion in scores:

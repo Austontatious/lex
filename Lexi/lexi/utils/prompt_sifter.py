@@ -166,7 +166,9 @@ def extract_categories(appearance_request: str) -> Dict[str, str]:
     """
     Extract appearance traits (hair, eyes, lips, outfit, shoes) from the text.
     """
-    categories: Dict[str, str] = {key: "" for key in ("hair", "eyes", "lips", "outfit", "shoes")}
+    categories: Dict[str, str] = dict.fromkeys(
+        ("hair", "eyes", "lips", "outfit", "shoes"), ""
+    )
 
     def _clean(text: str) -> str:
         return re.sub(r"\s+", " ", text.strip())

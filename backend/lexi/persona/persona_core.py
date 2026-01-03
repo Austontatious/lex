@@ -840,7 +840,7 @@ class LexiPersona:
             self._lead_mode_lock_until = self._step + self.lead_lock_turns
 
     def _blend_axis_target_from_modes(self) -> Dict[str, float]:
-        blended = {a: 0.0 for a in self.axis_names}
+        blended = dict.fromkeys(self.axis_names, 0.0)
         for mode_id, weight in self.mode_activation.items():
             vec = get_mode_axis_vector(mode_id)
             if not vec:

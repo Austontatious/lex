@@ -45,7 +45,7 @@ def infer_emotion_axes(
         axes = AXES
     if rules is None:
         rules = EMOTION_RULES
-    scores = {axis: 0.5 for axis in axes}
+    scores = dict.fromkeys(axes, 0.5)
     for pattern, axis, weight, condition in rules:
         if axis not in axes:
             continue

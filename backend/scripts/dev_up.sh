@@ -45,7 +45,7 @@ fi
 
 # --- Lexi backend + frontend ---
 echo "[dev_up] starting Lexi (backend+frontend)"
-if [ -d "${ROOT_DIR}/.venv" ]; then
+if [[ -d "${ROOT_DIR}/.venv" ]]; then
   source "${ROOT_DIR}/.venv/bin/activate"
 fi
 nohup python3 "${ROOT_DIR}/start_lexi.py" \
