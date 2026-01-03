@@ -34,6 +34,10 @@ jobs:
             -Dsonar.projectKey=Austontatious_lex
             -Dsonar.organization=austontatious
             -Dsonar.host.url=https://sonarcloud.io
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .scannerwork/sonar.sarif
 
 
             # Adds more detail to both client and server-side analysis logs, activating DEBUG mode for the scanner, and adding client-side environment variables and system properties to the server-side log of analysis report processing.
