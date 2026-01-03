@@ -80,15 +80,20 @@ async def run_self_diagnostic() -> DiagnosticPayload:
         results[name] = outcome
 
     # External service URLs
-    COMFY_URL = os.getenv("COMFY_URL", "http://127.0.0.1:8188").rstrip("/")
-    VLLM_URL  = os.getenv("OPENAI_API_BASE", os.getenv("LLM_API_BASE", "http://127.0.0.1:8008/v1")).rstrip("/")
+    COMFY_URL = os.getenv("COMFY_URL", "http://host.docker.internal:8188").rstrip("/")
+    VLLM_URL = os.getenv(
+        "OPENAI_API_BASE", os.getenv("LLM_API_BASE", "http://host.docker.internal:8008/v1")
+    ).rstrip("/")
 
     safe_test("GPU available", lambda: torch.cuda.is_available())
     safe_test("Avatar prompt build", lambda: _assemble_prompt({"hair": "red", "eyes": "green"}))
     safe_test(
         "Dummy avatar gen",
-        lambda: generate_avatar_pipeline(prompt="simple placeholder portrait", steps=1, cfg_scale=1.5),
+        lambda: generate_avatar_pipeline(
+            prompt="simple placeholder portrait", steps=1, cfg_scale=1.5
+        ),
     )
+
     # External reachability checks (don’t hard fail if down; just report)
     def _check_comfy() -> bool:
         r = requests.get(f"{COMFY_URL}/object_info", timeout=5)
@@ -106,7 +111,9 @@ async def run_self_diagnostic() -> DiagnosticPayload:
     safe_test("Memory CRUD test", memory_test)
     safe_test("Persona load state", lambda: bool(lexi_persona._load_traits_state()))
     safe_test("Persona avatar path exists", lambda: Path(lexi_persona.get_avatar_path()).exists())
-    safe_test("LLM backend echo", lambda: "ping" in lexi_persona.chat("__test_diagnostic__").lower())
+    safe_test(
+        "LLM backend echo", lambda: "ping" in lexi_persona.chat("__test_diagnostic__").lower()
+    )
 
     status = "PASS" if all(outcome.ok for outcome in results.values()) else "FAIL"
     uptime = round(time.time() - start_time, 3)

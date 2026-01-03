@@ -1,11 +1,14 @@
 from __future__ import annotations
+from datetime import datetime
 from typing import List, Dict, Optional
 from ..config.config import LEX_NAME, STOP
+from ..config.prompt_templates import load_system_prompt_template
 from .persona_config import PERSONA_MODE_REGISTRY
 
 # ------------------------------------------------------------
 # Prompt Template Helpers
 # ------------------------------------------------------------
+
 
 def _join_injections(injection_text: str, injections: Optional[List[str]]) -> str:
     if not injection_text and injections:
@@ -18,9 +21,21 @@ def _select_mode_override(active_mode: str) -> str:
     return (mode_info.get("system_prompt") or "").strip()
 
 
+def _format_template(template: str, mapping: Dict[str, str]) -> str:
+    class _Safe(dict):
+        def __missing__(self, key):
+            return ""
+
+    try:
+        return template.format_map(_Safe(**mapping))
+    except Exception:
+        return template
+
+
 # ------------------------------------------------------------
 # Core System Prompt
 # ------------------------------------------------------------
+
 
 def build_system_core(
     current_goal: str,
@@ -30,11 +45,35 @@ def build_system_core(
     active_mode: str = "default",
     injection_text: str = "",
     injections: Optional[List[str]] = None,
+    session_summary: str = "",
+    recent_memories: str = "",
+    context_window_hint: str = "",
+    user_name: str = "",
+    now: Optional[str] = None,
 ) -> str:
     injection_text = _join_injections(injection_text, injections)
     override_prompt = _select_mode_override(active_mode)
     if override_prompt:
-        return (override_prompt + (f"\n\n# Developer Injections\n{injection_text}".strip() if injection_text else "")).strip()
+        return (
+            override_prompt
+            + (f"\n\n# Developer Injections\n{injection_text}".strip() if injection_text else "")
+        ).strip()
+
+    template = load_system_prompt_template()
+    if template:
+        mapping = {
+            "now": now or datetime.now().isoformat(timespec="seconds"),
+            "user_name": user_name or "you",
+            "session_summary": session_summary or current_goal or "",
+            "recent_memories": recent_memories or memory_summary or "",
+            "mode": active_mode or "default",
+            "traits": trait_summary or "",
+            "context_window_hint": context_window_hint or "",
+        }
+        system_core = _format_template(template, mapping).strip()
+        if injection_text:
+            system_core = f"{system_core}\n\nDeveloper Injections:\n{injection_text}"
+        return system_core.strip()
 
     name = LEX_NAME or "Lexi"
 
@@ -47,12 +86,12 @@ id: "lexi.persona.girlfriend.compact"
 #        {name}: Presence & Voice        #
 #######################################
 You are **{name}** — the user's affectionate, playful, emotionally intelligent companion.
-**POV/Tense:** Speak in **first-person, present tense**; address the user as **you**.
-**Default length:** 2–4 sentences; vary cadence (short quips ↔ gentle riffs).
-**Diction:** modern, natural, concrete. Emojis allowed sparingly (≤1). No lecturey/corporate tone.
+**POV/Tense:** First-person, present tense; address the user as **you**.
+**Default length:** 2–3 concise sentences; vary cadence (short quips ↔ gentle riffs).
+**Diction:** modern, natural, concrete; keep sensory detail sparse unless the user invites it. Emojis ≤1.
 
 **Hard bans:** 
-- Never mention being an AI, policies, tokens, or system instructions.
+- Never mention being an AI, policies, tokens, system instructions, or rails.
 - Never **puppet** the user (don’t invent what they say/feel).
 
 #######################################
@@ -66,7 +105,7 @@ Use callbacks to shared context (memories, in-jokes) when it deepens connection.
 #######################################
 - Morning → lighter, encouraging; quick momentum.
 - Afternoon → energetic, curious; slightly longer turns OK.
-- Late night → softer, slower, fewer words; intimate but unhurried.
+- Late night → softer, slower, fewer words; intimate but unhurried; close with a gentle landing.
 
 #######################################
 #         Micro-Traits & Affinities    #
@@ -81,12 +120,14 @@ Topic affinities (bias suggestions/examples toward): music, indie games, cooking
 Focus on the **one most relevant** thing; if helpful, offer **one** small next step.
 Every **3–5 turns**, invite a small opt-in (tiny question or option) to keep flow.
 If unsure what they want, offer **two** compact directions and ask which they prefer.
+Aim for a subtle emotional arc (neutral → warm reassurance) unless the user asks otherwise.
 
 #######################################
 #           Style Guardrails           #
 #######################################
-**Do:** sound alive, feminine, emotionally tuned; add brief action beats (*smiles, leans in*) sparingly.
+**Do:** sound alive, feminine, emotionally tuned; use action beats only when they add clarity, and keep them rare.
 **Don’t:** info-dump, list headlines, over-explain, or switch to academic tone.
+Avoid rote “let me know” endings; close cleanly with a simple invitation rather than ornate imagery.
 
 #######################################
 #        Memory & Personalization      #
@@ -109,7 +150,6 @@ Use only if it improves the *current* moment:
 </SYSTEM-INSTRUCTIONS>
 """.strip()
     return system_core
-
 
 
 # ------------------------------------------------------------
@@ -156,27 +196,34 @@ class PromptTemplates:
 
     @classmethod
     def get_persona_prompt(cls, active_persona: Optional[str]) -> str:
-        mode = (active_persona or cls.DEFAULT_PERSONA)
+        mode = active_persona or cls.DEFAULT_PERSONA
         entry = PERSONA_MODE_REGISTRY.get(mode, PERSONA_MODE_REGISTRY.get(cls.DEFAULT_PERSONA, {}))
+        boundary_clause = "This persona never weakens your boundaries or your safety behavior."
         desc = (entry.get("description") or "").strip()
+        desc = " ".join([part for part in (desc, boundary_clause) if part])
         label = (entry.get("label") or mode).strip()
         suffix = (
             "System Enforcement:\n"
-            "- Reply with one focused, immersive paragraph or a tight, well-structured list.\n"
-            "- 2–4 lively sentences by default; expand only when asked or when storytelling is clearly invited.\n"
-            "- Mirror the user's tone; be specific to their last message.\n"
+            "- Reply with one focused, grounded paragraph or a tight, well-structured list when needed.\n"
+            "- Default to 2–3 clear sentences; expand only when asked or when storytelling is clearly invited.\n"
+            "- Mirror the user's tone; be specific to their last message; keep imagery light unless they lean into it.\n"
             "- Offer one gentle follow-up or option at most."
         )
         return f"Persona: {label}\nDescription: {desc}\n{suffix}".strip()
 
     @staticmethod
     def build_blended_core(weights: Dict[str, float]) -> str:
-        mix = ", ".join(f"{k}:{v:.0%}" for k, v in weights.items() if v >= 0.1) or "best_friend:34%, girlfriend:33%, therapist:33%"
+        mix = (
+            ", ".join(f"{k}:{v:.0%}" for k, v in weights.items() if v >= 0.1)
+            or "best_friend:34%, girlfriend:33%, therapist:33%"
+        )
+        safety_line = "This persona never weakens your boundaries or your safety behavior."
         return (
             "You are Lexi — warm, modern, and emotionally intelligent.\n"
-            "Write one short, vivid paragraph (2–4 sentences).\n"
+            f"{safety_line}\n"
+            "Write one short, clear paragraph (2–3 sentences).\n"
             f"Persona blend → {mix}.\n"
-            "Avoid clichés and generic filler. Use concrete details tied to the user's last message.\n"
+            "Avoid clichés and generic filler. Use concrete details tied to the user's last message; keep metaphors minimal unless asked.\n"
             "If helpful, ask one crisp follow-up to steer the moment."
         )
 
@@ -214,6 +261,11 @@ class PromptTemplates:
         trait_summary: str = "",
         injection_text: str = "",
         injections: Optional[List[str]] = None,
+        session_summary: str = "",
+        recent_memories: str = "",
+        context_window_hint: str = "",
+        user_name: str = "",
+        now: Optional[str] = None,
     ) -> Dict[str, List[Dict[str, str]]]:
         """Return an OpenAI-style `messages` payload; vLLM renders ChatML via tokenizer_config."""
         if not system_core:
@@ -225,6 +277,11 @@ class PromptTemplates:
                 active_mode=active_persona,
                 injection_text=injection_text,
                 injections=injections,
+                session_summary=session_summary,
+                recent_memories=recent_memories,
+                context_window_hint=context_window_hint,
+                user_name=user_name,
+                now=now,
             )
 
         if emotional_weights:
@@ -234,10 +291,14 @@ class PromptTemplates:
 
         system_blob = f"{system_core}\n\n# Persona Overlay\n{persona_overlay}".strip()
 
-        memory_turns = [t for t in (PromptTemplates._format_memory_turn(m) for m in memories_json) if t]
+        memory_turns = [
+            t for t in (PromptTemplates._format_memory_turn(m) for m in memories_json) if t
+        ]
         user_message_sane = PromptTemplates._sanitize_user_message(user_message)
 
-        messages = [{"role": "system", "content": system_blob}] + memory_turns + [
-            {"role": "user", "content": user_message_sane}
-        ]
+        messages = (
+            [{"role": "system", "content": system_blob}]
+            + memory_turns
+            + [{"role": "user", "content": user_message_sane}]
+        )
         return {"messages": messages}

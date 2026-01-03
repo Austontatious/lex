@@ -7,15 +7,16 @@ from requests.adapters import HTTPAdapter, Retry
 
 log = logging.getLogger("lexi.model_loader")
 
-DEFAULT_BASE   = os.getenv("LLM_API_BASE", "http://127.0.0.1:8008/v1").rstrip("/")
-DEFAULT_MODEL  = os.getenv("LLM_MODEL", "Lexi")
+DEFAULT_BASE = os.getenv("LLM_API_BASE", "http://host.docker.internal:8008/v1").rstrip("/")
+DEFAULT_MODEL = os.getenv("LLM_MODEL", "Lexi")
 # Use (connect, read) timeouts to avoid long hangs on streaming
-TIMEOUT_CONNECT = float(os.getenv("LLM_HTTP_CONNECT_TIMEOUT", "5"))
-TIMEOUT_READ    = float(os.getenv("LLM_HTTP_READ_TIMEOUT", "60"))
+TIMEOUT_CONNECT = float(os.getenv("LLM_HTTP_CONNECT_TIMEOUT", "2.0"))
+TIMEOUT_READ = float(os.getenv("LLM_HTTP_READ_TIMEOUT", "120.0"))
 TIMEOUT: Tuple[float, float] = (TIMEOUT_CONNECT, TIMEOUT_READ)
 
 # Optional global stop tokens (kept small; per-call override allowed)
 DEFAULT_STOPS = [s for s in (os.getenv("LLM_STOP", "<|im_end|>") or "").split(",") if s]
+
 
 # Retry policy for transient errors
 def _build_session() -> requests.Session:
@@ -33,12 +34,14 @@ def _build_session() -> requests.Session:
     sess.headers.update({"Accept": "application/json"})
     return sess
 
+
 class ModelLoader:
     """
     Resilient wrapper around an OpenAI-compatible Chat Completions API (vLLM/OpenAI/OpenRouter-like).
     - Accepts str, list[{role,content}], or {'messages': [...]}
     - Returns structured results with text, usage, finish_reason, raw
     """
+
     def __init__(self) -> None:
         self.base_url = DEFAULT_BASE
         self.model = DEFAULT_MODEL
@@ -66,14 +69,18 @@ class ModelLoader:
 
     # ---------- helpers ----------
     @staticmethod
-    def _coerce_to_messages(payload: Union[str, Dict[str, Any], List[Dict[str, str]]]) -> List[Dict[str, str]]:
+    def _coerce_to_messages(
+        payload: Union[str, Dict[str, Any], List[Dict[str, str]]],
+    ) -> List[Dict[str, str]]:
         if isinstance(payload, str):
             return [{"role": "user", "content": payload}]
         if isinstance(payload, list):
             return payload
         if isinstance(payload, dict) and isinstance(payload.get("messages"), list):
             return payload["messages"]
-        raise TypeError("Unsupported payload: expected str, list[dict], or {'messages': [...]} dict.")
+        raise TypeError(
+            "Unsupported payload: expected str, list[dict], or {'messages': [...]} dict."
+        )
 
     def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{path}"
@@ -86,7 +93,14 @@ class ModelLoader:
                 err = r.json()
             except Exception:
                 err = {"text": r.text[:500]}
-            log.warning("LLM POST %s %s -> %s in %.0f ms: %s", path, body.get("model"), r.status_code, dt, err)
+            log.warning(
+                "LLM POST %s %s -> %s in %.0f ms: %s",
+                path,
+                body.get("model"),
+                r.status_code,
+                dt,
+                err,
+            )
             r.raise_for_status()
         return r.json()
 
@@ -217,4 +231,3 @@ class ModelLoader:
                     continue
 
         return {"text": "".join(text_accum), "usage": usage, "finish_reason": finish_reason}
-

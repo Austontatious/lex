@@ -45,11 +45,34 @@ Populate the following fields at minimum:
 |-------------------------|---------------------------------------------------------------------|
 | `CF_DNS_API_TOKEN`      | Cloudflare token (DNS-01). Leave blank if Traefik uses http-01.     |
 | `TRAEFIK_ACME_EMAIL`    | Email address used for ACME registration.                           |
-| `COMFY_URL`, `OPENAI_*` | Endpoints the backend should call for ComfyUI / vLLM.               |
+| `LLM_API_BASE`, `OPENAI_API_BASE`, `LITELLM_API_BASE`, `VLLM_BASE_URL` | Compose vLLM service `http://vllm:8008/v1` by default; use `http://host.docker.internal:8008/v1` when running with `COMPOSE_PROFILES=no-vllm`. |
+| `COMFY_URL`, `COMFY_BASE_URL`, `IMAGE_API_BASE` | Compose ComfyUI service `http://comfy-sd:8188` by default; use `http://host.docker.internal:8188` only for host ComfyUI. |
 | `LEX_API_BASE_PUBLIC`   | Public API base presented to the frontend (e.g. `/api`).            |
-| `SD_BACKEND`, `FLUX_*`  | Stable Diffusion/FLUX model configuration paths.                    |
+| `LEX_STATIC_ROOT`       | Directory inside the backend image where avatars & static assets live. |
+| `CORS_ORIGINS`          | Comma-separated list of allowed browser origins (include `https://lexicompanion.com`). |
+| `FLUX_*`                | Flux model configuration paths.                                  |
+| `TMDB_API_KEY` or `TMDB_READ_ACCESS_TOKEN` | Required for the movies/Now tool; set at least one. |
+| `LEXI_AVATAR_JOB_TTL`   | Seconds to retain completed avatar jobs in memory (default `600`). |
+| `LEXI_SKIP_FLUX_WARMUP` | Set to `1` to skip the Flux warm-up call at startup (default runs once). |
 
 Secrets live only in `.env`; the file is git-ignored.
+
+To disable the containerized vLLM and run a host vLLM manually, start the stack with:
+
+```bash
+COMPOSE_PROFILES=no-vllm docker compose up -d
+```
+
+### Browser sessions & required headers
+
+Frontend clients call `POST /lexi/alpha/session/start` once, persist the returned
+`session_id`, and then send it on every request via
+`X-Lexi-Session`. Make sure:
+
+- The edge proxy forwards `X-Lexi-Session` to the backend.
+- FastAPI’s CORS middleware allows the header (`allow_headers` must include `X-Lexi-Session`).
+- Any Cloudflare Workers or other intermediaries also echo CORS headers on error paths; otherwise a 502 can masquerade as a “CORS blocked” message in DevTools.
+- Optional user-id header: if `LEXI_USER_ID_ENABLED=1` is set, the frontend sends `X-Lexi-User` (email-or-name, unvalidated). Forward this header too so per-user persona/memory buckets work; when the flag is off the header is ignored.
 
 ---
 
@@ -92,7 +115,7 @@ Enable it only if you need tunnel-based access:
 docker compose --profile live up -d cloudflared
 ```
 
-Ensure `docker/cloudflared/config.yml` and the credentials JSON align with your tunnel ID.
+Mount `/mnt/data/Lex/cloudflared/config.yml` with your ingress settings and keep the Cloudflare credentials JSON under `/root/.cloudflared/` on the host.
 
 ---
 
@@ -101,6 +124,14 @@ Ensure `docker/cloudflared/config.yml` and the credentials JSON align with your 
 ```bash
 # Backend health through Traefik (API router strips /api prefix)
 curl -fsS https://lexicompanion.com/api/health
+
+# Avatar queue behaviour (should return queued/done quickly)
+curl -fsS https://lexicompanion.com/api/lexi/persona/avatar
+# If you see {"status":"queued","job_id":...}, poll the status endpoint:
+curl -fsS https://lexicompanion.com/api/lexi/persona/avatar/status/<job_id>
+
+# Avatar & static assets are served by the backend itself
+curl -I https://lexicompanion.com/lexi/static/avatars/default.png
 
 # Frontend root
 curl -I https://lexicompanion.com
@@ -127,6 +158,9 @@ docker compose logs -f cloudflared
 | ACME challenge failures                   | Verify Cloudflare record matches the chosen challenge (dns vs http).   |
 | Traefik still serving old config          | Restart Traefik or run `docker network disconnect edge <container>` then reconnect. |
 | Backend cannot reach Comfy/vLLM           | Confirm `COMFY_URL`/`OPENAI_API_BASE` endpoints from inside the container. |
+| Browser reports "CORS blocked" on `/lexi/process` | Usually an upstream 502. Check that ComfyUI (8188) and vLLM (8008) are reachable from inside the `lexi-backend` container and that `CORS_ORIGINS` includes the requesting origin. |
+| `/lexi/persona/avatar` takes >100s and Cloudflare shows 524 | The route now returns immediately; if you still see long waits verify your proxy isn’t buffering responses and that the frontend is polling `/lexi/persona/avatar/status/<job_id>`. |
+| Session header missing                    | Ensure your proxy forwards `X-Lexi-Session` and that `CORSMiddleware`’s `allow_headers` includes it. |
 
 ---
 

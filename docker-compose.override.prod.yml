@@ -1,0 +1,22 @@
+services:
+  lexi-backend:
+    env_file:
+      - .env.production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /var/lib/lex/models:/models:ro
+      - /var/log/lexi:/app/logs
+    environment:
+      BASE_MODELS_DIR: /models
+
+  lexi-frontend:
+    env_file:
+      - .env.production
+    environment:
+      LEX_API_BASE: https://api.lexicompanion.com/lexi
+      LEX_API_BASE_PUBLIC: https://api.lexicompanion.com/lexi
+
+  cloudflared:
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:?set CF_TUNNEL_TOKEN in your production secrets}

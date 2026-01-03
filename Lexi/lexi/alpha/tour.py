@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from typing import Dict, List
 
+from ..config.config import STARTER_AVATAR_PATH
+
 from .settings import AlphaSettings
 
 
-PLACEHOLDER_PREVIEW_URL = "/static/lexi/avatars/default.png"
+PLACEHOLDER_PREVIEW_URL = STARTER_AVATAR_PATH
 
 
 def tour_script() -> List[Dict[str, str]]:
@@ -57,4 +59,3 @@ def preview_placeholder_url(settings: AlphaSettings | None = None) -> str:
     """Return a stub preview URL respecting ALPHA_STRICT defaults."""
     _ = settings or AlphaSettings()
     return PLACEHOLDER_PREVIEW_URL
-

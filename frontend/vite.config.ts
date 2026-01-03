@@ -7,7 +7,7 @@ const backendPort = process.env.REACT_APP_BACKEND_PORT || '8000'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: parseInt(process.env.PORT || '3000'),
+    port: Number.parseInt(process.env.PORT || '3000', 10),
     proxy: {
       '/process': `http://localhost:${backendPort}`,
       '/models': `http://localhost:${backendPort}`,
@@ -18,4 +18,3 @@ export default defineConfig({
     }
   }
 })
-

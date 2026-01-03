@@ -1,0 +1,9 @@
+tunnel: f76f27e8-bca5-4839-ac3c-7203be99e006
+credentials-file: /etc/cloudflared/cred.json
+
+ingress:
+  - hostname: lexicompanion.com
+    service: http://lexi-frontend:80
+  - hostname: api.lexicompanion.com
+    service: http://lexi-backend:9000
+  - service: http_status:404

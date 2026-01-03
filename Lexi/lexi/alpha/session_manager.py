@@ -38,7 +38,9 @@ class SessionState:
     memory_path: Path
     summary_path: Path
     metrics_path: Path
-    counters: Dict[str, int] = field(default_factory=lambda: {"avatar_preview": 0, "avatar_upscale": 0})
+    counters: Dict[str, int] = field(
+        default_factory=lambda: {"avatar_preview": 0, "avatar_upscale": 0}
+    )
     now_topic: Optional[str] = None
     archived: bool = False
     message_count: int = 0
@@ -73,9 +75,12 @@ class SessionRegistry:
         user_id: Optional[str] = None,
         variant: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
+        session_id: Optional[str] = None,
     ) -> SessionState:
         with self._lock:
-            session_id = f"sess_{uuid.uuid4().hex[:12]}"
+            if session_id and session_id in self._sessions:
+                return self._sessions[session_id]
+            session_id = session_id or f"sess_{uuid.uuid4().hex[:12]}"
             today = _utc_now().date().isoformat()
             session_dir = self.sessions_root / today / session_id
             session_dir.mkdir(parents=True, exist_ok=True)
@@ -109,7 +114,9 @@ class SessionRegistry:
                 "tags": list(tags or []),
                 "alpha_strict": self._settings.alpha_strict,
             }
-            summary_path.write_text(json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8")
+            summary_path.write_text(
+                json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8"
+            )
             metrics_path.write_text(
                 json.dumps(
                     {
@@ -209,7 +216,9 @@ class SessionRegistry:
             doc = self._load_metrics(state)
             doc["counts"] = dict(state.counters)
             doc["updated_at"] = _iso()
-            state.metrics_path.write_text(json.dumps(doc, indent=2, sort_keys=True), encoding="utf-8")
+            state.metrics_path.write_text(
+                json.dumps(doc, indent=2, sort_keys=True), encoding="utf-8"
+            )
             return True
 
     # ------------------------------------------------------------------
@@ -265,4 +274,3 @@ class SessionRegistry:
     def _archive_destination(self, state: SessionState) -> Path:
         date_dir = state.created_at.date().isoformat()
         return self.archive_root / date_dir / state.session_id
-

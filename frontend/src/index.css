@@ -8,10 +8,40 @@
   }
 }
 
+:root {
+  --app-dvh: 100dvh;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --lexi-pink: #f6a5c0;
+  --lexi-pink-strong: #f9c2d6;
+  --lexi-text: #3a2a31;
+  --lexi-muted: #6f5560;
+  --lexi-card: #fff7fb;
+  --lexi-shadow: 0 18px 40px rgba(246, 165, 192, 0.28);
+  --lexi-radius: 22px;
+}
+
+@supports not (height: 100dvh) {
+  :root {
+    --app-dvh: 100vh;
+  }
+}
+
+.appShell {
+  min-height: 100vh;
+  min-height: var(--app-dvh);
+}
+
+.fixedBar {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
 /* Global animation keyframes (if not defined via Tailwind keyframes) */
 body {
   background: radial-gradient(ellipse at 60% 20%, #ffb3da 0%, #ff2fa0 55%, #1a001a 100%);
   min-height: 100vh;
+  min-height: var(--app-dvh);
 }
 
 /* Pink pulse animation */
@@ -31,5 +61,3 @@ body {
 .drop-shadow-glow {
   filter: drop-shadow(0 0 12px #ff2fa0);
 }
-
-

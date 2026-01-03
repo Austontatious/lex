@@ -1,0 +1,66 @@
+.with-avatar {
+  --avatar-w: 280px;
+  --gutter: 16px;
+}
+
+.chat-layout.with-avatar {
+  display: grid;
+  grid-template-columns: var(--avatar-w) 1fr;
+  column-gap: var(--gutter);
+  align-items: start;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+}
+
+.avatar-pane {
+  position: sticky;
+  top: 12px;
+  align-self: start;
+  z-index: 1;
+}
+
+.avatar-pane .avatar-card {
+  position: static !important;
+  max-width: var(--avatar-w);
+  width: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.chat-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+
+.chat-pane .chat-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.chat-pane .bubble {
+  max-width: 72ch;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 900px) {
+  .chat-layout.with-avatar {
+    grid-template-columns: 1fr;
+    row-gap: var(--gutter);
+  }
+
+  .avatar-pane {
+    position: static;
+    margin-bottom: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-layout.with-avatar {
+    align-items: stretch;
+  }
+}

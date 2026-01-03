@@ -4,27 +4,44 @@ from typing import Any, Dict, Optional
 from .sd_pipeline import generate_avatar_pipeline  # our Comfy-backed impl
 
 _PIPELINE_KEYS = {
-    "prompt", "negative",
-    "width", "height",
-    "steps", "cfg_scale",
+    "prompt",
+    "negative",
+    "width",
+    "height",
+    "steps",
+    "cfg_scale",
     "traits",
     "mode",
-    "source_path", "mask_path",
+    "source_path",
+    "mask_path",
     "changes",
     "seed",
-    "refiner", "refiner_strength",
+    "refiner",
+    "refiner_strength",
     "upscale_factor",
     # backend-specific knobs
-    "backend", "model",
-    "variant", "flux_variant",
-    "preset", "flux_preset",
-    "size", "flux_size",
-    "guidance", "flux_guidance",
-    "flux_cfg", "flux_steps", "flux_denoise", "flux_sampler", "flux_scheduler",
-    "sampler", "scheduler",
+    "backend",
+    "model",
+    "variant",
+    "flux_variant",
+    "preset",
+    "flux_preset",
+    "size",
+    "flux_size",
+    "guidance",
+    "flux_guidance",
+    "flux_cfg",
+    "flux_steps",
+    "flux_denoise",
+    "flux_sampler",
+    "flux_scheduler",
+    "sampler",
+    "scheduler",
     "denoise",
     "allow_feedback_loop",
+    "base_name",
 }
+
 
 def generate_avatar(
     prompt: str,
@@ -35,15 +52,16 @@ def generate_avatar(
     cfg_scale: float = 5.0,
     *,
     # NEW ↓ — allow real edits + continuity
-    mode: str = "txt2img",                # "txt2img" | "img2img"
-    source_path: Optional[str] = None,    # required for img2img
-    denoise: float = 0.35,                # ~0.25–0.45 to preserve identity
+    mode: str = "txt2img",  # "txt2img" | "img2img"
+    source_path: Optional[str] = None,  # required for img2img
+    denoise: float = 0.7,  # stronger img2img push to vary outfit/pose
     seed: Optional[int] = None,
-    changes: Optional[str] = None,        # small delta: "brown hair", "add skirt"
+    changes: Optional[str] = None,  # small delta: "brown hair", "add skirt"
     traits: Optional[Dict[str, Any]] = None,  # persona traits to keep continuity
     refiner: bool = True,
     refiner_strength: float = 0.28,
     upscale_factor: float = 1.0,
+    base_name: Optional[str] = None,
     **extra: Any,
 ) -> str:
     res: Dict[str, Any] = generate_avatar_pipeline(
@@ -59,14 +77,16 @@ def generate_avatar(
         seed=seed,
         changes=changes,
         traits=traits,
-        refiner=refiner if mode == "txt2img" else False,   # edits: base only
+        refiner=refiner if mode == "txt2img" else False,  # edits: base only
         refiner_strength=refiner_strength,
         upscale_factor=upscale_factor,
+        base_name=base_name,
         **extra,
     )
     if not res.get("ok"):
         raise RuntimeError(f"generate_avatar failed: {res.get('error', 'unknown error')}")
     return str(res["file"])
+
 
 def generate_avatar_meta(**kwargs) -> Dict[str, Any]:
     """

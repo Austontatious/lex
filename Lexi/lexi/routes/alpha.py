@@ -318,4 +318,3 @@ def tour_feedback(
         },
     )
     return JSONResponse({"ok": True})
-

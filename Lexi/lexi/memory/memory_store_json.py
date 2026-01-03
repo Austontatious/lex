@@ -1,4 +1,4 @@
-# Lexi/lexi/memory/memory_store_json.py
+"""Thread‑safe JSONL persistence backend for Lex's memory."""
 
 from __future__ import annotations
 import re
@@ -6,33 +6,17 @@ import json
 import threading
 from pathlib import Path
 from typing import List
-import os
-import logging
 
 from .memory_types import MemoryShard
 
 _LOCK = threading.Lock()
-logger = logging.getLogger("lexi.memory")  # ensure logger exists
+
 
 class MemoryStoreJSON:
     def __init__(self, filepath: Path, max_entries: int = 1000) -> None:
-
         self.filepath = Path(filepath)
-        parent = self.filepath.parent
-        try:
-            parent.mkdir(parents=True, exist_ok=True)
-        except PermissionError:
-            # Fall back to a writable base dir if original target is not writable.
-            base = Path(os.getenv("LEX_DATA_DIR", "/mnt/data/Lexi_data")) / "memory"
-            base.mkdir(parents=True, exist_ok=True)
-            # Keep the same filename, rebase the directory.
-            self.filepath = base / self.filepath.name
-            logger.warning(
-                "Memory path %s not writable; falling back to %s",
-                str(parent), str(self.filepath)
-            )
+        self.filepath.parent.mkdir(parents=True, exist_ok=True)
         self.max_entries = max_entries
-
 
     # ---------------- Public API ---------------- #
 
@@ -66,21 +50,23 @@ class MemoryStoreJSON:
                 if not line:
                     continue  # skip blank
                 # Fast path: malformed lines often start with '{' missing closing '}' – skip early if clearly broken
-                if not line.startswith('{') or line.count('{') != line.count('}'):
-                    logger.warning("[Lexi] Skipping structurally bad memory line: %r", line[:120])
+                if not line.startswith("{") or line.count("{") != line.count("}"):
+                    logger.warning("[Lex] Skipping structurally bad memory line: %r", line[:120])
                     continue
                 try:
                     obj = json.loads(line)
                 except Exception as e:
-                    logger.warning("[Lexi] Skipping bad memory line (%s): %r", e, line[:120])
+                    logger.warning("[Lex] Skipping bad memory line (%s): %r", e, line[:120])
                     continue
                 if not isinstance(obj, dict):
-                    logger.warning("[Lexi] Non-dict JSON in memory file skipped: %r", type(obj).__name__)
+                    logger.warning(
+                        "[Lex] Non-dict JSON in memory file skipped: %r", type(obj).__name__
+                    )
                     continue
                 try:
                     shard = MemoryShard.from_json(obj)
                 except Exception as e:
-                    logger.warning("[Lexi] Could not materialize MemoryShard: %s | data=%r", e, obj)
+                    logger.warning("[Lex] Could not materialize MemoryShard: %s | data=%r", e, obj)
                     continue
                 # Basic validation
                 if not shard.content or len(shard.content.strip()) < 2:
@@ -95,7 +81,6 @@ class MemoryStoreJSON:
 
         # Keep only the last max_entries
         if self.max_entries and len(shards) > self.max_entries:
-            shards = shards[-self.max_entries:]
+            shards = shards[-self.max_entries :]
 
         return shards
-

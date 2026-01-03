@@ -1,27 +1,84 @@
-.PHONY: build dev live logs down ps
+SHELL := /bin/bash
+PY := python3
+VENV := venv
 
-build:
-	docker compose build --no-cache
+.PHONY: init lint fix typecheck test smoke smoke-versions smoke-flux dev prod prod-comfy up down comfy local-up local-down ps logs sh backcurl help
+
+help:
+	@echo "Targets:"
+	@echo "  init        - create venv and install ruff/black/mypy/pytest"
+	@echo "  fix         - ruff --fix + black on backend"
+	@echo "  typecheck   - mypy backend (non-fatal)"
+	@echo "  test        - pytest -q"
+	@echo "  dev         - docker compose up (dev env)"
+	@echo "  prod        - docker compose up with prod override"
+	@echo "  prod-comfy  - alias for prod (Comfy enabled in base compose)"
+	@echo "  down        - docker compose down"
+	@echo "  comfy       - docker compose up -d comfy-sd"
+	@echo "  ps          - docker compose ps"
+	@echo "  logs        - docker compose logs -f --tail=200"
+	@echo "  sh          - shell into the backend container"
+	@echo "  backcurl    - curl \$${COMFY_URL}/api/version from inside backend"
+	@echo "  smoke       - docker network curl checks"
+	@echo "  smoke-versions - assert pinned package versions align with constraints"
+	@echo "  local-up    - docker compose --profile local up -d lexi-backend-devlocal"
+	@echo "  local-down  - docker compose --profile local down"
+
+init:
+	$(PY) -m venv $(VENV); . $(VENV)/bin/activate; $(PY) -m pip install -U pip ruff black mypy pytest
+
+lint:
+	. $(VENV)/bin/activate; ruff check backend
+
+fix:
+	. $(VENV)/bin/activate; ruff check --fix backend && black backend
+
+typecheck:
+	. $(VENV)/bin/activate; mypy backend || true
+
+test:
+	. $(VENV)/bin/activate; pytest -q
+
+smoke:
+	docker run --rm --network lex_default curlimages/curl:8.10.1 -sS http://lexi-frontend:80 | head -c 120; echo
+	docker run --rm --network lex_default curlimages/curl:8.10.1 -sS http://lexi-backend:8000/openapi.json | head -c 120; echo
+
+smoke-versions:
+	PYTHONPATH=backend $(PY) -c "import runpy; runpy.run_path('backend/smoke_versions.py')"
+
+smoke-flux:
+	@scripts/smoke_flux.sh
 
 dev:
-	cp .env .env.dev || true
-	docker compose --profile dev up -d
-	@echo "Backend: http://localhost:$${API_PORT:-9000}/lex/health"
-	@echo "Frontend: http://localhost:$${FRONTEND_PORT:-3000}"
+	docker compose up -d --build
 
-live:
-	test -f .env || (echo ".env missing. Copy .env.example and set runtime values"; exit 1)
-	docker network create edge >/dev/null 2>&1 || true
-	docker compose --profile live up -d lexi-backend lexi-frontend
-	@echo "Live backend: https://lexicompanion.com/api/health"
-	@echo "Live frontend: https://lexicompanion.com/"
-	@echo "Traefik must already be connected to the 'edge' network."
+prod:
+	docker compose -f docker-compose.yml -f docker-compose.override.prod.yml up -d --build
 
-logs:
-	docker compose logs -f --tail=200
+prod-comfy: prod
+
+up: dev
+
+local-up:
+	docker compose --profile local up -d lexi-backend-devlocal
+
+down:
+	docker compose down
+
+comfy:
+	docker compose up -d comfy-sd
 
 ps:
 	docker compose ps
 
-down:
-	docker compose down
+logs:
+	docker compose logs -f --tail=200
+
+sh:
+	docker compose exec lexi-backend sh
+
+backcurl:
+	docker compose exec lexi-backend sh -lc 'curl -sS $${COMFY_URL}/api/version || true'
+
+local-down:
+	docker compose --profile local down

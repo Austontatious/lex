@@ -29,15 +29,42 @@ def _ensure_tokenizer() -> "CLIPTokenizer":
                 _tokenizer = tokenizer_cls.from_pretrained("openai/clip-vit-large-patch14")
     return _tokenizer
 
+
 # ---------------------------------------------------------------------------
 # Stopwords to reduce visual noise in long prompts
 # ---------------------------------------------------------------------------
-VISUAL_STOPWORDS: frozenset[str] = frozenset({
-    "dslr", "photorealistic", "high detail", "cinematic", "35mm", "bokeh", "shallow depth of field",
-    "natural lighting", "ultra-realistic", "photo", "realistic skin", "film grain", "editorial",
-    "balanced tones", "vibrant color", "soft lighting", "studio", "full-length", "clarity",
-    "focus", "magazine", "lighting", "background", "shot", "image", "pose", "portrait", "composition"
-})
+VISUAL_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "dslr",
+        "photorealistic",
+        "high detail",
+        "cinematic",
+        "35mm",
+        "bokeh",
+        "shallow depth of field",
+        "natural lighting",
+        "ultra-realistic",
+        "photo",
+        "realistic skin",
+        "film grain",
+        "editorial",
+        "balanced tones",
+        "vibrant color",
+        "soft lighting",
+        "studio",
+        "full-length",
+        "clarity",
+        "focus",
+        "magazine",
+        "lighting",
+        "background",
+        "shot",
+        "image",
+        "pose",
+        "portrait",
+        "composition",
+    }
+)
 STOPWORDS_PATTERN: re.Pattern = re.compile(
     r"\b(" + "|".join(map(re.escape, VISUAL_STOPWORDS)) + r")\b"
 )
@@ -62,12 +89,13 @@ INSTAGRAM_TAGS: str = (
 # Token processing
 # ---------------------------------------------------------------------------
 
+
 def tokenize_prompt(prompt: str) -> List[str]:
     """
     Split a comma-delimited prompt string into individual tokens.
     """
     return [token.strip() for token in prompt.split(",") if token.strip()]
-    
+
 
 def truncate_prompt(text: str, max_tokens: int = 77) -> str:
     """
@@ -100,10 +128,7 @@ def deduplicate(tokens: List[str], aggressive: bool = True) -> List[str]:
 
 
 def sift_prompt(
-    prompt: str,
-    token_limit: int = 75,
-    aggressive: bool = True,
-    log_trim: bool = False
+    prompt: str, token_limit: int = 75, aggressive: bool = True, log_trim: bool = False
 ) -> str:
     """
     Process, deduplicate, and limit tokens in a text prompt.
@@ -119,6 +144,7 @@ def sift_prompt(
 
     return ", ".join(tokens)
 
+
 # ---------------------------------------------------------------------------
 # Appearance trait extraction for dynamic prompts
 # ---------------------------------------------------------------------------
@@ -129,12 +155,8 @@ HAIR_COLORS = (
 HAIR_LENGTH = r"long|shoulder-length|short|bob|pixie|waist-length|chin-length"
 EYE_COLORS = r"green|blue|brown|hazel|amber|grey|gray|violet"
 
-HAIR_RE: re.Pattern = re.compile(
-    fr"\b(({HAIR_LENGTH})\s+)?({HAIR_COLORS})\s+hair\b", re.IGNORECASE
-)
-EYES_RE: re.Pattern = re.compile(
-    fr"\b({EYE_COLORS})\s+eyes?\b", re.IGNORECASE
-)
+HAIR_RE: re.Pattern = re.compile(rf"\b(({HAIR_LENGTH})\s+)?({HAIR_COLORS})\s+hair\b", re.IGNORECASE)
+EYES_RE: re.Pattern = re.compile(rf"\b({EYE_COLORS})\s+eyes?\b", re.IGNORECASE)
 LIPS_RE: re.Pattern = re.compile(r"\bred\s+lipstick\b", re.IGNORECASE)
 OUTFIT_RE: re.Pattern = re.compile(r"\b(short|mini|micro)\s+skirt\b", re.IGNORECASE)
 SHOES_RE: re.Pattern = re.compile(r"\b(stiletto|high)\s+heels?\b", re.IGNORECASE)
@@ -144,32 +166,35 @@ def extract_categories(appearance_request: str) -> Dict[str, str]:
     """
     Extract appearance traits (hair, eyes, lips, outfit, shoes) from the text.
     """
-    categories: Dict[str, str] = {key: "" for key in ("hair", "eyes", "lips", "outfit", "shoes")}
+    categories: Dict[str, str] = dict.fromkeys(
+        ("hair", "eyes", "lips", "outfit", "shoes"), ""
+    )
 
     def _clean(text: str) -> str:
         return re.sub(r"\s+", " ", text.strip())
 
-    if (m := HAIR_RE.search(appearance_request)):
+    if m := HAIR_RE.search(appearance_request):
         categories["hair"] = _clean(" ".join(filter(None, m.groups()))) + " hair"
 
-    if (m := EYES_RE.search(appearance_request)):
+    if m := EYES_RE.search(appearance_request):
         categories["eyes"] = _clean(m.group(0))
 
     if LIPS_RE.search(appearance_request):
         categories["lips"] = "red lipstick"
 
-    if (m := OUTFIT_RE.search(appearance_request)):
+    if m := OUTFIT_RE.search(appearance_request):
         categories["outfit"] = _clean(m.group(0))
 
-    if (m := SHOES_RE.search(appearance_request)):
+    if m := SHOES_RE.search(appearance_request):
         categories["shoes"] = _clean(m.group(0))
 
     return categories
 
+
 # Optional LLM backfill stub
 try:
     from lexi.persona import lexi_persona  # type: ignore
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     lexi_persona = None  # type: Optional[Any]
 
 
@@ -196,10 +221,7 @@ def llm_fill(appearance_request: str, cats: Dict[str, str]) -> None:
             cats[field] = val
 
 
-def build_sd_prompt(
-    traits: Dict[str, str],
-    token_limit: int = 75
-) -> Dict[str, Any]:
+def build_sd_prompt(traits: Dict[str, str], token_limit: int = 75) -> Dict[str, Any]:
     """
     Build an SD prompt dict with positive, negative, and category data.
     """
@@ -241,6 +263,7 @@ def build_sd_prompt(
         "negative": NEGATIVE_MASTER,
         "categories": categories,
     }
+
 
 __all__ = [
     "truncate_prompt",

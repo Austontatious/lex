@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  lexi-backend:
+    environment:
+      PYTHONPATH: /app/backend:/app
+      LEX_COMFY_URL: http://comfy-sd:8188
+      LEX_USE_COMFY_ONLY: "1"
+      COMFY_URL: http://comfy-sd:8188
+      IMAGE_API_BASE: http://comfy-sd:8188
+      LEXI_STATIC_DIR: /app/frontend/public
+      LEX_AVATAR_DIR: /app/frontend/public/avatars
+      LEX_IMAGE_DIR: /app/frontend/public/avatars
+      AVATARS_PUBLIC_DIR: /app/frontend/public/avatars
+      AVATARS_STATIC_DIR: /app/frontend/public/avatars
+      AVATARS_PUBLIC_URL: /lexi/static/avatars
+      LEX_PUBLIC_BASE: https://api.lexicompanion.com
+      LEXI_USER_ID_ENABLED: "1"
+      LEXI_USER_DATA_ENABLED: "1"
+      LEXI_VECTOR_ENABLED: "1"
+      LEXI_VECTOR_CHROMA_PATH: /data/vector_store
+      LEXI_VECTOR_COLLECTION: lex_memory
+      LEXI_IDENTITY_DB_PATH: /data/identity/identity.db
+      LEXI_MEMORY_ROOT: /data/memory
+    volumes:
+      - /mnt/data/models:/mnt/data/models:ro
+      - /mnt/data/comfy:/mnt/data/comfy:ro
+      - /mnt/data/Lex/docker/comfy/workflows:/app/docker/comfy/workflows:ro
+      - /mnt/data/avatars:/app/frontend/public/avatars:rw
+      - /mnt/data/Lex/data:/data:rw
+      - /mnt/data/Lex/logs:/app/logs:rw
+      - lex_hf_cache:/data/hf_cache:rw
+      - /mnt/data/Lex/overrides/backend_routes/lexi_persona.py:/app/backend/lexi/routes/lexi_persona.py:ro
+      - /mnt/data/Lex/overrides/backend_routes/account.py:/app/backend/lexi/routes/account.py:ro
+      - /mnt/data/Lex/overrides/backend_routes/onboarding.py:/app/backend/lexi/routes/onboarding.py:ro
+
+  lexi-frontend:
+    environment:
+      LEX_API_BASE: https://api.lexicompanion.com/lexi
+      LEX_API_BASE_PUBLIC: https://api.lexicompanion.com/lexi
+      API_BASE: https://api.lexicompanion.com/lexi
+      LEXI_USER_ID_ENABLED: "1"
+
+volumes:
+  lex_hf_cache:

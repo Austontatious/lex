@@ -1,0 +1,358 @@
+.tour-root {
+  min-height: var(--app-dvh, 100vh);
+  padding: calc(var(--safe-top, 0px) + 32px) 20px calc(var(--safe-bottom, 0px) + 32px);
+  display: flex;
+  justify-content: center;
+  background: radial-gradient(circle at top, #fff0f7 0%, #ffffff 60%, #fff8fb 100%);
+  color: rgba(30, 20, 25, 0.88);
+  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+}
+
+.tour-shell {
+  width: min(720px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card-deck {
+  width: 100%;
+  height: 100%;
+  padding-bottom: 12px;
+}
+
+.card-stack {
+  position: relative;
+  height: min(620px, calc(var(--app-dvh, 100vh) - 160px));
+}
+
+.card {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.card--active {
+  opacity: 1;
+  transform: translateX(0);
+  z-index: 3;
+  pointer-events: auto;
+}
+
+.card--prev {
+  opacity: 0.55;
+  transform: translateX(-12px) scale(0.98);
+  z-index: 2;
+}
+
+.card--next {
+  opacity: 0.55;
+  transform: translateX(12px) scale(0.98);
+  z-index: 2;
+}
+
+.card-shell {
+  height: 100%;
+  background: var(--lexi-card);
+  border: 1px solid rgba(246, 165, 192, 0.28);
+  border-radius: var(--lexi-radius);
+  box-shadow: var(--lexi-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 18px 10px;
+  border-bottom: 1px solid rgba(246, 165, 192, 0.22);
+  gap: 12px;
+}
+
+.card-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-progress {
+  font-size: 12px;
+  color: rgba(46, 32, 38, 0.65);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.card-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(246, 165, 192, 0.45);
+  background: transparent;
+}
+
+.card-dot.is-active {
+  background: var(--lexi-pink);
+  border-color: var(--lexi-pink);
+  box-shadow: 0 0 0 4px rgba(246, 165, 192, 0.15);
+}
+
+.card-eyebrow {
+  font-size: 14px;
+  color: rgba(46, 32, 38, 0.65);
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.card-title {
+  margin: 8px 0 0;
+  font-size: 32px;
+  font-family: "Baskerville", "Palatino Linotype", "Palatino", serif;
+  font-weight: 700;
+}
+
+.card-action {
+  align-self: flex-start;
+}
+
+.card-body {
+  flex: 1;
+  padding: 16px 18px 18px;
+  overflow-y: auto;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px calc(14px + var(--safe-bottom, 0px));
+  border-top: 1px solid rgba(246, 165, 192, 0.22);
+  background: rgba(255, 247, 251, 0.96);
+}
+
+.btn {
+  min-height: 52px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn.primary {
+  background: var(--lexi-pink);
+  color: #2e1c25;
+  box-shadow: var(--lexi-shadow);
+}
+
+.btn.primary:hover {
+  background: var(--lexi-pink-strong);
+  transform: translateY(-1px);
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: rgba(246, 165, 192, 0.5);
+  color: rgba(30, 20, 25, 0.88);
+}
+
+.btn.small {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn:focus-visible {
+  outline: 3px solid rgba(246, 165, 192, 0.55);
+  outline-offset: 2px;
+}
+
+.tour-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 18px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.tour-card-copy p {
+  margin: 0;
+}
+
+.tour-muted {
+  color: rgba(46, 32, 38, 0.65);
+  font-weight: 500;
+}
+
+.tour-bubble-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tour-bubble {
+  border-radius: 16px;
+  padding: 12px 16px;
+  border: 1px solid rgba(246, 165, 192, 0.28);
+  background: #ffffff;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.tour-bubble--prompt {
+  background: rgba(246, 165, 192, 0.18);
+  color: #3a2a31;
+}
+
+.tour-bubble--reply {
+  background: #ffffff;
+  border-color: rgba(246, 165, 192, 0.38);
+  box-shadow: 0 12px 26px rgba(246, 165, 192, 0.2);
+}
+
+.tour-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.tour-link {
+  background: transparent;
+  border: none;
+  color: var(--lexi-pink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tour-link:focus-visible {
+  outline: 2px solid rgba(246, 165, 192, 0.55);
+  outline-offset: 2px;
+}
+
+.tour-cta-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.tour-cta-grid .btn {
+  width: 100%;
+}
+
+.tour-legal {
+  min-height: var(--app-dvh, 100vh);
+  padding: calc(var(--safe-top, 0px) + 32px) 20px calc(var(--safe-bottom, 0px) + 32px);
+  display: flex;
+  justify-content: center;
+  background: radial-gradient(circle at top, #fff0f7 0%, #ffffff 60%, #fff8fb 100%);
+  color: var(--lexi-text);
+  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+}
+
+.tour-legal-card {
+  width: min(680px, 100%);
+  background: var(--lexi-card);
+  border-radius: var(--lexi-radius);
+  border: 1px solid rgba(246, 165, 192, 0.25);
+  box-shadow: var(--lexi-shadow);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tour-legal-title {
+  margin: 0;
+  font-family: "Baskerville", "Palatino Linotype", "Palatino", serif;
+  font-size: 28px;
+}
+
+.tour-legal-summary {
+  margin: 0;
+  font-size: 16px;
+  color: var(--lexi-muted);
+}
+
+.tour-legal-details {
+  border: 1px solid rgba(246, 165, 192, 0.25);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #ffffff;
+  font-size: 14px;
+  line-height: 1.5;
+  max-height: 280px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.tour-legal-toggle {
+  background: transparent;
+  border: none;
+  color: var(--lexi-pink);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.tour-legal-toggle:focus-visible {
+  outline: 2px solid rgba(246, 165, 192, 0.55);
+  outline-offset: 2px;
+}
+
+.tour-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--lexi-text);
+}
+
+.tour-legal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.tour-legal-actions .btn {
+  flex: 1 1 180px;
+}
+
+@media (min-width: 768px) {
+  .tour-root {
+    padding: calc(var(--safe-top, 0px) + 40px) 40px calc(var(--safe-bottom, 0px) + 40px);
+  }
+
+  .card-title {
+    font-size: 36px;
+  }
+
+  .card-stack {
+    height: min(640px, calc(var(--app-dvh, 100vh) - 180px));
+  }
+}

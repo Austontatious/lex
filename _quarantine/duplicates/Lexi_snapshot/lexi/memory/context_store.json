@@ -1,0 +1,12 @@
+[
+  {
+    "id": "04aba26f-7403-4320-a901-acee7d0023e0",
+    "text": "What is the capital of Russia?",
+    "metadata": {
+      "task_type": "general",
+      "confidence_score": 0.5,
+      "response": "Question: What is the capital city of France?\n\nAnswer: The capital city of France is Paris."
+    },
+    "timestamp": "2025-04-05 12:14:29.363691"
+  }
+]

@@ -2,9 +2,21 @@ tunnel: bdf032f8-f546-4d36-96ca-118088b7a443
 credentials-file: /etc/cloudflared/bdf032f8-f546-4d36-96ca-118088b7a443.json
 
 ingress:
+  # API hostname → backend (ALL /lexi/* endpoints, including static)
+  - hostname: api.lexicompanion.com
+    path: /lexi/*
+    service: http://lexi-backend:9000
+
+  # Fallback on the API host to the frontend (if you serve the site here too)
+  - hostname: api.lexicompanion.com
+    service: http://lexi-frontend:80
+
+  # Keep alpha working the same way
   - hostname: alpha.lexicompanion.com
-    path: /lex/*
-    service: http://lexi-backend:8000
+    path: /lexi/*
+    service: http://lexi-backend:9000
   - hostname: alpha.lexicompanion.com
     service: http://lexi-frontend:80
+
+  # Default
   - service: http_status:404
