@@ -28,6 +28,7 @@ DEFAULT_AVATAR_MEDIA_DIR = Path(
 ).expanduser()
 
 logger = logging.getLogger("lexi.session")
+_session_tasks: set[asyncio.Task] = set()
 
 VisitMeta = Dict[str, object]
 
@@ -101,7 +102,9 @@ async def session_middleware(
                 logger.warning("Default avatar bootstrap failed: %s", exc)
 
         try:
-            asyncio.create_task(_kickoff_default_avatar())
+            task = asyncio.create_task(_kickoff_default_avatar())
+            _session_tasks.add(task)
+            task.add_done_callback(_session_tasks.discard)
             default_avatar_info = {"queued": True}
         except Exception:
             logger.debug("Default avatar kickoff failed", exc_info=True)

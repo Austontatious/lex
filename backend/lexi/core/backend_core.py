@@ -6,7 +6,7 @@ import logging
 import os
 from pathlib import Path
 
-import requests
+import httpx
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -253,7 +253,9 @@ async def _warmup_flux_backend():
         log.info("Flux warmup skipped via LEXI_SKIP_FLUX_WARMUP")
         return
     try:
-        requests.get(f"{COMFY_URL}/system_stats", timeout=5)
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(f"{COMFY_URL}/system_stats")
+            resp.raise_for_status()
     except Exception as exc:
         log.warning("Flux warmup system stats request failed: %s", exc)
     try:

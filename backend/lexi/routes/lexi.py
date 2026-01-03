@@ -22,7 +22,7 @@ from uuid import uuid4
 import requests
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
 
 from ..sd.sd_pipeline import generate_avatar_pipeline
 from ..utils.prompt_sifter import build_sd_prompt, extract_categories
@@ -58,6 +58,7 @@ from ..prompts.tour_mode import TOUR_MODE_SHIM
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Lexi Core"])
+_background_tasks: set[asyncio.Task] = set()
 
 USE_COMFY_ONLY = os.getenv("LEX_USE_COMFY_ONLY", "0") == "1"
 
@@ -249,7 +250,7 @@ class TourPromptRequest(BaseModel):
 
 
 class IntentRequest(BaseModel):
-    text: str
+    text: constr(max_length=4096)
 
 
 class AvatarGenRequest(BaseModel):
@@ -920,7 +921,9 @@ async def process(req: ChatRequest, request: Request):
             finally:
                 loop.call_soon_threadsafe(queue.put_nowait, None)
 
-        asyncio.create_task(run_chat())
+        task = asyncio.create_task(run_chat())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
 
         async def event_stream() -> AsyncIterator[str]:
             while True:

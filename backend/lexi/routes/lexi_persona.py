@@ -73,6 +73,7 @@ AVATAR_JOB_TTL = int(os.getenv("LEXI_AVATAR_JOB_TTL", "600"))
 _AVATAR_JOBS: Dict[str, Dict[str, Any]] = {}
 _IP_JOB_INDEX: Dict[str, str] = {}
 _AVATAR_JOB_LOCK = asyncio.Lock()
+_AVATAR_TASKS: set[asyncio.Task] = set()
 
 
 def _external_base(request: Request) -> str:
@@ -520,7 +521,9 @@ async def persona_avatar(request: Request) -> Dict[str, Any]:
         }
         _IP_JOB_INDEX[ip] = job_id
 
-    asyncio.create_task(_run_avatar_job(job_id, ip))
+    task = asyncio.create_task(_run_avatar_job(job_id, ip))
+    _AVATAR_TASKS.add(task)
+    task.add_done_callback(_AVATAR_TASKS.discard)
     return {"status": "queued", "job_id": job_id}
 
 

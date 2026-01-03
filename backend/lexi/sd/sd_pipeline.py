@@ -1875,8 +1875,11 @@ def generate_avatar_pipeline(
                 f"Flux pipeline only supports backend='flux' (got '{requested_backend}')"
             )
 
+        requested_mode = mode
         # Hard-disable img2img for now: force txt2img workflow for all avatar renders.
         mode = "txt2img"
+        if requested_mode != mode:
+            log.debug("Flux pipeline forcing mode %s -> %s", requested_mode, mode)
 
         if kwargs.get("flux_cfg") is not None:
             try:

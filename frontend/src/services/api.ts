@@ -159,7 +159,7 @@ export interface PersonaState {
 }
 
 export interface IntentResult {
-  intent: "avatar_flow" | "avatar_edit" | "new_look" | "describe_avatar" | "chat" | (string & {});
+  intent: "avatar_flow" | "avatar_edit" | "new_look" | "describe_avatar" | "chat" | string;
 }
 
 export interface TraitResponse {

@@ -56,6 +56,17 @@ DEFAULT_NEGATIVE_PROMPT = (
 )
 
 
+def is_secure_request(request: Request) -> bool:
+    if request.url.scheme == "https":
+        return True
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    if forwarded_proto:
+        if forwarded_proto.split(",")[0].strip().lower() == "https":
+            return True
+    forwarded_ssl = request.headers.get("x-forwarded-ssl", "")
+    return forwarded_ssl.strip().lower() == "on"
+
+
 def _ensure_default_symlink() -> None:
     """Backstop default avatar + symlink for first paint."""
     try:
@@ -276,6 +287,7 @@ async def gen_avatar(
         active_session,
         httponly=True,
         samesite="lax",
+        secure=is_secure_request(request),
         max_age=SESSION_COOKIE_MAX_AGE,
     )
     logger.info(
@@ -298,6 +310,7 @@ async def gen_avatar(
             active_session,
             httponly=True,
             samesite="lax",
+            secure=is_secure_request(request),
             max_age=SESSION_COOKIE_MAX_AGE,
         )
         return resp

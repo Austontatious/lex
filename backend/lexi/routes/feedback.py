@@ -17,6 +17,26 @@ log = logging.getLogger("lexi.routes.feedback")
 _DEFAULT_DIR = Path("/mnt/data/lexi_feedback")
 
 
+def _is_private_dir(path: Path) -> bool:
+    try:
+        st = path.stat()
+    except OSError:
+        return False
+    if not path.is_dir():
+        return False
+    if st.st_uid != os.geteuid():
+        return False
+    return (st.st_mode & 0o077) == 0
+
+
+def _open_feedback_file(path: Path):
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
+    return os.fdopen(fd, "w", encoding="utf-8")
+
+
 def _prepare_feedback_dir() -> Path:
     """
     Pick or create the directory that will store JSON feedback files.
@@ -26,12 +46,20 @@ def _prepare_feedback_dir() -> Path:
     if env_value:
         candidates.append(Path(env_value).expanduser())
     candidates.append(_DEFAULT_DIR)
-    candidates.append(Path("/tmp/lexi_feedback"))
 
     for candidate in candidates:
         try:
-            candidate.mkdir(parents=True, exist_ok=True)
-            return candidate
+            if candidate.exists() and candidate.is_symlink():
+                log.error("Refusing to use symlinked feedback directory: %s", candidate)
+                continue
+            candidate.mkdir(parents=True, exist_ok=True, mode=0o700)
+            try:
+                os.chmod(candidate, 0o700)
+            except PermissionError:
+                pass
+            if _is_private_dir(candidate):
+                return candidate
+            log.error("Feedback directory is not private (mode/owner): %s", candidate)
         except OSError as exc:  # pragma: no cover - defensive logging
             log.error("Failed to prepare feedback directory %s: %s", candidate, exc)
 
@@ -61,22 +89,29 @@ async def save_feedback(payload: FeedbackIn, request: Request):
         client_ip = None
 
     timestamp = datetime.now(timezone.utc).isoformat()
-    record = {
-        "id": uuid4().hex,
-        "timestamp": timestamp,
-        "message": message,
-        "email": payload.email,
-        "client_ip": client_ip,
-    }
-
     safe_ts = timestamp.replace(":", "-")
-    path = FEEDBACK_DIR / f"{safe_ts}_{record['id']}.json"
+    last_exc: OSError | None = None
+    for _ in range(3):
+        record_id = uuid4().hex
+        path = FEEDBACK_DIR / f"{safe_ts}_{record_id}.json"
+        record = {
+            "id": record_id,
+            "timestamp": timestamp,
+            "message": message,
+            "email": payload.email,
+            "client_ip": client_ip,
+        }
+        try:
+            with _open_feedback_file(path) as fp:
+                json.dump(record, fp, ensure_ascii=False, indent=2)
+            return {"status": "ok", "id": record_id}
+        except FileExistsError:
+            continue
+        except OSError as exc:
+            last_exc = exc
+            break
 
-    try:
-        with path.open("w", encoding="utf-8") as fp:
-            json.dump(record, fp, ensure_ascii=False, indent=2)
-    except OSError as exc:
-        log.error("Could not persist feedback at %s: %s", path, exc)
-        raise HTTPException(status_code=500, detail="Failed to save feedback") from exc
-
-    return {"status": "ok", "id": record["id"]}
+    if last_exc is None:
+        last_exc = FileExistsError("Feedback file already exists")
+    log.error("Could not persist feedback at %s: %s", path, last_exc)
+    raise HTTPException(status_code=500, detail="Failed to save feedback") from last_exc

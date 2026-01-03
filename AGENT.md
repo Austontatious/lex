@@ -1,5 +1,34 @@
 AGENT.md — Lexi Project Agent Operating Rules
 
+## Git Safety Rules (Hard Constraint)
+
+### 🚨 Repository Authority Rule
+
+The local working tree is the source of truth.
+
+The agent is allowed to:
+- `git status`
+- `git diff`
+- `git add`
+- `git commit`
+- `git push`
+
+The agent is NOT allowed to:
+- `git pull`
+- `git fetch`
+- `git rebase`
+- `git merge`
+- `git checkout` (branch switching)
+- reset, rewrite, or reconcile history
+
+These operations MUST NOT be performed unless the user explicitly and clearly instructs the agent to do so in the current session.
+
+If the agent believes a pull, rebase, or merge is necessary, it must STOP and ask for permission before proceeding.
+
+Violation of this rule risks data loss and is considered a critical failure.
+
+Even when Git operations are allowed, git push (and any remote network action) MUST only occur with explicit user instruction in the current session.
+
 This repository contains Lexi, a complex, multi-subsystem AI product.
 Automated agents (Codex, Cursor agents, SWE agents, CI bots, eval agents)
 must follow these rules strictly.
@@ -178,50 +207,6 @@ pytest
 
 
 Never claim verification that was not performed.
-
-8) Git Safety Rules (Hard Constraint)
-🚨 Repository Authority Rule
-
-The local working tree is the source of truth.
-
-The agent is allowed to:
-
-git status
-
-git diff
-
-git add
-
-git commit
-
-git push
-
-The agent is NOT allowed to:
-
-git pull
-
-git fetch
-
-git rebase
-
-git merge
-
-git checkout (branch switching)
-
-reset, rewrite, or reconcile history
-
-These operations MUST NOT be performed unless the user explicitly and clearly
-instructs the agent to do so in the current session.
-
-If the agent believes a pull, rebase, or merge is necessary, it must:
-
-STOP
-
-Explain why
-
-Ask for permission before proceeding
-
-Violation of this rule risks data loss and is considered a critical failure.
 
 9) Priority Order
 
